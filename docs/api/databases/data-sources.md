@@ -2,546 +2,732 @@
 
 ## Overview
 
-**Data Sources** are the components within databases that define the schema (properties) and contain pages (rows). Introduced in September 2025, data sources separate the database container from its data schemas.
+**Data Sources** are the individual tables of data that live under a Notion database. Pages are the items (or children) in a data source. Page property values must conform to the property objects laid out in the parent data source object.
 
-## Key Concepts
-
-### Database vs Data Source
+### Data Model (Post-September 2025)
 
 ```
-Database (container)
-├── Metadata (title, icon, parent)
+Database (parent)
 └── Data Sources (1 or more)
     ├── Data Source 1
-    │   ├── Schema (properties)
-    │   └── Pages (rows with those properties)
+    │   ├── Properties (schema/columns)
+    │   └── Pages (rows)
     └── Data Source 2
-        ├── Schema (different properties)
-        └── Pages (rows with different properties)
+        ├── Properties (different schema)
+        └── Pages (different rows)
 ```
 
-**Analogy:**
-- **Database** = A spreadsheet file (can have multiple sheets)
-- **Data Source** = A single sheet with its own columns and rows
-
-### Why Multiple Data Sources?
-
-Use cases for multiple data sources in one database:
-
-1. **Different page types** - Tasks with different property sets
-2. **Independent schemas** - Unrelated data in same location
-3. **Data segregation** - Separate sets of pages with different needs
-4. **Migration scenarios** - Gradual schema changes
+Previously, databases could only have one data source, so the concepts were combined in the API until 2025.
 
 ## Data Source Object
 
-### Full Data Source Structure
+### Object Fields
+
+| Field | Type | Capability | Description | Example |
+|-------|------|------------|-------------|---------|
+| `object`* | string | None | Always `"data_source"` | `"data_source"` |
+| `id`* | string (UUID) | None | Unique identifier | `"2f26ee68-..."` |
+| `properties`* | object | None | Schema of properties (rendered as columns) | `{/* properties */}` |
+| `parent` | object | Read content | Parent database reference | `{ "type": "database_id", ...}` |
+| `database_parent` | object | Read content | Database's parent (data source's grandparent) | `{ "type": "page_id", ...}` |
+| `created_time` | string (ISO 8601) | Read content | Creation timestamp | `"2020-03-17T19:10:04.968Z"` |
+| `created_by` | PartialUser | Read content | User who created | `{ "object": "user", "id": "..."}` |
+| `last_edited_time` | string (ISO 8601) | Read content | Last update timestamp | `"2020-03-17T21:49:37.913Z"` |
+| `last_edited_by` | PartialUser | Read content | User who last edited | `{ "object": "user", "id": "..."}` |
+| `title` | array of rich text | Read content | Name of the data source | `[/* rich text */]` |
+| `description` | array of rich text | Read content | Description | `[/* rich text */]` |
+| `icon` | FileObject \| Emoji | None | Data source icon | `{ "type": "emoji", ...}` |
+| `archived` | boolean | None | Archived status | `false` |
+| `in_trash` | boolean | Read content | Whether deleted | `false` |
+
+* = Available to integrations with any capabilities
+
+### Example Data Source Object
 
 ```json
 {
   "object": "data_source",
-  "id": "c174b72c-d782-432f-8dc0-b647e1c96df6",
-  "name": "Tasks data source",
+  "id": "2f26ee68-df30-4251-aad4-8ddc420cba3d",
   "parent": {
     "type": "database_id",
-    "database_id": "2f26ee68-df30-4251-aad4-8ddc420cba3d"
+    "database_id": "842a0286-cef0-46a8-abba-eac4c8ca644e"
   },
-  "type": "table",
-  "properties": [
+  "database_parent": {
+    "type": "page_id",
+    "page_id": "af5f89b5-a8ff-4c56-a5e8-69797d11b9f8"
+  },
+  "title": [
     {
+      "type": "text",
+      "text": {
+        "content": "Can I create a URL property",
+        "link": null
+      },
+      "annotations": {
+        "bold": false,
+        "italic": false,
+        "strikethrough": false,
+        "underline": false,
+        "code": false,
+        "color": "default"
+      },
+      "plain_text": "Can I create a URL property",
+      "href": null
+    }
+  ],
+  "description": [],
+  "icon": null,
+  "archived": false,
+  "in_trash": false,
+  "created_time": "2020-03-17T19:10:04.968Z",
+  "created_by": {
+    "object": "user",
+    "id": "45ee8d13-687b-47ce-a5ca-6e2e45548c4b"
+  },
+  "last_edited_time": "2020-03-17T21:49:37.913Z",
+  "last_edited_by": {
+    "object": "user",
+    "id": "45ee8d13-687b-47ce-a5ca-6e2e45548c4b"
+  },
+  "properties": {
+    "title": {
       "id": "title",
       "name": "Name",
       "type": "title",
       "title": {}
     },
-    {
+    "status": {
       "id": "status",
       "name": "Status",
       "type": "status",
       "status": {
-        "options": [
-          {
-            "id": "58fc84c5-0b72-47bf-8384-8424f6c85916",
-            "name": "Not started",
-            "color": "default"
-          },
-          {
-            "id": "a5b3c6e0-7d9d-4e1a-9b8f-2c3d4e5f6a7b",
-            "name": "In progress",
-            "color": "blue"
-          }
-        ]
-      }
-    },
-    {
-      "id": "tags",
-      "name": "Tags",
-      "type": "multi_select",
-      "multi_select": {
-        "options": [
-          {
-            "id": "d6e8f7a6-b5c4-4e2d-9f1a-2b3c4d5e6f7a",
-            "name": "Urgent",
-            "color": "red"
-          }
-        ]
+        "options": [/* ... */]
       }
     }
-  ]
+  }
 }
 ```
 
-### Data Source Fields
+### Important: Title vs Data Source Title
 
-| Field | Type | Description | Example |
-|-------|------|-------------|---------|
-| `object` | string | Always `"data_source"` | `"data_source"` |
-| `id` | string (UUID) | Unique identifier | `"c174b72c-..."` |
-| `name` | string | Display name | `"Tasks data source"` |
-| `parent` | object | Parent database reference | `{"type": "database_id", ...}` |
-| `type` | string | Display type | `"table"`, `"board"`, etc. |
-| `properties` | array | Property schema (definitions) | `[/* property objects */]` |
+**Two different titles exist:**
+
+1. **Data Source Title** (`title` field on data source object) - The overall title for the data source
+2. **Title Property** (a property schema with `type: "title"`) - A column that defines page titles
+
+Every data source requires both:
+- A data source title (for display in database UI)
+- A title property (so each page has a title)
+
+## Data Source APIs
+
+As of API version 2025-09-03, there's a suite of APIs for managing data sources:
+
+- **Create a data source** - Add an additional data source for an existing database
+- **Update a data source** - Update attributes, such as the properties, of a data source
+- **Retrieve a data source** - Get full data source details
+- **Query a data source** - Query pages in a data source
 
 ## Data Source Properties
 
-### Property Schema vs Property Values
+Data source property objects are rendered in the Notion UI as data columns. All data source objects include a child `properties` object composed of individual data source property objects.
 
-**Important distinction:**
+**Important:** If you're looking for information about how to work with data source **rows** (actual values), refer to the [Page Properties](../pages/page-properties.md) documentation. The API treats data source rows as pages.
 
-- **Schema (in data source)** - Defines what properties exist and their types
-- **Values (in pages)** - The actual data for each page
+### Property Object Structure
 
-**Example:**
+Every data source property object contains:
 
-**Schema (in data source):**
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `id` | string | Property identifier (short random string, or special IDs like "title") | `"fy:{"` |
+| `name` | string | Property name as it appears in Notion | `"Status"` |
+| `description` | string | Property description | `"Task completion status"` |
+| `type` | string (enum) | Property type | `"rich_text"` |
+| `{type}` | object | Type-specific configuration | Varies |
+
+### Property Types
+
+Complete list of data source property types:
+
+#### Checkbox
+
+Rendered as a column with checkboxes. No additional configuration.
+
 ```json
 {
-  "id": "status",
-  "name": "Status",
-  "type": "status",
-  "status": {
-    "options": [
-      {"id": "...", "name": "Not started", "color": "default"},
-      {"id": "...", "name": "In progress", "color": "blue"}
-    ]
+  "Task complete": {
+    "id": "BBla",
+    "name": "Task complete",
+    "type": "checkbox",
+    "checkbox": {}
   }
 }
 ```
 
-**Value (in a page):**
+#### Created By
+
+Rendered as a column with people mentions of each row's author. Empty configuration.
+
 ```json
 {
-  "id": "status",
-  "type": "status",
-  "status": {
-    "id": "...",
-    "name": "In progress",
-    "color": "blue"
+  "Created by": {
+    "id": "%5BJCR",
+    "name": "Created by",
+    "type": "created_by",
+    "created_by": {}
   }
 }
 ```
 
-### Property Schema Structure
+#### Created Time
 
-Every property schema has these common fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | string | Unique identifier (URL-encoded) |
-| `name` | string | Display name in UI |
-| `type` | string | Property type |
-| `{type}` | object | Type-specific configuration |
-
-### Property Types Reference
-
-Complete list of property types and their schema configuration:
-
-#### Title
-
-**Required:** Every data source must have exactly one title property.
+Rendered as a column with timestamps of when each row was created. Empty configuration.
 
 ```json
 {
-  "id": "title",
-  "name": "Name",
-  "type": "title",
-  "title": {}
-}
-```
-
-#### Status
-
-```json
-{
-  "id": "status",
-  "name": "Status",
-  "type": "status",
-  "status": {
-    "options": [
-      {
-        "id": "uuid",
-        "name": "Not started",
-        "color": "default"
-      },
-      {
-        "id": "uuid",
-        "name": "In progress",
-        "color": "blue"
-      },
-      {
-        "id": "uuid",
-        "name": "Done",
-        "color": "green"
-      }
-    ],
-    "groups": [
-      {
-        "id": "uuid",
-        "name": "To do",
-        "color": "gray",
-        "option_ids": ["uuid1", "uuid2"]
-      }
-    ]
-  }
-}
-```
-
-**Colors:** `default`, `gray`, `brown`, `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `pink`
-
-#### Select
-
-```json
-{
-  "id": "priority",
-  "name": "Priority",
-  "type": "select",
-  "select": {
-    "options": [
-      {
-        "id": "uuid",
-        "name": "High",
-        "color": "red"
-      },
-      {
-        "id": "uuid",
-        "name": "Medium",
-        "color": "yellow"
-      },
-      {
-        "id": "uuid",
-        "name": "Low",
-        "color": "gray"
-      }
-    ]
-  }
-}
-```
-
-#### Multi-Select
-
-```json
-{
-  "id": "tags",
-  "name": "Tags",
-  "type": "multi_select",
-  "multi_select": {
-    "options": [
-      {
-        "id": "uuid",
-        "name": "Urgent",
-        "color": "red"
-      },
-      {
-        "id": "uuid",
-        "name": "Bug",
-        "color": "orange"
-      }
-    ]
+  "Created time": {
+    "id": "XcAf",
+    "name": "Created time",
+    "type": "created_time",
+    "created_time": {}
   }
 }
 ```
 
 #### Date
 
-```json
-{
-  "id": "due_date",
-  "name": "Due Date",
-  "type": "date",
-  "date": {}
-}
-```
-
-#### Number
+Rendered as a column with date values. Empty configuration.
 
 ```json
 {
-  "id": "quantity",
-  "name": "Quantity",
-  "type": "number",
-  "number": {
-    "format": "number"
+  "Task due date": {
+    "id": "AJP%7D",
+    "name": "Task due date",
+    "type": "date",
+    "date": {}
   }
-}
-```
-
-**Formats:** `number`, `phone_number`, `percent`
-
-#### Checkbox
-
-```json
-{
-  "id": "done",
-  "name": "Done",
-  "type": "checkbox",
-  "checkbox": {}
 }
 ```
 
 #### Email
 
-```json
-{
-  "id": "email",
-  "name": "Email",
-  "type": "email",
-  "email": {}
-}
-```
-
-#### Phone Number
+Rendered as a column with email values. Empty configuration.
 
 ```json
 {
-  "id": "phone",
-  "name": "Phone",
-  "type": "phone_number",
-  "phone_number": {}
-}
-```
-
-#### URL
-
-```json
-{
-  "id": "website",
-  "name": "Website",
-  "type": "url",
-  "url": {}
-}
-```
-
-#### Rich Text
-
-```json
-{
-  "id": "description",
-  "name": "Description",
-  "type": "rich_text",
-  "rich_text": {}
-}
-```
-
-#### People
-
-```json
-{
-  "id": "assignee",
-  "name": "Assignee",
-  "type": "people",
-  "people": {}
+  "Contact email": {
+    "id": "oZbC",
+    "name": "Contact email",
+    "type": "email",
+    "email": {}
+  }
 }
 ```
 
 #### Files
 
-```json
-{
-  "id": "attachments",
-  "name": "Attachments",
-  "type": "files",
-  "files": {}
-}
-```
-
-#### Relation
+Rendered as a column with files (uploaded to Notion or external links). Empty configuration.
 
 ```json
 {
-  "id": "related_tasks",
-  "name": "Related Tasks",
-  "type": "relation",
-  "relation": {
-    "database_id": "database-uuid",
-    "synced_property_name": "Related Tasks",
-    "dual_property": {
-      "id": "property-uuid",
-      "name": "Related Projects"
-    }
+  "Product image": {
+    "id": "pb%3E%5B",
+    "name": "Product image",
+    "type": "files",
+    "files": {}
   }
 }
 ```
 
 #### Formula
 
+Rendered as a column with values derived from a provided expression.
+
+**Formula Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expression` | string | Formula expression (Notion syntax) |
+
 ```json
 {
-  "id": "total",
-  "name": "Total",
-  "type": "formula",
-  "formula": {
-    "expression": "prop(\"Price\") * prop(\"Quantity\")"
+  "Updated price": {
+    "id": "YU%7C%40",
+    "name": "Updated price",
+    "type": "formula",
+    "formula": {
+      "expression": "{{notion:block_property:BtVS:...}}/2"
+    }
+  }
+}
+```
+
+#### Last Edited By
+
+Rendered as a column with people mentions of the person who last edited each row. Empty configuration.
+
+```json
+{
+  "Last edited by": {
+    "id": "...",
+    "name": "Last edited by",
+    "type": "last_edited_by",
+    "last_edited_by": {}
+  }
+}
+```
+
+#### Last Edited Time
+
+Rendered as a column with timestamps of when each row was last edited. Empty configuration.
+
+```json
+{
+  "Last edited time": {
+    "id": "jGdo",
+    "name": "Last edited time",
+    "type": "last_edited_time",
+    "last_edited_time": {}
+  }
+}
+```
+
+#### Multi-Select
+
+Rendered as a column where each row can contain one or multiple options from a defined set.
+
+**Multi-Select Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `options` | array | Available options |
+
+**Option Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `color` | string (enum) | Color: `blue`, `brown`, `default`, `gray`, `green`, `orange`, `pink`, `purple`, `red`, `yellow` |
+| `id` | string | Unique identifier (doesn't change if name changes) |
+| `name` | string | Option name (commas not valid; names must be unique ignoring case) |
+
+```json
+{
+  "Store availability": {
+    "id": "flsb",
+    "name": "Store availability",
+    "type": "multi_select",
+    "multi_select": {
+      "options": [
+        {
+          "id": "5de29601-9c24-4b04-8629-0bca891c5120",
+          "name": "Duc Loi Market",
+          "color": "blue"
+        },
+        {
+          "id": "385890b8-fe15-421b-b214-b02959b0f8d9",
+          "name": "Rainbow Grocery",
+          "color": "gray"
+        },
+        {
+          "id": "72ac0a6c-9e00-4e8c-80c5-720e4373e0b9",
+          "name": "Nijiya Market",
+          "color": "purple"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Number
+
+Rendered as a column with numeric values.
+
+**Number Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `format` | string (enum) | Display format |
+
+**Number Formats:**
+
+`argentine_peso`, `australian_dollar`, `baht`, `canadian_dollar`, `chilean_peso`, `colombian_peso`, `danish_krone`, `dirham`, `dollar`, `euro`, `forint`, `franc`, `hong_kong_dollar`, `koruna`, `krona`, `leu`, `lira`, `mexican_peso`, `new_taiwan_dollar`, `new_zealand_dollar`, `norwegian_krone`, `number`, `number_with_commas`, `percent`, `philippine_peso`, `pound`, `peruvian_sol`, `rand`, `real`, `ringgit`, `riyal`, `ruble`, `rupee`, `rupiah`, `shekel`, `singapore_dollar`, `uruguayan_peso`, `yen`, `yuan`, `won`, `zloty`
+
+```json
+{
+  "Price": {
+    "id": "%7B%5D_P",
+    "name": "Price",
+    "type": "number",
+    "number": {
+      "format": "dollar"
+    }
+  }
+}
+```
+
+#### People
+
+Rendered as a column with people mentions. Empty configuration.
+
+```json
+{
+  "Project owner": {
+    "id": "FlgQ",
+    "name": "Project owner",
+    "type": "people",
+    "people": {}
+  }
+}
+```
+
+#### Phone Number
+
+Rendered as a column with phone number values. Empty configuration.
+
+```json
+{
+  "Contact phone number": {
+    "id": "ULHa",
+    "name": "Contact phone number",
+    "type": "phone_number",
+    "phone_number": {}
+  }
+}
+```
+
+#### Place
+
+Rendered as a column with location values. Used in conjunction with Map view.
+
+**Place Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lat` | number | Latitude |
+| `lon` | number | Longitude |
+| `name` | string \| null | Location name |
+| `address` | string \| null | Address |
+| `aws_place_id` | string \| null | AWS Place ID (echo only) |
+| `google_place_id` | string \| null | Google Place ID (echo only) |
+
+```json
+{
+  "Place": {
+    "id": "Xqz4",
+    "name": "Place",
+    "type": "place",
+    "place": {}
+  }
+}
+```
+
+#### Relation
+
+Rendered as a column with references to pages in another data source.
+
+**Relation Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `data_source_id` | string (UUID) | Related data source ID |
+| `dual_property.synced_property_id` | string | ID of corresponding property in related data source |
+| `dual_property.synced_property_name` | string | Name of corresponding property in related data source |
+
+```json
+{
+  "Projects": {
+    "id": "~pex",
+    "name": "Projects",
+    "type": "relation",
+    "relation": {
+      "data_source_id": "6c4240a9-a3ce-413e-9fd0-8a51a4d0a49b",
+      "dual_property": {
+        "synced_property_name": "Tasks",
+        "synced_property_id": "JU]K"
+      }
+    }
+  }
+}
+```
+
+**Important:** To retrieve/update relation properties, the related database must be shared with your integration.
+
+#### Rich Text
+
+Rendered as a column with text values. Empty configuration.
+
+```json
+{
+  "Project description": {
+    "id": "NZZ%3B",
+    "name": "Project description",
+    "type": "rich_text",
+    "rich_text": {}
   }
 }
 ```
 
 #### Rollup
 
+Rendered as a column with values rolled up from a related data source.
+
+**Rollup Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `function` | string (enum) | Aggregation function |
+| `relation_property_id` | string | ID of related property |
+| `relation_property_name` | string | Name of related property |
+| `rollup_property_id` | string | ID of property to roll up |
+| `rollup_property_name` | string | Name of property to roll up |
+
+**Functions:** `average`, `checked`, `count`, `count_per_group`, `count_values`, `date_range`, `earliest_date`, `empty`, `latest_date`, `max`, `median`, `min`, `not_empty`, `percent_checked`, `percent_empty`, `percent_not_empty`, `percent_per_group`, `percent_unchecked`, `range`, `show_original`, `show_unique`, `sum`, `unchecked`, `unique`
+
 ```json
 {
-  "id": "task_count",
-  "name": "Task Count",
-  "type": "rollup",
-  "rollup": {
-    "relation_property_name": "Related Tasks",
-    "relation_property_id": "relation-id",
-    "rollup_property_name": "Status",
-    "rollup_property_id": "status-id",
-    "function": "count"
+  "Estimated total project time": {
+    "id": "%5E%7Cy%3C",
+    "name": "Estimated total project time",
+    "type": "rollup",
+    "rollup": {
+      "rollup_property_name": "Days to complete",
+      "relation_property_name": "Tasks",
+      "rollup_property_id": "\\nyY",
+      "relation_property_id": "Y]<y",
+      "function": "sum"
+    }
   }
 }
 ```
 
-**Functions:** `average`, `checked`, `count`, `count_values`, `date_range`, `earliest_date`, `empty`, `latest_date`, `max`, `median`, `min`, `not_empty`, `percent_checked`, `percent_empty`, `percent_not_empty`, `range`, `show_unique`, `sum`, `unchecked`, `unique`
+#### Select
 
-#### Created By
+Rendered as a column where only one option is allowed per row.
+
+**Select Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `options` | array | Available options (same structure as multi-select) |
 
 ```json
 {
-  "id": "created_by",
-  "name": "Created By",
-  "type": "created_by",
-  "created_by": {}
+  "Food group": {
+    "id": "%40Q%5BM",
+    "name": "Food group",
+    "type": "select",
+    "select": {
+      "options": [
+        {
+          "id": "e28f74fc-83a7-4469-8435-27eb18f9f9de",
+          "name": "🥦Vegetable",
+          "color": "purple"
+        },
+        {
+          "id": "6132d771-b283-4cd9-ba44-b1ed30477c7f",
+          "name": "🍎Fruit",
+          "color": "red"
+        },
+        {
+          "id": "fc9ea861-820b-4f2b-bc32-44ed9eca873c",
+          "name": "💪Protein",
+          "color": "yellow"
+        }
+      ]
+    }
+  }
 }
 ```
 
-#### Created Time
+#### Status
+
+Rendered as a column with status options (similar to select but with groups).
+
+**Status Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `options` | array | Available status options |
+| `groups` | array | Groups of status options |
+
+**Option Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `color` | string (enum) | Color |
+| `id` | string | Unique identifier |
+| `name` | string | Option name (commas not valid; must be unique ignoring case) |
+
+**Group Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `color` | string (enum) | Group color |
+| `id` | string | Group identifier |
+| `name` | string | Group name |
+| `option_ids` | array of UUIDs | IDs of options in the group |
 
 ```json
 {
-  "id": "created_time",
-  "name": "Created Time",
-  "type": "created_time",
-  "created_time": {}
+  "Status": {
+    "id": "biOx",
+    "name": "Status",
+    "type": "status",
+    "status": {
+      "options": [
+        {
+          "id": "034ece9a-384d-4d1f-97f7-7f685b29ae9b",
+          "name": "Not started",
+          "color": "default"
+        },
+        {
+          "id": "330aeafb-598c-4e1c-bc13-1148aa5963d3",
+          "name": "In progress",
+          "color": "blue"
+        },
+        {
+          "id": "497e64fb-01e2-41ef-ae2d-8a87a3bb51da",
+          "name": "Done",
+          "color": "green"
+        }
+      ],
+      "groups": [
+        {
+          "id": "b9d42483-e576-4858-a26f-ed940a5f678f",
+          "name": "To-do",
+          "color": "gray",
+          "option_ids": [
+            "034ece9a-384d-4d1f-97f7-7f685b29ae9b"
+          ]
+        },
+        {
+          "id": "cf4952eb-1265-46ec-86ab-4bded4fa2e3b",
+          "name": "In progress",
+          "color": "blue",
+          "option_ids": [
+            "330aeafb-598c-4e1c-bc13-1148aa5963d3"
+          ]
+        },
+        {
+          "id": "4fa7348e-ae74-46d9-9585-e773caca6f40",
+          "name": "Complete",
+          "color": "green",
+          "option_ids": [
+            "497e64fb-01e2-41ef-ae2d-8a87a3bb51da"
+          ]
+        }
+      ]
+    }
+  }
 }
 ```
 
-#### Last Edited By
+**⚠️ Important:** Status property name and options cannot be updated via the API. Update from Notion UI instead.
+
+#### Title
+
+Controls the title that appears at the top of a page when a data source row is opened.
 
 ```json
 {
-  "id": "last_edited_by",
-  "name": "Last Edited By",
-  "type": "last_edited_by",
-  "last_edited_by": {}
+  "Project name": {
+    "id": "title",
+    "name": "Project name",
+    "type": "title",
+    "title": {}
+  }
 }
 ```
 
-#### Last Edited Time
+**⚠️ Requirement:** All data sources require one, and only one, title property. The API throws errors if you attempt to create/update without a title property, or add/remove the title property.
+
+#### URL
+
+Rendered as a column with URL values. Empty configuration.
 
 ```json
 {
-  "id": "last_edited_time",
-  "name": "Last Edited Time",
-  "type": "last_edited_time",
-  "last_edited_time": {}
+  "Project URL": {
+    "id": "BZKU",
+    "name": "Project URL",
+    "type": "url",
+    "url": {}
+  }
 }
 ```
 
 #### Unique ID
 
+Records automatically incremented, enforced unique values across all pages. Useful for task/bug report IDs (e.g., TASK-1234).
+
+**Unique ID Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prefix` | string | Common prefix (generates special URL like notion.so/TASK-1234) |
+
 ```json
 {
-  "id": "id",
-  "name": "ID",
-  "type": "unique_id",
-  "unique_id": {
-    "prefix": "TASK-"
+  "Task ID": {
+    "id": "...",
+    "name": "Task ID",
+    "type": "unique_id",
+    "unique_id": {
+      "prefix": "TASK"
+    }
   }
 }
 ```
 
-#### Verification
+## Schema Size Limitation
 
-```json
-{
-  "id": "verification",
-  "name": "Verification",
-  "type": "verification",
-  "verification": {}
-}
-```
+**Maximum schema size recommendation:** Notion recommends a maximum schema size of **50KB**. Updates to database schemas that are too large will be blocked to help maintain database performance.
 
 ## Working with Data Sources
 
-### Retrieve Data Source
+### API Endpoints
 
+#### Create Data Source
+```
+POST /databases/{database_id}/data_sources
+```
+
+**Required:**
+- `properties` - Initial property schema (must include title property)
+
+#### Retrieve Data Source
 ```
 GET /data_sources/{data_source_id}
 ```
 
 **Returns:** Full data source object with properties
 
-### Update Data Source Properties
-
+#### Update Data Source
 ```
 PATCH /data_sources/{data_source_id}
 ```
 
 **Can update:**
 - Property names
-- Property configurations (options for select/status, etc.)
-- Add/remove properties (in some cases)
+- Property configurations (select/status options, etc.)
+- Add/remove properties
 
 **Cannot update:**
-- Property types (changing number to date, etc.)
+- Property type (changing number to date)
+- Status property names or options (use Notion UI)
 
-### Create Data Source
-
+#### Query Data Source
 ```
-POST /databases/{database_id}/data_sources
-```
-
-**Required:**
-- `name` - Data source name
-- `properties` - Initial property schema
-
-### Delete Data Source
-
-```
-DELETE /data_sources/{data_source_id}
+POST /data_sources/{data_source_id}/query
 ```
 
-**Warning:** This also deletes all pages in the data source.
+Query pages in the data source.
 
-## Data Source Types
+### Querying Pages by Data Source
 
-### Display Types
-
-| Type | Description |
-|------|-------------|
-| `table` | Table view (default) |
-| `board` | Kanban board |
-| `list` | Simple list |
-| `timeline` | Timeline view |
-| `calendar` | Calendar view |
-| `gallery` | Image gallery |
-
-**Note:** Display type affects how the data source is shown in the UI, but doesn't affect the API structure.
-
-## Querying Pages by Data Source
-
-When a database has multiple data sources, you must specify which one to query:
+When a database has multiple data sources, specify which one to query:
 
 ```json
 POST /databases/{database_id}/query
@@ -550,14 +736,17 @@ POST /databases/{database_id}/query
     "id": "c174b72c-d782-432f-8dc0-b647e1c96df6"
   },
   "filter": {
-    // filter conditions
+    "property": "Status",
+    "status": {
+      "equals": "In Progress"
+    }
   }
 }
 ```
 
-If the database has only one data source, you can omit the `data_source` parameter.
+If the database has only one data source, the `data_source` parameter can be omitted.
 
-## SDK Architecture Implications
+## SDK Architecture
 
 ### DataSource Class
 
@@ -567,13 +756,20 @@ class DataSource:
     """Notion data source object."""
     object: str = "data_source"
     id: UUID = None
-    name: str = ""
+    title: List[RichTextObject] = field(default_factory=list)
+    description: List[RichTextObject] = field(default_factory=list)
+    icon: Optional[Icon] = None
+    archived: bool = False
+    in_trash: bool = False
+    created_time: Optional[datetime] = None
+    created_by: Optional[PartialUser] = None
+    last_edited_time: Optional[datetime] = None
+    last_edited_by: Optional[PartialUser] = None
     parent: Optional[DataSourceParent] = None
-    type: str = "table"
-    properties: List["PropertySchema"] = field(default_factory=list)
+    database_parent: Optional[Parent] = None
+    properties: Dict[str, PropertySchema] = field(default_factory=dict)
 
-    # Reference to parent database
-    _database_id: Optional[UUID] = field(default=None, init=False, repr=False)
+    # Client reference
     _client: Any = field(default=None, init=False, repr=False)
 
     @classmethod
@@ -583,49 +779,68 @@ class DataSource:
 
         instance.object = data.get("object")
         instance.id = UUID(data.get("id"))
-        instance.name = data.get("name")
-        instance.type = data.get("type", "table")
+        instance.archived = data.get("archived", False)
+        instance.in_trash = data.get("in_trash", False)
+
+        # Title and description
+        instance.title = RichTextParser.parse_array(data.get("title", []))
+        instance.description = RichTextParser.parse_array(data.get("description", []))
+
+        # Icon
+        instance.icon = Icon.from_dict(data.get("icon"))
+
+        # Timestamps
+        instance.created_time = _parse_datetime(data.get("created_time"))
+        instance.last_edited_time = _parse_datetime(data.get("last_edited_time"))
 
         # Parent
-        parent_data = data.get("parent", {})
-        if parent_data.get("type") == "database_id":
-            instance._database_id = UUID(parent_data.get("database_id"))
+        if "parent" in data:
+            instance.parent = DataSourceParent.from_dict(data["parent"])
+        if "database_parent" in data:
+            instance.database_parent = Parent.from_dict(data["database_parent"])
 
         # Parse properties
-        properties_data = data.get("properties", [])
-        instance.properties = [
-            PropertySchema.from_dict(prop) for prop in properties_data
-        ]
+        properties_data = data.get("properties", {})
+        instance.properties = {
+            name: PropertySchema.from_dict({**prop, "name": name})
+            for name, prop in properties_data.items()
+        }
 
         instance._client = client
         return instance
 
     @property
-    def database_id(self) -> UUID:
-        """Get parent database ID."""
-        return self._database_id
+    def title_text(self) -> str:
+        """Get title as plain text."""
+        return "".join(rt.plain_text for rt in self.title)
 
-    def get_property_by_name(self, name: str) -> Optional["PropertySchema"]:
+    @property
+    def description_text(self) -> str:
+        """Get description as plain text."""
+        return "".join(rt.plain_text for rt in self.description)
+
+    def get_property_by_name(self, name: str) -> Optional[PropertySchema]:
         """Get property schema by name."""
-        for prop in self.properties:
-            if prop.name == name:
-                return prop
-        return None
+        return self.properties.get(name)
 
-    def get_property_by_id(self, prop_id: str) -> Optional["PropertySchema"]:
+    def get_property_by_id(self, prop_id: str) -> Optional[PropertySchema]:
         """Get property schema by ID."""
-        for prop in self.properties:
+        for prop in self.properties.values():
             if prop.id == prop_id:
                 return prop
         return None
+
+    @property
+    def title_property(self) -> Optional[PropertySchema]:
+        """Get the title property."""
+        return self.get_property_by_id("title")
 
     async def query_pages(self, **filters) -> PaginatedResponse[Page]:
         """Query pages in this data source."""
         if not self._client:
             raise RuntimeError("No client reference")
 
-        return await self._client.databases.query(
-            database_id=str(self._database_id),
+        return await self._client.data_sources.query(
             data_source_id=str(self.id),
             **filters
         )
@@ -650,11 +865,13 @@ class DataSource:
 class PropertySchema:
     """Data source property schema definition."""
 
-    def __init__(self, prop_id: str, name: str, prop_type: str, config: dict):
+    def __init__(self, prop_id: str, name: str, prop_type: str,
+                 description: str = "", config: dict = None):
         self.id = prop_id
         self.name = name
         self.type = prop_type
-        self.config = config
+        self.description = description
+        self.config = config or {}
 
     @classmethod
     def from_dict(cls, data: dict) -> "PropertySchema":
@@ -662,17 +879,30 @@ class PropertySchema:
         prop_id = data.get("id")
         name = data.get("name")
         prop_type = data.get("type")
+        description = data.get("description", "")
 
         # Type-specific config
         config = data.get(prop_type, {})
 
-        return cls(prop_id, name, prop_type, config)
+        return cls(prop_id, name, prop_type, description, config)
+
+    @property
+    def is_readonly(self) -> bool:
+        """Whether this property type is read-only."""
+        return self.type in READONLY_PROPERTY_TYPES
 
     @property
     def options(self) -> Optional[List[dict]]:
         """Get options for select/multi_select/status properties."""
         if self.type in ["select", "multi_select", "status"]:
             return self.config.get("options", [])
+        return None
+
+    @property
+    def groups(self) -> Optional[List[dict]]:
+        """Get groups for status properties."""
+        if self.type == "status":
+            return self.config.get("groups", [])
         return None
 
     def get_option_by_name(self, name: str) -> Optional[dict]:
@@ -695,113 +925,76 @@ class PropertySchema:
 ## Usage Examples
 
 ```python
-# Get a database
-database = await client.databases.get(database_id)
+# Get data source
+data_source = await client.data_sources.get(data_source_id)
 
-# Get data source references
-for ref in database.data_sources:
-    print(f"Data source: {ref.name} (id: {ref.id})")
+# Access basic info
+print(data_source.title_text)
+print(data_source.description_text)
+print(f"Properties: {len(data_source.properties)}")
 
-# Get detailed data source
-data_source = await client.data_sources.get(ref.id)
+# List properties
+for prop_name, prop in data_source.properties.items():
+    print(f"  {prop.name}: {prop.type}")
+    if prop.options:
+        print(f"    Options: {[opt['name'] for opt in prop.options]}")
 
-# Access properties
-for prop in data_source.properties:
-    print(f"Property: {prop.name} (type: {prop.type})")
+# Get title property
+title_prop = data_source.title_property
+if title_prop:
+    print(f"Title property: {title_prop.name}")
 
-# Get specific property
-status_prop = data_source.get_property_by_name("Status")
-if status_prop:
-    print(f"Status options: {status_prop.options}")
-
-# Query pages in data source
+# Query pages
 pages = await data_source.query_pages(
     filter={
         "property": "Status",
-        "status": {
-            "equals": "In Progress"
-        }
+        "status": {"equals": "In Progress"}
     }
 )
 
-# Create page in data source
+# Create page
 new_page = await data_source.create_page(
     properties={
         "Name": {
             "title": [{"type": "text", "text": {"content": "New Task"}}]
         },
-        "Status": {
-            "status": {"name": "Not Started"}
-        }
+        "Status": {"status": {"name": "Not Started"}}
     }
 )
 ```
 
 ## Best Practices
 
-### 1. Single vs Multiple Data Sources
+### 1. Schema Design
 
-**Use single data source when:**
-- All pages have the same properties
-- Simple data structure
-- Most common scenario
+- Keep schema under 50KB for performance
+- Use meaningful property names
+- Plan property types carefully (changing type is difficult)
 
-**Use multiple data sources when:**
-- Different page types need different schemas
-- Independent data sets in same location
-- Complex data modeling needs
+### 2. Status Properties
 
-### 2. Property Naming
+- Define groups to organize related statuses
+- Use colors to indicate status categories
+- Cannot update names/options via API
 
-- Use clear, consistent names
-- Avoid commas in select/multi-select values
-- Consider future schema changes
+### 3. Relations
 
-### 3. Option Management
-
-For select/multi-select/status:
-- Define options upfront when possible
-- Use meaningful colors for organization
-- Group related status options (using groups in status)
-
-### 4. Relation Design
-
-- Ensure integration has access to both databases
+- Share related databases with integration
 - Use dual properties for bidirectional relations
 - Consider rollup performance with many relations
 
-## Migration from Single Data Source
+### 4. Unique IDs
 
-### Before September 2025
-
-```python
-# Old: Properties on database
-database = await client.databases.get(database_id)
-properties = database.properties  # Direct access
-```
-
-### After September 2025
-
-```python
-# New: Properties on data source
-database = await client.databases.get(database_id)
-data_source = await client.data_sources.get(database.data_sources[0].id)
-properties = data_source.properties  # Via data source
-```
-
-### Backward Compatibility
-
-For databases with a single data source:
-- Most operations work similarly
-- Properties accessible via data source
-- Query defaults to the only data source
+- Use prefixes for easy identification (TASK-, BUG-, etc.)
+- Enables special URLs (notion.so/TASK-1234)
+- Useful for external references
 
 ## Related Documentation
 
-- [Databases Overview](./databases-overview.md) - Database container concept
+- [Databases Overview](./databases-overview.md) - Database container
 - [Database Implementation](./database-implementation.md) - SDK implementation
-- [Page Properties](../pages/page-properties.md) - Property value types
-- [Query Database](https://developers.notion.com/reference/post-database-query) - API query endpoint
+- [Page Properties](../pages/page-properties.md) - Property values (data rows)
+- [Query Data Source](https://developers.notion.com/reference/post-data-source-query) - API endpoint
 
 ---
 
