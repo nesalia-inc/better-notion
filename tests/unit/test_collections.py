@@ -95,3 +95,57 @@ class TestPageCollection:
 
         with pytest.raises(ValidationError):
             await mock_api.pages.create()
+
+    @pytest.mark.asyncio
+    async def test_list_pages(self, mock_api, sample_page_data):
+        """Test listing pages in a database."""
+        query_response = {
+            "results": [
+                sample_page_data,
+                {
+                    **sample_page_data,
+                    "id": "another_page_id"
+                }
+            ],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=query_response)
+
+        pages = await mock_api.pages.list("database_id")
+
+        assert len(pages) == 2
+        assert all(isinstance(page, Page) for page in pages)
+        assert pages[0].id == "5c6a28216bb14a7eb6e1c50111515c3d"
+        assert pages[1].id == "another_page_id"
+
+    @pytest.mark.asyncio
+    async def test_list_pages_empty(self, mock_api):
+        """Test listing pages when database is empty."""
+        mock_api._request = AsyncMock(return_value={"results": [], "has_more": False})
+
+        pages = await mock_api.pages.list("database_id")
+
+        assert len(pages) == 0
+
+    @pytest.mark.asyncio
+    async def test_list_pages_with_filter(self, mock_api, sample_page_data):
+        """Test listing pages with a filter."""
+        query_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=query_response)
+
+        filter_param = {
+            "property": "Status",
+            "select": {"equals": "Done"}
+        }
+
+        pages = await mock_api.pages.list("database_id", filter=filter_param)
+
+        assert len(pages) == 1
+        mock_api._request.assert_called_once_with(
+            "POST",
+            "/databases/database_id/query",
+            json={"filter": filter_param},
+        )

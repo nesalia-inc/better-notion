@@ -60,12 +60,18 @@ class PageCollection:
 
         Args:
             database_id: The database ID.
-            **kwargs: Query parameters.
+            **kwargs: Query parameters (filter, sorts, start_cursor, etc.).
 
         Returns:
             List of Page entities.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the database does not exist.
+            ValidationError: If the query parameters are invalid.
         """
-        raise NotImplementedError("PageCollection.list() not yet implemented")
+        data = await self._api._request(
+            "POST",
+            f"/databases/{database_id}/query",
+            json=kwargs,
+        )
+        return [Page(self._api, page_data) for page_data in data.get("results", [])]
