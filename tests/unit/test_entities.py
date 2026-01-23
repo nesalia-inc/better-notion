@@ -81,6 +81,30 @@ class TestEntities:
         with pytest.raises(NotFoundError):
             await page.delete()
 
+    @pytest.mark.asyncio
+    async def test_page_reload(self, mock_api, sample_page_data):
+        """Test Page reload method."""
+        updated_data = {**sample_page_data, "last_edited_time": "2025-01-16T00:00:00.000Z"}
+        mock_api._request = AsyncMock(return_value=updated_data)
+
+        page = Page(mock_api, sample_page_data)
+        await page.reload()
+
+        mock_api._request.assert_called_once_with("GET", "/pages/5c6a28216bb14a7eb6e1c50111515c3d")
+        assert page._data == updated_data
+        assert page._modified is False
+
+    @pytest.mark.asyncio
+    async def test_page_reload_not_found(self, mock_api, sample_page_data):
+        """Test Page reload with NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("Page not found"))
+        page = Page(mock_api, sample_page_data)
+
+        with pytest.raises(NotFoundError):
+            await page.reload()
+
     def test_block_entity_creation(self, mock_api):
         """Test Block entity creation."""
         block_data = {

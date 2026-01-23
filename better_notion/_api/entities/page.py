@@ -94,10 +94,14 @@ class Page:
     async def reload(self) -> None:
         """Reload page data from Notion.
 
+        Fetches the latest page data and updates the entity.
+
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the page no longer exists.
         """
-        raise NotImplementedError("Page.reload() not yet implemented")
+        data = await self._api._request("GET", f"/pages/{self.id}")
+        self._data = data
+        self._modified = False
 
     async def update(self, **kwargs: Any) -> None:
         """Update page properties.
