@@ -130,12 +130,14 @@ class Page:
         """Get blocks collection for this page.
 
         Returns:
-            BlockCollection for this page.
+            BlockCollection configured for this page's children.
 
-        Raises:
-            NotImplementedError: Not yet implemented.
+        Example:
+            >>> page = await api.pages.get("page_id")
+            >>> children = await page.blocks.children()
         """
-        raise NotImplementedError("Page.blocks not yet implemented")
+        from better_notion._api.collections import BlockCollection
+        return BlockCollection(self._api, parent_id=self.id)
 
     def __repr__(self) -> str:
         """String representation."""

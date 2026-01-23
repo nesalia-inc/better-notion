@@ -132,6 +132,16 @@ class TestEntities:
         assert page._data["archived"] is True
         assert page._modified is True
 
+    def test_page_blocks_property(self, mock_api, sample_page_data):
+        """Test Page blocks property returns BlockCollection."""
+        from better_notion._api.collections import BlockCollection
+
+        page = Page(mock_api, sample_page_data)
+        blocks = page.blocks
+
+        assert isinstance(blocks, BlockCollection)
+        assert blocks._parent_id == page.id
+
     def test_block_entity_creation(self, mock_api):
         """Test Block entity creation."""
         block_data = {
