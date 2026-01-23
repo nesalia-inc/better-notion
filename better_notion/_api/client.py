@@ -28,7 +28,7 @@ class NotionAPI:
         users: User collection for managing users.
 
     Example:
-        >>> api = NotionAPI(auth="secret_...")
+        >>> api = NotionAPI(auth="secret_...")  # or "ntn_..."
         >>> page = await api.pages.get("page_id")
         >>> print(page.title)
         >>> await page.delete()
@@ -49,14 +49,14 @@ class NotionAPI:
         """Initialize the Notion API client.
 
         Args:
-            auth: Notion API token (starts with "secret_").
+            auth: Notion API token (starts with "secret_" or "ntn_").
             base_url: Base URL for the API.
             timeout: Request timeout in seconds.
             version: Notion API version.
         """
-        if not auth.startswith("secret_"):
+        if not (auth.startswith("secret_") or auth.startswith("ntn_")):
             raise ValueError(
-                'Invalid token format. Token must start with "secret_"'
+                'Invalid token format. Token must start with "secret_" or "ntn_"'
             )
 
         self._token = auth
