@@ -34,9 +34,10 @@ class PageCollection:
             A Page entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the page does not exist.
         """
-        raise NotImplementedError("PageCollection.get() not yet implemented")
+        data = await self._api._request("GET", f"/pages/{page_id}")
+        return Page(self._api, data)
 
     async def create(self, **kwargs: Any) -> Page:
         """Create a new page.
