@@ -1,152 +1,291 @@
 # Better Notion
 
-A comprehensive Python SDK for the Notion API, providing an elegant, object-oriented interface for interacting with Notion's platform.
+**A pythonic, object-oriented SDK for the Notion API.**
 
-## Overview
+[![PyPI](https://img.shields.io/pypi/v/better-notion)](https://pypi.org/project/better-notion/)
+[![Python](https://img.shields.io/pypi/pyversions/better-notion)](https://pypi.org/project/better-notion/)
+[![Tests](https://img.shields.io/github/actions/nesalia-inc/better-notion/workflows/tests/badge.svg)](https://github.com/nesalia-inc/better-notion/actions)
+[![Coverage](https://img.shields.io/codecov/c/gh/nesalia-inc/better-notion)](https://codecov.io/gh/nesalia-inc/better-notion)
 
-Better Notion is an open-source Python library designed to simplify integration with Notion's API. It offers a high-level abstraction layer that transforms Notion's REST API into intuitive Python objects, making it easier for developers to build applications, automation tools, and integrations on top of the Notion platform.
+---
 
-## Project Status
+## 🚀 Quick Start
 
-This project is currently in the documentation and planning phase. The API reference documentation is complete, covering all major Notion API endpoints and features. Implementation will follow a structured development roadmap.
+```bash
+pip install better-notion
+```
 
-## Key Features
+```python
+import asyncio
+from better_notion import NotionAPI
 
-### Authentication and Security
-- Bot token authentication for integrations
-- OAuth 2.0 support for public integrations with user authorization
-- Built-in rate limiting and error handling
-- Secure credential management
+async def main():
+    async with NotionAPI(auth="secret_...") as api:
+        # Get a page
+        page = await api.pages.get("page_id")
+        print(page.properties)
 
-### Database Management
-- Full CRUD operations for Notion databases
-- Multi-data source architecture support
-- Query and filter capabilities with complex conditions
-- Property type handling for all Notion property types
-- Sorting and pagination support
+        # List pages in a database
+        async for page in api.pages.iterate("database_id"):
+            print(page.title)
 
-### Page Operations
-- Create, read, update, and delete pages
-- Property manipulation and management
-- Page hierarchy and parent-child relationships
-- Cover images and icons handling
-- Template-based page creation
+asyncio.run(main())
+```
 
-### Content Blocks
-- Comprehensive block type support
-- Nested block hierarchy management (up to 2 levels)
-- Rich text formatting with annotations
-- Media blocks (images, videos, files, audio)
-- Code blocks, callouts, and tables
+---
 
-### Rich Text System
-- Text formatting (bold, italic, underline, strikethrough, code)
-- Text and background colors
-- Hyperlinks and mentions
-- User, page, and database mentions
-- Mathematical equations
+## ✨ Why Better Notion?
 
-### Search and Discovery
-- Search across pages and databases by title
-- Filter by object type
-- Sort by last edited time
-- Pagination for large result sets
+- **🎯 Object-Oriented**: Work with entities, not JSON dicts
+- **🔋 Type-Safe**: Property builders for compile-time safety
+- **📄 Paginated**: Automatic cursor-based pagination
+- **🔍 Powerful Search**: Search across your entire workspace
+- **⚡ Async-First**: Built with `asyncio` and `httpx` for performance
 
-### Comments and Discussions
-- Create comments on pages and blocks
-- Retrieve and list comments
-- Discussion thread support
-- Rich text comments with attachments
-- File attachment support (up to 3 per comment)
+---
 
-### File Management
-- Single-part file uploads (up to 20MB)
-- Multi-part uploads for large files (up to 1GB)
-- External URL imports
-- File upload progress tracking
-- Upload completion and retrieval
+## 📦 Installation
 
-### User Management
-- List all workspace users
-- Retrieve specific user information
-- Bot user information with owner details
-- User directory and search capabilities
+```bash
+# With pip
+pip install better-notion
 
-## Architecture
+# With uv
+uv pip install better-notion
+```
 
-### Design Principles
+---
 
-The SDK follows several core design principles:
+## 🔑 Authentication
 
-- Entity-Oriented Object-Oriented Programming: Notion objects are represented as Python classes with methods and properties
-- Type Safety: Comprehensive type hints throughout the codebase
-- Async-First: Native async/await support for efficient operations
-- High-Level Abstraction: Complex API operations hidden behind intuitive interfaces
-- Performance Optimization: Smart caching and efficient API usage
-- Extensibility: Easy to extend for custom use cases
+Create an integration at [notion.so/my-integrations](https://notion.so/my-integrations) to get your API token.
 
-### Project Structure
+```python
+from better_notion import NotionAPI
 
-The planned package structure includes:
+api = NotionAPI(auth="secret_...")
+```
 
-- Client module for API communication
-- Entity models (pages, blocks, databases, users)
-- Endpoint managers for each API resource
-- Utility functions for conversions and helpers
-- Custom exceptions for error handling
-- Caching layer for performance
-- Comprehensive test suite
+---
 
-## Documentation
+## 📚 Features
 
-Complete API reference documentation is available in the `docs/` directory:
+### Entities
 
-- API structure and conventions
-- Authentication and OAuth
-- Database operations and data sources
-- Page management and properties
-- Block content and types
-- Comments and discussions
-- File uploads and media handling
-- Search functionality
-- User management
+All Notion objects are represented as Python entities:
 
-## Target Use Cases
+- **Pages** - Create, read, update, delete, archive
+- **Blocks** - Manipulate content blocks
+- **Databases** - Query and manage databases
+- **Users** - Retrieve user information
 
-Better Notion is designed for:
+### Property Builders
 
-- Automation developers building workflows with Notion
-- Data analysts extracting and analyzing Notion data
-- Web application developers integrating with Notion
-- CLI tool creators for Notion management
-- Anyone building tools or applications on top of Notion's platform
+Type-safe builders for all Notion property types:
 
-## Requirements
+```python
+from better_notion.properties import Title, Select, Date, Checkbox
 
-- Python 3.10 or higher
-- Async HTTP client (httpx or aiohttp)
-- Pydantic for data validation
+properties = {
+    **Title("My Page").build(),
+    **Select("Status", "In Progress").build(),
+    **Date("Due Date", "2025-01-15").build(),
+    **Checkbox("Done", False).build(),
+}
+```
 
-## Development Roadmap
+### Automatic Pagination
 
-The project follows a 7-phase development plan:
+Memory-efficient iteration over large datasets:
 
-1. Foundations: Core client setup and base models
-2. Search and Navigation: Search functionality and filtering
-3. Databases: Database operations and data source queries
-4. Pages and Blocks: Content management and manipulation
-5. Users and Workspaces: User management and workspace information
-6. Advanced Features: Comments, file uploads, and specialized features
-7. Testing and Documentation: Comprehensive test coverage and user guides
+```python
+async for page in api.pages.iterate("database_id"):
+    # Processes pages lazily, not all at once
+    process(page)
+```
 
-## Contributing
+---
 
-As an open-source project, contributions are welcome. The project maintains comprehensive documentation to help contributors understand the architecture and implementation plan.
+## 💡 Usage Examples
 
-## License
+### Creating a Page
 
-This project is open source and available under the terms specified in the LICENSE file.
+```python
+from better_notion import NotionAPI
+from better_notion.properties import Title, Text
 
-## Acknowledgments
+async def create_page():
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties={
+                **Title("My New Page").build(),
+                **Text("Notes", "Some notes").build(),
+            }
+        )
+        print(f"Created page: {page.id}")
+```
 
-Built to work with Notion's official API, providing developers with a better way to integrate Notion into their Python applications.
+### Updating a Page
+
+```python
+from better_notion.properties import Select
+
+async def update_page():
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.get("page_id")
+
+        # Update properties locally
+        await page.update(
+            **Select("Status", "Done").build()
+        )
+
+        # Save changes to Notion
+        await page.save()
+```
+
+### Working with Blocks
+
+```python
+async def manipulate_blocks():
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.get("page_id")
+
+        # Get children blocks
+        children = await page.blocks.children()
+
+        # Append a new block
+        await page.blocks.append(children=[
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "text": [{"text": {"content": "New paragraph"}}]
+                }
+            }
+        ])
+```
+
+### Searching
+
+```python
+async def search_pages():
+    async with NotionAPI(auth="secret_...") as api:
+        # Search for pages matching query
+        async for result in api.search_iterate("my query"):
+            if result["object"] == "page":
+                print(result["properties"]["title"])
+```
+
+---
+
+## 📖 API Reference
+
+### NotionAPI
+
+The main client for interacting with Notion.
+
+**Methods:**
+- `search(query, *, filter, sort)` - Search pages and blocks
+- `search_iterate(query, *, filter, sort)` - Iterate over search results
+
+**Collections:**
+- `api.pages` - PageCollection
+- `api.blocks` - BlockCollection
+- `api.databases` - DatabaseCollection
+- `api.users` - UserCollection
+
+### Page
+
+**Properties:**
+- `id` - Page ID
+- `created_time` - Creation datetime
+- `last_edited_time` - Last edited datetime
+- `archived` - Whether page is archived
+- `properties` - Page properties dict
+- `blocks` - BlockCollection for children
+
+**Methods:**
+- `await save()` - Save changes to Notion
+- `await delete()` - Archive page
+- `await reload()` - Reload from Notion
+- `await update(**kwargs)` - Update properties locally
+
+### Block
+
+**Properties:**
+- `id` - Block ID
+- `type` - Block type (paragraph, heading, etc.)
+- `content` - Block content
+
+**Methods:**
+- `await save()` - Save changes to Notion
+- `await delete()` - Delete block
+- `await reload()` - Reload from Notion
+
+### Collections
+
+#### PageCollection
+- `await get(page_id)` - Retrieve a page
+- `await create(**kwargs)` - Create a new page
+- `await list(database_id, **kwargs)` - List pages (first page)
+- `iterate(database_id, **kwargs)` - Iterate over all pages
+
+#### BlockCollection
+- `await get(block_id)` - Retrieve a block
+- `await children()` - Get children blocks
+- `await append(**kwargs)` - Append new blocks
+
+#### DatabaseCollection
+- `await get(database_id)` - Retrieve a database
+- `await query(database_id, **kwargs)` - Query a database
+- `await create_page(database_id, **kwargs)` - Create a page in database
+
+#### UserCollection
+- `await get(user_id)` - Retrieve a user
+- `await list()` - List all users
+- `await me()` - Get current bot user
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+### Development
+
+```bash
+# Clone the repository
+git clone https://github.com/nesalia-inc/better-notion.git
+
+# Install with dev dependencies
+uv sync
+
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=better_notion
+```
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🔗 Links
+
+- [Notion API Documentation](https://developers.notion.com/reference)
+- [Issue Tracker](https://github.com/nesalia-inc/better-notion/issues)
+- [Discussions](https://github.com/nesalia-inc/better-notion/discussions)
+
+---
+
+## 🙏 Acknowledgments
+
+Built with ❤️ using:
+- [httpx](https://www.python-httpx.org/) - Async HTTP client
+- [pytest](https://pytest.org/) - Testing framework
