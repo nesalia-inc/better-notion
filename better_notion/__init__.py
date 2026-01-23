@@ -9,11 +9,10 @@ __version__ = "0.1.0"
 
 # Low-level API (1:1 mapping with Notion API)
 # High-level API (rich abstractions)
-from better_notion._highlevel import NotionClient
-from better_notion._lowlevel import NotionAPI
+from better_notion._api import NotionAPI
 
 # Exceptions
-from better_notion._lowlevel.errors import (
+from better_notion._api.errors import (
     BadRequestError,
     ClientError,
     ConfigurationError,
@@ -28,6 +27,7 @@ from better_notion._lowlevel.errors import (
     UnauthorizedError,
     ValidationError,
 )
+from better_notion._sdk import NotionClient
 
 __all__ = [
     # Version

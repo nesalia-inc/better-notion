@@ -27,7 +27,7 @@ class NotionClient:
             token: Notion API token.
             cache: Enable caching.
         """
-        from better_notion._lowlevel import NotionAPI
+        from better_notion._api import NotionAPI
 
         self._api = NotionAPI(auth=token)
         self._cache_enabled = cache

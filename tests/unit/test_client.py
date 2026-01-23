@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from better_notion._lowlevel import NotionAPI
+from better_notion._api import NotionAPI
 
 
 class TestNotionAPI:

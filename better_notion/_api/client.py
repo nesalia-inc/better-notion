@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from better_notion._lowlevel.endpoints import (
+from better_notion._api.endpoints import (
     BlocksEndpoint,
     CommentsEndpoint,
     DatabasesEndpoint,
@@ -14,7 +14,7 @@ from better_notion._lowlevel.endpoints import (
     SearchEndpoint,
     UsersEndpoint,
 )
-from better_notion._lowlevel.errors import NotionAPIError
+from better_notion._api.errors import NotionAPIError
 
 
 class NotionAPI:
@@ -145,32 +145,32 @@ class NotionAPI:
             status_code = e.response.status_code
 
             if status_code == 400:
-                from better_notion._lowlevel.errors import BadRequestError
+                from better_notion._api.errors import BadRequestError
                 raise BadRequestError() from None
             elif status_code == 401:
-                from better_notion._lowlevel.errors import UnauthorizedError
+                from better_notion._api.errors import UnauthorizedError
                 raise UnauthorizedError() from None
             elif status_code == 403:
-                from better_notion._lowlevel.errors import ForbiddenError
+                from better_notion._api.errors import ForbiddenError
                 raise ForbiddenError() from None
             elif status_code == 404:
-                from better_notion._lowlevel.errors import NotFoundError
+                from better_notion._api.errors import NotFoundError
                 raise NotFoundError() from None
             elif status_code == 409:
-                from better_notion._lowlevel.errors import ConflictError
+                from better_notion._api.errors import ConflictError
                 raise ConflictError() from None
             elif status_code == 429:
-                from better_notion._lowlevel.errors import RateLimitedError
+                from better_notion._api.errors import RateLimitedError
                 retry_after = e.response.headers.get("Retry-After")
                 raise RateLimitedError(
                     retry_after=int(retry_after) if retry_after else None
                 ) from None
             elif status_code >= 500:
-                from better_notion._lowlevel.errors import InternalServerError
+                from better_notion._api.errors import InternalServerError
                 raise InternalServerError() from None
             else:
                 raise NotionAPIError(f"HTTP {status_code}: {e.response.text}") from None
 
         except httpx.RequestError as e:
-            from better_notion._lowlevel.errors import NetworkError
+            from better_notion._api.errors import NetworkError
             raise NetworkError(f"Network error: {e}") from e

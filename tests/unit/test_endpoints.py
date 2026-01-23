@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from better_notion._lowlevel.endpoints import (
+from better_notion._api.endpoints import (
     BlocksEndpoint,
     CommentsEndpoint,
     DatabasesEndpoint,

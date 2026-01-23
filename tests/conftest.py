@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from better_notion._lowlevel import NotionAPI
+from better_notion._api import NotionAPI
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from better_notion._lowlevel.errors import (
+from better_notion._api.errors import (
     BadRequestError,
     ConfigurationError,
     ConflictError,
