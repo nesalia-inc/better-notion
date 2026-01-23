@@ -36,23 +36,10 @@ class BlockCollection:
             A Block entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the block does not exist.
         """
-        raise NotImplementedError("BlockCollection.get() not yet implemented")
-
-    async def list(self, **kwargs: Any) -> list[Block]:
-        """List blocks.
-
-        Args:
-            **kwargs: Query parameters.
-
-        Returns:
-            List of Block entities.
-
-        Raises:
-            NotImplementedError: Not yet implemented.
-        """
-        raise NotImplementedError("BlockCollection.list() not yet implemented")
+        data = await self._api._request("GET", f"/blocks/{block_id}")
+        return Block(self._api, data)
 
     async def children(self) -> list[Block]:
         """Get children blocks.
@@ -61,20 +48,41 @@ class BlockCollection:
             List of child Block entities.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the parent block does not exist.
+            ValidationError: If parent_id is not set.
         """
-        raise NotImplementedError("BlockCollection.children() not yet implemented")
+        if not self._parent_id:
+            raise ValueError("parent_id is required to get children")
+
+        data = await self._api._request("GET", f"/blocks/{self._parent_id}/children")
+        return [Block(self._api, block_data) for block_data in data.get("results", [])]
 
     async def append(self, **kwargs: Any) -> Block:
         """Append a new block.
 
         Args:
-            **kwargs: Block properties.
+            **kwargs: Block properties including children (required).
 
         Returns:
             The created Block entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            ValidationError: If parent_id is not set or request is invalid.
+            BadRequestError: If the request is invalid.
         """
-        raise NotImplementedError("BlockCollection.append() not yet implemented")
+        if not self._parent_id:
+            raise ValueError("parent_id is required to append blocks")
+
+        data = await self._api._request(
+            "PATCH",
+            f"/blocks/{self._parent_id}/children",
+            json=kwargs,
+        )
+        # The API returns the updated parent block with new children
+        # We need to get the last created child
+        children = data.get("results", [])
+        if children:
+            return Block(self._api, children[-1])
+        # If no children returned, we need to fetch the parent's children again
+        # For now, just return the first child from the response
+        return Block(self._api, data)

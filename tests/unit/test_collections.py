@@ -12,7 +12,7 @@ from better_notion._api.collections import (
     PageCollection,
     UserCollection,
 )
-from better_notion._api.entities import Page
+from better_notion._api.entities import Block, Page
 
 
 class TestCollections:
@@ -149,3 +149,105 @@ class TestPageCollection:
             "/databases/database_id/query",
             json={"filter": filter_param},
         )
+
+
+class TestBlockCollection:
+    """Test suite for BlockCollection."""
+
+    @pytest.mark.asyncio
+    async def test_get_block(self, mock_api):
+        """Test retrieving a block by ID."""
+        block_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {"text": [{"text": {"content": "Hello"}}]}
+        }
+        mock_api._request = AsyncMock(return_value=block_data)
+
+        block = await mock_api.blocks.get("block_id")
+
+        assert isinstance(block, Block)
+        assert block.id == "block_id"
+
+    @pytest.mark.asyncio
+    async def test_get_block_not_found(self, mock_api):
+        """Test retrieving a non-existent block raises NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("Block not found"))
+
+        with pytest.raises(NotFoundError):
+            await mock_api.blocks.get("nonexistent_block_id")
+
+    @pytest.mark.asyncio
+    async def test_block_children(self, mock_api):
+        """Test getting children blocks."""
+        children_response = {
+            "results": [
+                {
+                    "id": "child1",
+                    "type": "paragraph",
+                    "paragraph": {}
+                },
+                {
+                    "id": "child2",
+                    "type": "paragraph",
+                    "paragraph": {}
+                }
+            ]
+        }
+        mock_api._request = AsyncMock(return_value=children_response)
+
+        blocks = BlockCollection(mock_api, parent_id="parent_id")
+        children = await blocks.children()
+
+        assert len(children) == 2
+        assert all(isinstance(block, Block) for block in children)
+        assert children[0].id == "child1"
+        assert children[1].id == "child2"
+
+    @pytest.mark.asyncio
+    async def test_block_children_no_parent_id(self, mock_api):
+        """Test getting children without parent_id raises ValueError."""
+        blocks = BlockCollection(mock_api)
+
+        with pytest.raises(ValueError, match="parent_id is required"):
+            await blocks.children()
+
+    @pytest.mark.asyncio
+    async def test_block_append(self, mock_api):
+        """Test appending a new block."""
+        append_response = {
+            "results": [
+                {
+                    "id": "new_block",
+                    "type": "paragraph",
+                    "paragraph": {"text": [{"text": {"content": "New"}}]}
+                }
+            ]
+        }
+        mock_api._request = AsyncMock(return_value=append_response)
+
+        blocks = BlockCollection(mock_api, parent_id="parent_id")
+        block_data = {
+            "children": [
+                {
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {"text": [{"text": {"content": "New"}}]}
+                }
+            ]
+        }
+
+        block = await blocks.append(**block_data)
+
+        assert isinstance(block, Block)
+        mock_api._request.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_block_append_no_parent_id(self, mock_api):
+        """Test appending without parent_id raises ValueError."""
+        blocks = BlockCollection(mock_api)
+
+        with pytest.raises(ValueError, match="parent_id is required"):
+            await blocks.append()
