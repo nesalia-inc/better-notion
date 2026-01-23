@@ -1,0 +1,202 @@
+[project]
+name = "better-notion"
+version = "0.1.0"
+description = "A high-level Python SDK for the Notion API with developer experience in mind."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    {name = "Nesalia Inc", email = "contact@nesalia.com"}
+]
+license = {text = "MIT"}
+keywords = ["notion", "api", "sdk", "notion-api", "productivity"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Office/Business",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    # HTTP client
+    "httpx>=0.27.0,<0.28.0",
+
+    # Data validation
+    "pydantic>=2.0.0,<3.0.0",
+
+    # Async support
+    "typing-extensions>=4.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+
+    # Type checking
+    "mypy>=1.0.0",
+
+    # Linting and formatting
+    "ruff>=0.1.0",
+
+    # Pre-commit hooks
+    "pre-commit>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/nesalia/better-notion"
+Documentation = "https://github.com/nesalia/better-notion#readme"
+Repository = "https://github.com/nesalia/better-notion"
+Issues = "https://github.com/nesalia/better-notion/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["better_notion"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/better_notion",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+    "/pyproject.toml",
+]
+
+# =============================================================================
+# Ruff - Linting and Formatting
+# =============================================================================
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+# Enable recommended rules
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "B008",   # Do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "S101",   # Allow assert in tests
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# =============================================================================
+# Pytest - Testing Configuration
+# =============================================================================
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+# Output
+addopts = [
+    "-v",                            # Verbose output
+    "--strict-markers",              # Treat unknown markers as error
+    "--tb=short",                    # Short traceback format
+    "--cov=better_notion",           # Coverage reporting
+    "--cov-report=html",             # HTML coverage report
+    "--cov-report=term-missing",     # Show missing lines
+    "--cov-fail-under=80",           # Fail if coverage below 80%
+]
+
+# Async configuration
+asyncio_mode = "auto"
+
+# Markers
+markers = [
+    "unit: Unit tests (no external dependencies)",
+    "integration: Integration tests (may use I/O)",
+    "slow: Slow tests (>1 second)",
+    "e2e: End-to-end tests",
+]
+
+# =============================================================================
+# Coverage - Coverage Configuration
+# =============================================================================
+
+[tool.coverage.run]
+source = ["better_notion"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# =============================================================================
+# Mypy - Type Checking Configuration
+# =============================================================================
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # TODO: Enable gradually
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+# =============================================================================
+# Hatch - Build Configuration
+# =============================================================================
+
+[tool.hatch.metadata]
+allow-direct-references = true
