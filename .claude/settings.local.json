@@ -5,7 +5,8 @@
       "Bash(git commit:*)",
       "Bash(git add:*)",
       "Bash(uv run pytest:*)",
-      "Bash(uv run ruff check:*)"
+      "Bash(uv run ruff check:*)",
+      "Bash(python -m pytest:*)"
     ]
   }
 }

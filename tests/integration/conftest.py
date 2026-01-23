@@ -31,14 +31,20 @@ TEST_DATABASE_ID = os.getenv("NOTION_TEST_DATABASE_ID")
 TEST_PAGE_ID = os.getenv("NOTION_TEST_PAGE_ID")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def api() -> NotionAPI:
     """Create a NotionAPI client for integration tests.
 
-    The client is closed automatically after all tests complete.
+    Each test gets its own client to avoid event loop issues.
     """
-    async with NotionAPI(auth=NOTION_KEY) as client:
-        yield client
+    client = NotionAPI(auth=NOTION_KEY)
+    yield client
+    # Close the client after each test, ignoring event loop issues
+    try:
+        await client.close()
+    except RuntimeError:
+        # Ignore "Event loop is closed" errors on Windows with pytest-asyncio
+        pass
 
 
 @pytest.fixture

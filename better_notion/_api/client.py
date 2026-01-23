@@ -64,11 +64,12 @@ class NotionAPI:
         self._timeout = timeout
         self._version = version
 
-        # Create HTTP client
+        # Create HTTP client with connection limits for better compatibility
         self._http = httpx.AsyncClient(
             base_url=self._base_url,
             timeout=httpx.Timeout(timeout),
             headers=self._default_headers(),
+            limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
         )
 
     @property
