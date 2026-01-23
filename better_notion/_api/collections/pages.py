@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
 from better_notion._api.entities import Page
+from better_notion._api.utils import AsyncPaginatedIterator
 
 
 class PageCollection:
@@ -63,7 +64,7 @@ class PageCollection:
             **kwargs: Query parameters (filter, sorts, start_cursor, etc.).
 
         Returns:
-            List of Page entities.
+            List of Page entities (first page only).
 
         Raises:
             NotFoundError: If the database does not exist.
@@ -75,3 +76,33 @@ class PageCollection:
             json=kwargs,
         )
         return [Page(self._api, page_data) for page_data in data.get("results", [])]
+
+    def iterate(self, database_id: str, **kwargs: Any) -> AsyncPaginatedIterator[Page]:
+        """Iterate over all pages in a database with automatic pagination.
+
+        Args:
+            database_id: The database ID.
+            **kwargs: Query parameters (filter, sorts, etc.).
+
+        Returns:
+            Async iterator that yields Page entities.
+
+        Example:
+            >>> async for page in api.pages.iterate("database_id"):
+            ...     print(page.title)
+
+        Note:
+            This method does not fetch pages immediately. Pages are fetched
+            as you iterate, making it memory-efficient for large datasets.
+        """
+        async def fetch_fn(cursor: str | None) -> dict[str, Any]:
+            query_params = kwargs.copy()
+            if cursor:
+                query_params["start_cursor"] = cursor
+            return await self._api._request(
+                "POST",
+                f"/databases/{database_id}/query",
+                json=query_params,
+            )
+
+        return AsyncPaginatedIterator(fetch_fn, lambda data: Page(self._api, data))

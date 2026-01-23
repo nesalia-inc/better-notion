@@ -150,6 +150,71 @@ class TestPageCollection:
             json={"filter": filter_param},
         )
 
+    @pytest.mark.asyncio
+    async def test_iterate_pages_single_page(self, mock_api, sample_page_data):
+        """Test iterating pages when only one page of results."""
+        query_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=query_response)
+
+        pages_iterator = mock_api.pages.iterate("database_id")
+        pages = await pages_iterator.to_list()
+
+        assert len(pages) == 1
+        assert isinstance(pages[0], Page)
+
+    @pytest.mark.asyncio
+    async def test_iterate_pages_multiple_pages(self, mock_api, sample_page_data):
+        """Test iterating pages with multiple pages of results."""
+        page2_data = {**sample_page_data, "id": "page2_id"}
+
+        # First call returns page 1 with next cursor
+        call_count = 0
+
+        async def mock_request(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {
+                    "results": [sample_page_data],
+                    "has_more": True,
+                    "next_cursor": "cursor123"
+                }
+            else:
+                return {
+                    "results": [page2_data],
+                    "has_more": False
+                }
+
+        mock_api._request = AsyncMock(side_effect=mock_request)
+
+        pages_iterator = mock_api.pages.iterate("database_id")
+        pages = await pages_iterator.to_list()
+
+        assert len(pages) == 2
+        assert pages[0].id == sample_page_data["id"]
+        assert pages[1].id == "page2_id"
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_iterate_pages_with_filter(self, mock_api, sample_page_data):
+        """Test iterating pages with a filter parameter."""
+        query_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=query_response)
+
+        filter_param = {"property": "Status", "select": {"equals": "Done"}}
+        pages_iterator = mock_api.pages.iterate("database_id", filter=filter_param)
+        pages = await pages_iterator.to_list()
+
+        assert len(pages) == 1
+        # Verify the filter was passed correctly
+        assert mock_api._request.call_args[1]["json"]["filter"] == filter_param
+
 
 class TestBlockCollection:
     """Test suite for BlockCollection."""
