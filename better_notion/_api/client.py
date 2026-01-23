@@ -1,4 +1,4 @@
-"""Low-level Notion API client."""
+"""Notion API client."""
 
 from __future__ import annotations
 
@@ -6,35 +6,32 @@ from typing import Any
 
 import httpx
 
-from better_notion._api.endpoints import (
-    BlocksEndpoint,
-    CommentsEndpoint,
-    DatabasesEndpoint,
-    PagesEndpoint,
-    SearchEndpoint,
-    UsersEndpoint,
+from better_notion._api.collections import (
+    BlockCollection,
+    DatabaseCollection,
+    PageCollection,
+    UserCollection,
 )
 from better_notion._api.errors import NotionAPIError
 
 
 class NotionAPI:
-    """Low-level Notion API client.
+    """Notion API client with object-oriented interface.
 
-    This provides a 1:1 mapping with the Notion API.
-    Use NotionClient for a higher-level interface.
+    This client provides collections that return entity objects,
+    allowing for true object-oriented interaction with Notion.
 
     Attributes:
-        auth: Authentication handler.
-        blocks: Blocks endpoint.
-        pages: Pages endpoint.
-        databases: Databases endpoint.
-        users: Users endpoint.
-        search: Search endpoint.
-        comments: Comments endpoint.
+        pages: Page collection for managing pages.
+        blocks: Block collection for managing blocks.
+        databases: Database collection for managing databases.
+        users: User collection for managing users.
 
     Example:
         >>> api = NotionAPI(auth="secret_...")
-        >>> page = await api.pages.retrieve("page_id")
+        >>> page = await api.pages.get("page_id")
+        >>> print(page.title)
+        >>> await page.delete()
     """
 
     DEFAULT_BASE_URL = "https://api.notion.com/v1"
@@ -74,13 +71,25 @@ class NotionAPI:
             headers=self._default_headers(),
         )
 
-        # Initialize endpoints
-        self.blocks = BlocksEndpoint(self)
-        self.pages = PagesEndpoint(self)
-        self.databases = DatabasesEndpoint(self)
-        self.users = UsersEndpoint(self)
-        self.search = SearchEndpoint(self)
-        self.comments = CommentsEndpoint(self)
+    @property
+    def pages(self) -> PageCollection:
+        """Page collection for managing pages."""
+        return PageCollection(self)
+
+    @property
+    def blocks(self) -> BlockCollection:
+        """Block collection for managing blocks."""
+        return BlockCollection(self)
+
+    @property
+    def databases(self) -> DatabaseCollection:
+        """Database collection for managing databases."""
+        return DatabaseCollection(self)
+
+    @property
+    def users(self) -> UserCollection:
+        """User collection for managing users."""
+        return UserCollection(self)
 
     def _default_headers(self) -> dict[str, str]:
         """Get default headers for requests.

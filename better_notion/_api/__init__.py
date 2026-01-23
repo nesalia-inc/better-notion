@@ -1,8 +1,7 @@
-"""
-Low-level API for Better Notion SDK.
+"""Low-level API for Better Notion SDK.
 
-This module provides a 1:1 mapping with the Notion API.
-Use NotionClient for a higher-level interface.
+This module provides an object-oriented interface to the Notion API.
+Entity objects (Page, Block, etc.) know how to manipulate themselves.
 """
 
 from better_notion._api.client import NotionAPI
