@@ -144,6 +144,81 @@ class TestEntities:
         assert block.id == "block_id"
         assert block.type == "paragraph"
 
+    @pytest.mark.asyncio
+    async def test_block_save(self, mock_api):
+        """Test Block save method."""
+        block_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {"text": [{"text": {"content": "Hello"}}]}
+        }
+        mock_api._request = AsyncMock(return_value=block_data)
+        block = Block(mock_api, block_data)
+
+        await block.save()
+
+        mock_api._request.assert_called_once()
+        call_args = mock_api._request.call_args
+        assert call_args[0][0] == "PATCH"
+        assert call_args[0][1] == "/blocks/block_id"
+        assert "paragraph" in call_args[1]["json"]
+        assert block._modified is False
+
+    @pytest.mark.asyncio
+    async def test_block_delete(self, mock_api):
+        """Test Block delete method."""
+        block_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {}
+        }
+        mock_api._request = AsyncMock(return_value={})
+        block = Block(mock_api, block_data)
+
+        await block.delete()
+
+        mock_api._request.assert_called_once_with("DELETE", "/blocks/block_id")
+
+    @pytest.mark.asyncio
+    async def test_block_reload(self, mock_api):
+        """Test Block reload method."""
+        block_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {"text": [{"text": {"content": "Hello"}}]}
+        }
+        updated_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {"text": [{"text": {"content": "Hello World"}}]}
+        }
+        mock_api._request = AsyncMock(return_value=updated_data)
+
+        block = Block(mock_api, block_data)
+        await block.reload()
+
+        mock_api._request.assert_called_once_with("GET", "/blocks/block_id")
+        assert block._data == updated_data
+        assert block._modified is False
+
+    @pytest.mark.asyncio
+    async def test_block_content_property(self, mock_api):
+        """Test Block content property getter and setter."""
+        block_data = {
+            "id": "block_id",
+            "type": "paragraph",
+            "paragraph": {"text": [{"text": {"content": "Hello"}}]}
+        }
+        block = Block(mock_api, block_data)
+
+        content = block.content
+        assert content["text"][0]["text"]["content"] == "Hello"
+
+        new_content = {"text": [{"text": {"content": "New Content"}}]}
+        block.content = new_content
+        assert block._data["paragraph"] == new_content
+        assert block._modified is True
+
     def test_database_entity_creation(self, mock_api):
         """Test Database entity creation."""
         database_data = {

@@ -39,37 +39,56 @@ class Block:
     @property
     def content(self) -> Any:
         """Get the block content."""
-        raise NotImplementedError("Block.content not yet implemented")
+        from better_notion.utils.helpers import extract_content
+        return extract_content(self._data)
 
     @content.setter
     def content(self, value: Any) -> None:
         """Set the block content."""
-        raise NotImplementedError("Block.content setter not yet implemented")
+        self._data[self._data["type"]] = value
+        self._modified = True
 
     # Instance methods
     async def save(self) -> None:
         """Save changes to Notion.
 
+        Updates the block content on Notion.
+
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the block no longer exists.
+            ValidationError: If the block content is invalid.
         """
-        raise NotImplementedError("Block.save() not yet implemented")
+        block_type = self._data["type"]
+        block_content = self._data[block_type]
+
+        await self._api._request(
+            "PATCH",
+            f"/blocks/{self.id}",
+            json={block_type: block_content},
+        )
+        self._modified = False
 
     async def delete(self) -> None:
         """Delete this block.
 
+        Permanently deletes the block in Notion.
+
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the block no longer exists.
         """
-        raise NotImplementedError("Block.delete() not yet implemented")
+        await self._api._request("DELETE", f"/blocks/{self.id}")
 
     async def reload(self) -> None:
         """Reload block data from Notion.
 
+        Fetches the latest block data and updates the entity.
+
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the block no longer exists.
         """
-        raise NotImplementedError("Block.reload() not yet implemented")
+        data = await self._api._request("GET", f"/blocks/{self.id}")
+        self._data = data
+        self._modified = False
 
     def __repr__(self) -> str:
         """String representation."""
