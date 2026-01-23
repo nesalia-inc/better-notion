@@ -13,7 +13,10 @@ from better_notion import NotionAPI
 from better_notion._api.properties import Title, Text
 
 # Load environment variables from .env.local
-load_dotenv()
+# Find the .env.local file in the project root (tests/integration/ -> project root)
+project_root = Path(__file__).parent.parent.parent
+env_path = project_root / ".env.local"
+load_dotenv(env_path)
 
 # Get Notion API token from environment
 NOTION_KEY = os.getenv("NOTION_KEY")

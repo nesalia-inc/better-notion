@@ -77,7 +77,7 @@ class TestSearchIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Search Test Page").build(),
                 },
                 "children": [

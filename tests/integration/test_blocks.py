@@ -22,7 +22,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Get Block Test").build(),
                 },
                 "children": [
@@ -58,7 +58,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Block Content Test").build(),
                 },
                 "children": [
@@ -114,7 +114,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("List Children Test").build(),
                 },
                 "children": children_blocks
@@ -137,7 +137,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Append Block Test").build(),
                 },
                 "children": [
@@ -182,7 +182,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Delete Block Test").build(),
                 },
                 "children": [
@@ -220,7 +220,7 @@ class TestBlocksIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Reload Block Test").build(),
                 },
                 "children": [

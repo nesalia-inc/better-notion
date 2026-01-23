@@ -42,7 +42,7 @@ class TestDatabasesIntegration:
                 "/pages",
                 json={
                     "parent": {"database_id": test_database["id"]},
-                    "properties={
+                    "properties": {
                         **Title(f"Query Test {i}").build(),
                     }
                 }

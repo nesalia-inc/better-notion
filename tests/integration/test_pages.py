@@ -44,7 +44,7 @@ class TestPagesIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Get Test Page").build(),
                 }
             }
@@ -69,7 +69,7 @@ class TestPagesIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Update Test Page").build(),
                     **Select("Status", "In Progress").build(),
                 }
@@ -98,7 +98,7 @@ class TestPagesIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Delete Test Page").build(),
                 }
             }
@@ -124,7 +124,7 @@ class TestPagesIntegration:
                 "/pages",
                 json={
                     "parent": {"database_id": test_database["id"]},
-                    "properties={
+                    "properties": {
                         **Title(f"List Test Page {i}").build(),
                     }
                 }
@@ -150,7 +150,7 @@ class TestPagesIntegration:
                 "/pages",
                 json={
                     "parent": {"database_id": test_database["id"]},
-                    "properties={
+                    "properties": {
                         **Title(f"Paginate Test {i}").build(),
                     }
                 }
@@ -178,7 +178,7 @@ class TestPagesIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Properties Test").build(),
                 }
             }
@@ -204,7 +204,7 @@ class TestPagesIntegration:
             "/pages",
             json={
                 "parent": {"database_id": test_database["id"]},
-                "properties={
+                "properties": {
                     **Title("Blocks Navigation Test").build(),
                 },
                 "children": [
