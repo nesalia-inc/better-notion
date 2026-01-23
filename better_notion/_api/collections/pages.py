@@ -43,15 +43,17 @@ class PageCollection:
         """Create a new page.
 
         Args:
-            **kwargs: Page properties.
+            **kwargs: Page properties including parent (required).
 
         Returns:
             The created Page entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            ValidationError: If parent is not provided or invalid.
+            BadRequestError: If the request is invalid.
         """
-        raise NotImplementedError("PageCollection.create() not yet implemented")
+        data = await self._api._request("POST", "/pages", json=kwargs)
+        return Page(self._api, data)
 
     async def list(self, database_id: str, **kwargs: Any) -> list[Page]:
         """List pages in a database.

@@ -63,3 +63,35 @@ class TestPageCollection:
 
         with pytest.raises(NotFoundError):
             await mock_api.pages.get("nonexistent_page_id")
+
+    @pytest.mark.asyncio
+    async def test_create_page(self, mock_api, sample_page_data):
+        """Test creating a new page."""
+        mock_api._request = AsyncMock(return_value=sample_page_data)
+
+        page_data = {
+            "parent": {"database_id": "database_id"},
+            "properties": {
+                "Name": {
+                    "type": "title",
+                    "title": [{"text": {"content": "New Page"}}]
+                }
+            }
+        }
+
+        page = await mock_api.pages.create(**page_data)
+
+        assert isinstance(page, Page)
+        mock_api._request.assert_called_once_with("POST", "/pages", json=page_data)
+
+    @pytest.mark.asyncio
+    async def test_create_page_validation_error(self, mock_api):
+        """Test creating a page with invalid data raises ValidationError."""
+        from better_notion._api.errors import ValidationError
+
+        mock_api._request = AsyncMock(
+            side_effect=ValidationError("parent is required")
+        )
+
+        with pytest.raises(ValidationError):
+            await mock_api.pages.create()
