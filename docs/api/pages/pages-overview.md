@@ -480,6 +480,7 @@ Properties marked with `*` are available to integrations with any capabilities. 
 
 ## Related Documentation
 
+- [Pages API Reference](./pages-api.md) - Complete API endpoint documentation
 - [Page Properties](./page-properties.md) - Complete property reference
 - [Property Types](./page-property-types.md) - All property type details
 - [Page Implementation](./page-implementation.md) - SDK implementation guide
@@ -488,4 +489,4 @@ Properties marked with `*` are available to integrations with any capabilities. 
 
 ---
 
-**Next:** See [Page Properties](./page-properties.md) for detailed information about page properties.
+**Next:** See [Pages API Reference](./pages-api.md) for complete API endpoint documentation or [Page Properties](./page-properties.md) for detailed information about page properties.

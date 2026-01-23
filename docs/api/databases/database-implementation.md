@@ -809,6 +809,8 @@ database = await client.databases.create(
 ---
 
 **Related Documentation:**
+- [Databases API Reference](./databases-api.md) - Complete database API documentation
+- [Data Sources API Reference](./data-sources-api.md) - Complete data source API documentation
 - [Databases Overview](./databases-overview.md) - Database concepts
 - [Data Sources](./data-sources.md) - Data source details
 - [Page Properties](../pages/page-properties.md) - Property types

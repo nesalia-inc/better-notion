@@ -941,6 +941,7 @@ if tags:
 ---
 
 **Related Documentation:**
+- [Pages API Reference](./pages-api.md) - Complete API endpoint documentation
 - [Pages Overview](./pages-overview.md) - Page concepts
 - [Page Properties](./page-properties.md) - Property reference
 - [Rich Text Objects](../rich-text-objects.md) - Text in properties

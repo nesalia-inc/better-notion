@@ -991,10 +991,11 @@ new_page = await data_source.create_page(
 
 ## Related Documentation
 
+- [Data Sources API Reference](./data-sources-api.md) - Complete data source API documentation
+- [Databases API Reference](./databases-api.md) - Database-level operations
 - [Databases Overview](./databases-overview.md) - Database container
 - [Database Implementation](./database-implementation.md) - SDK implementation
 - [Page Properties](../pages/page-properties.md) - Property values (data rows)
-- [Query Data Source](https://developers.notion.com/reference/post-data-source-query) - API endpoint
 
 ---
 

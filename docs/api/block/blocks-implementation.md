@@ -958,6 +958,7 @@ async def test_block_manager_append():
 ---
 
 **Related Documentation:**
+- [Blocks API Reference](./blocks-api.md) - Complete API endpoint documentation
 - [Blocks Overview](./blocks-overview.md) - Block concepts
 - [Block Types](./block-types.md) - Complete block type reference
 - [Rich Text Reference](./rich-text.md) - Rich text implementation

@@ -475,6 +475,7 @@ SSO can be configured for Enterprise Plan workspaces, providing:
 
 ## Related Documentation
 
+- [Users API](./users-api.md) - Complete API reference for user operations
 - [Authorization](https://developers.notion.com/docs/authorization) - Capabilities and access control
 - [Rich Text Objects](./rich-text-objects.md) - User mentions in rich text
 - [Page Properties](./pages/page-properties.md) - People property values

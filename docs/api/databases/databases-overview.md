@@ -501,10 +501,11 @@ properties = data_source.properties  # Via data source
 
 ## Related Documentation
 
+- [Databases API Reference](./databases-api.md) - Complete API endpoint documentation
+- [Data Sources API Reference](./data-sources-api.md) - Complete data source API documentation
 - [Data Sources](./data-sources.md) - Data source objects and properties
 - [Database Implementation](./database-implementation.md) - SDK implementation guide
 - [Page Properties](../pages/page-properties.md) - Property types in detail
-- [Query Database](https://developers.notion.com/reference/post-database-query) - API endpoint reference
 
 ---
 

@@ -821,10 +821,13 @@ Ensure your integration has the appropriate capabilities enabled in the integrat
 
 ## Related Documentation
 
+- [Comments API Reference](./comments-api.md) - Complete API endpoint documentation
 - [Rich Text Objects](./rich-text-objects.md) - Text formatting in comments
-- [Blocks Overview](./block/blocks-overview.md) - Comments on blocks
-- [Pages Overview](./pages/pages-overview.md) - Comments on pages
+- [Blocks API](./block/blocks-api.md) - Comments on blocks
+- [Pages API](./pages/pages-api.md) - Comments on pages
 
 ---
+
+**Next:** See [Comments API Reference](./comments-api.md) for complete API endpoint documentation.
 
 **Better Notion SDK** - Comment system documentation for Notion API integration.

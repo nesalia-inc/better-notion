@@ -1043,6 +1043,7 @@ class BlockColor(str, Enum):
 ---
 
 **Related Documentation:**
+- [Blocks API Reference](./blocks-api.md) - Complete API endpoint documentation
 - [Blocks Overview](./blocks-overview.md) - General block concepts
 - [Text Blocks](./text-blocks.md) - Detailed text block implementations
 - [Media Blocks](./media-blocks.md) - Media block implementations

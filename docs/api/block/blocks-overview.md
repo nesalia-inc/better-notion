@@ -375,6 +375,7 @@ class BlockManager:
 
 ## Related Documentation
 
+- [Blocks API Reference](./blocks-api.md) - Complete API endpoint documentation
 - [Block Types Reference](./block-types.md) - Complete list of all block types
 - [Text Blocks](./text-blocks.md) - Paragraphs, headings, lists
 - [Media Blocks](./media-blocks.md) - Images, videos, files
@@ -384,4 +385,4 @@ class BlockManager:
 
 ---
 
-**Next:** See [Block Types](./block-types.md) for a complete reference of all block types and their properties.
+**Next:** See [Blocks API Reference](./blocks-api.md) for complete API endpoint documentation or [Block Types](./block-types.md) for a complete reference of all block types and their properties.

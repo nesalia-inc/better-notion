@@ -1,0 +1,1896 @@
+# Pages API Reference
+
+Complete API reference for all page-related operations in the Notion API.
+
+## Table of Contents
+
+1. [Create a Page](#create-a-page)
+2. [Retrieve a Page](#retrieve-a-page)
+3. [Retrieve a Page Property Item](#retrieve-a-page-property-item)
+4. [Update a Page](#update-a-page)
+5. [Archive/Restore a Page](#archiverestore-a-page)
+6. [Move a Page](#move-a-page)
+
+---
+
+## Create a Page
+
+Creates a new page as a child of an existing page or data source.
+
+### Endpoint
+
+```
+POST https://api.notion.com/v1/pages
+```
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | object | Yes* | Parent page or data source where the new page is inserted |
+| `properties` | object | Yes | Page property values (must match parent schema) |
+| `children` | array | No | Content blocks to render on the new page |
+| `icon` | object | No | Page icon (emoji or file) |
+| `cover` | object | No | Cover image (file object) |
+| `template` | object | No | Template to apply to the page |
+| `position` | object | No | Position within parent page (page parent only) |
+
+\* For public integrations, `parent` can be omitted to create a private workspace-level page.
+
+### Parent Object
+
+**Page parent:**
+```json
+{
+  "parent": {
+    "type": "page_id",
+    "page_id": "59833787-2cf9-4fdf-8782-e53db20768a5"
+  }
+}
+```
+
+**Database parent:**
+```json
+{
+  "parent": {
+    "type": "database_id",
+    "database_id": "d9824bdc-8445-4327-be8b-5b47500af6ce"
+  }
+}
+```
+
+**Workspace parent (public integrations only):**
+```json
+{
+  "parent": {
+    "type": "workspace",
+    "workspace": true
+  }
+}
+```
+
+Or omit `parent` entirely.
+
+### Properties
+
+**For page parent (child page):**
+Only `title` property is allowed:
+```json
+{
+  "properties": {
+    "title": [
+      {
+        "type": "text",
+        "text": {
+          "content": "My New Page"
+        }
+      }
+    ]
+  }
+}
+```
+
+**For database parent:**
+Properties must match database schema:
+```json
+{
+  "properties": {
+    "Name": {
+      "title": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Tuscan Kale"
+          }
+        }
+      ]
+    },
+    "Description": {
+      "rich_text": [
+        {
+          "type": "text",
+          "text": {
+            "content": "A dark green leafy vegetable"
+          }
+        }
+      ]
+    },
+    "Food group": {
+      "select": {
+        "name": "Vegetable"
+      }
+    },
+    "Price": {
+      "number": 2.5
+    },
+    "In stock": {
+      "checkbox": true
+    }
+  }
+}
+```
+
+### Position Object (January 2026+)
+
+Only valid when parent is a page. Controls where the child page reference appears.
+
+**After a specific block:**
+```json
+{
+  "position": {
+    "type": "after_block",
+    "after_block": {
+      "id": "block-id-here"
+    }
+  }
+}
+```
+
+**At the top:**
+```json
+{
+  "position": {
+    "type": "page_start"
+  }
+}
+```
+
+**At the bottom (default):**
+```json
+{
+  "position": {
+    "type": "page_end"
+  }
+}
+```
+
+### Template Object
+
+**No template (default):**
+```json
+{
+  "template": {
+    "type": "none"
+  }
+}
+```
+
+**Use database default template:**
+```json
+{
+  "template": {
+    "type": "default"
+  }
+}
+```
+
+**Use specific template:**
+```json
+{
+  "template": {
+    "type": "template_id",
+    "template_id": "template-page-id"
+  }
+}
+```
+
+**Important:** When using a template, the `children` parameter is not allowed.
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer `{integration_token}` |
+| `Content-Type` | string | Yes | `application/json` |
+| `Notion-Version` | string | Yes | The API version to use (latest: `2025-09-03`) |
+
+### Required Capabilities
+
+This endpoint requires the **insert content** capability on the target parent page or database.
+
+### Response
+
+Returns the created Page object.
+
+```json
+{
+  "object": "page",
+  "id": "59833787-2cf9-4fdf-8782-e53db20768a5",
+  "created_time": "2022-03-01T19:05:00.000Z",
+  "last_edited_time": "2022-03-01T19:05:00.000Z",
+  "created_by": {
+    "object": "user",
+    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4"
+  },
+  "last_edited_by": {
+    "object": "user",
+    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4"
+  },
+  "cover": null,
+  "icon": {
+    "type": "emoji",
+    "emoji": "🥬"
+  },
+  "parent": {
+    "type": "database_id",
+    "database_id": "d9824bdc8445-4327-be8b-5b47500af6ce"
+  },
+  "archived": false,
+  "properties": {
+    "Name": {
+      "id": "title",
+      "type": "title",
+      "title": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Tuscan Kale"
+          }
+        }
+      ]
+    }
+  },
+  "url": "https://www.notion.so/Tuscan-Kale-598337872cf94fdf8782e53db20768a5"
+}
+```
+
+### Unsupported Properties
+
+The following properties cannot be set via API and will return an error:
+- `rollup`
+- `created_by`
+- `created_time`
+- `last_edited_by`
+- `last_edited_time`
+
+These are automatically generated by Notion.
+
+### SDK Implementation
+
+```python
+async def create(
+    self,
+    *,
+    parent: Union[str, dict],
+    properties: dict,
+    icon: Optional[dict] = None,
+    cover: Optional[dict] = None,
+    children: Optional[List[Block]] = None,
+    template: Optional[dict] = None,
+    position: Optional[dict] = None
+) -> Page:
+    """
+    Create a new page.
+
+    Args:
+        parent: Parent ID or parent dict with type and id
+        properties: Page property values
+        icon: Optional page icon (emoji or file)
+        cover: Optional cover image
+        children: Optional list of blocks for page content
+        template: Optional template to apply
+        position: Optional position within parent page
+
+    Returns:
+        Created Page object
+
+    Raises:
+        ValueError: If properties don't match parent schema
+        PermissionError: If lacking insert content capability
+    """
+    # Build parent object
+    if isinstance(parent, str):
+        # Auto-detect parent type from UUID format or default
+        parent = self._build_parent_object(parent)
+
+    payload = {
+        "parent": parent,
+        "properties": properties
+    }
+
+    if icon:
+        payload["icon"] = icon
+    if cover:
+        payload["cover"] = cover
+    if children:
+        payload["children"] = [block.to_dict() for block in children]
+    if template:
+        payload["template"] = template
+    if position:
+        payload["position"] = position
+
+    response = await self._client.request(
+        "POST",
+        "/pages",
+        json=payload
+    )
+
+    return Page.from_dict(response, self._client)
+
+async def create_in_database(
+    self,
+    database_id: str,
+    **properties
+) -> Page:
+    """Helper to create a page in a database."""
+    formatted_props = {}
+    for key, value in properties.items():
+        formatted_props[key] = self._format_property_value(value)
+
+    return await self.create(
+        parent={"type": "database_id", "database_id": database_id},
+        properties=formatted_props
+    )
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | `bad_request` | Invalid properties or unsupported property type |
+| 400 | `validation_error` | Properties don't match parent schema |
+| 400 | `bad_request` | Using `children` with template |
+| 403 | `missing_permission` | Integration lacks insert content capability |
+| 404 | `object_not_found` | Parent doesn't exist |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```python
+# Create a page in a database
+page = await client.pages.create(
+    parent={
+        "type": "database_id",
+        "database_id": "database-id-here"
+    },
+    properties={
+        "Name": {
+            "title": [{"text": {"content": "New Task"}}]
+        },
+        "Status": {
+            "status": {"name": "Not Started"}
+        },
+        "Priority": {
+            "select": {"name": "High"}
+        }
+    },
+    icon={"type": "emoji", "emoji": "📝"},
+    cover={
+        "type": "external",
+        "external": {"url": "https://example.com/cover.jpg"}
+    }
+)
+
+# Create a child page with content
+child_page = await client.pages.create(
+    parent={
+        "type": "page_id",
+        "page_id": "parent-page-id"
+    },
+    properties={
+        "title": [{"text": {"content": "Child Page"}}]
+    },
+    children=[
+        Heading(level=2, content="Introduction"),
+        Paragraph(content="This is the page content...")
+    ],
+    position={"type": "page_start"}
+)
+
+# Create from template
+template_page = await client.pages.create(
+    parent={"type": "database_id", "database_id": db_id},
+    properties={"Name": {"title": [{"text": {"content": "From Template"}}]}},
+    template={
+        "type": "template_id",
+        "template_id": "template-id-here"
+    }
+)
+```
+
+---
+
+## Retrieve a Page
+
+Retrieves a Page object using the ID specified.
+
+### Endpoint
+
+```
+GET https://api.notion.com/v1/pages/{page_id}
+```
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | string (UUID) | Yes | Identifier for a Notion page |
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `filter_properties` | string | No | Comma-separated property IDs or names to retrieve |
+
+**Example:**
+```
+GET /pages/{page_id}?filter_properties=Name&filter_properties=Status
+```
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer `{integration_token}` |
+| `Notion-Version` | string | Yes | The API version to use (latest: `2025-09-03`) |
+
+### Required Capabilities
+
+This endpoint requires the **read content** capability.
+
+### Response
+
+Returns a Page object with properties (but not content).
+
+```json
+{
+  "object": "page",
+  "id": "b55c9c91-384d-452b-81db-d1ef79372b75",
+  "created_time": "2022-03-01T19:05:00.000Z",
+  "last_edited_time": "2023-06-12T16:52:00.000Z",
+  "created_by": {
+    "object": "user",
+    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4"
+  },
+  "last_edited_by": {
+    "object": "user",
+    "id": "ee5f0f84-409a-440f-983a-a5315961c6e4"
+  },
+  "cover": null,
+  "icon": {
+    "type": "emoji",
+    "emoji": "🥬"
+  },
+  "parent": {
+    "type": "database_id",
+    "database_id": "d9824bdc-8445-4327-be8b-5b47500af6ce"
+  },
+  "archived": false,
+  "properties": {
+    "Cost of next trip": {
+      "id": "WOd%3B",
+      "type": "number",
+      "number": 2
+    },
+    "Recipes": {
+      "id": "YfIu",
+      "type": "relation",
+      "has_more": false,
+      "relation": [
+        {
+          "id": "93c3a6d6-b1d5-4681-a2d0-c8b7b27e7b51"
+        }
+      ]
+    },
+    "Description": {
+      "id": "_Tc_",
+      "type": "rich_text",
+      "rich_text": [
+        {
+          "type": "text",
+          "text": {
+            "content": "A dark green leafy vegetable"
+          }
+        }
+      ]
+    },
+    "In stock": {
+      "id": "%60%5Bq%3F",
+      "type": "checkbox",
+      "checkbox": true
+    },
+    "Number of meals": {
+      "id": "zag~",
+      "type": "number",
+      "number": 4
+    },
+    "Photo": {
+      "id": "%7DF_L",
+      "type": "url",
+      "url": "https://i.insider.com/612fb23c9ef1e50018f93198?width=1136&format=jpeg"
+    },
+    "Name": {
+      "id": "title",
+      "type": "title",
+      "title": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Tuscan kale",
+            "link": null
+          },
+          "annotations": {
+            "bold": false,
+            "italic": false,
+            "strikethrough": false,
+            "underline": false,
+            "code": false,
+            "color": "default"
+          },
+          "plain_text": "Tuscan kale",
+          "href": null
+        }
+      ]
+    }
+  },
+  "url": "https://www.notion.so/Tuscan-kale-598337872cf94fdf8782e53db20768a5",
+  "public_url": null
+}
+```
+
+### Important Limitations
+
+1. **25 Reference Limit**
+   - Maximum of 25 references per page property
+   - Affects: `people`, `relation`, `rich_text`, `title`
+   - Beyond 25: References may show as "Untitled", "Anonymous", or not returned
+   - Use **Retrieve a page property item** endpoint for complete lists
+
+2. **No Content Returned**
+   - Response contains page properties, not page content (blocks)
+   - Use **Retrieve block children** endpoint to get page content
+
+### SDK Implementation
+
+```python
+async def get(
+    self,
+    page_id: str,
+    *,
+    filter_properties: Optional[List[str]] = None
+) -> Page:
+    """
+    Retrieve a page by ID.
+
+    Args:
+        page_id: The UUID of the page
+        filter_properties: Optional list of property IDs/names to retrieve
+
+    Returns:
+        Page object
+
+    Raises:
+        NotFoundError: If page doesn't exist
+        PermissionError: If lacking read content capability
+    """
+    params = {}
+    if filter_properties:
+        # Notion expects multiple filter_properties params
+        params["filter_properties"] = filter_properties
+
+    response = await self._client.request(
+        "GET",
+        f"/pages/{page_id}",
+        params=params
+    )
+
+    return Page.from_dict(response, self._client)
+
+async def get_with_content(
+    self,
+    page_id: str
+) -> Page:
+    """
+    Retrieve a page with its content blocks.
+
+    Args:
+        page_id: The UUID of the page
+
+    Returns:
+        Page object with loaded blocks
+    """
+    page = await self.get(page_id)
+
+    # Load page content
+    if page.has_children or True:  # Always try to load content
+        blocks = await self._client.blocks.get_all_children(page_id)
+        page._blocks = blocks
+
+    return page
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 404 | `object_not_found` | Page doesn't exist or no access |
+| 403 | `missing_permission` | Integration lacks read content capability |
+| 400 | `bad_request` | Invalid filter_properties |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```python
+# Get a page
+page = await client.pages.get("page-id-here")
+
+print(f"Title: {page.get_title()}")
+print(f"URL: {page.url}")
+
+# Get specific properties only
+page = await client.pages.get(
+    "page-id-here",
+    filter_properties=["Name", "Status", "Due Date"]
+)
+
+# Get page with content
+page_with_content = await client.pages.get_with_content("page-id-here")
+
+for block in page_with_content.blocks:
+    print(f"{block.type}: {block.plain_text}")
+```
+
+---
+
+## Retrieve a Page Property Item
+
+Retrieves a specific property item for a page. Use this for properties with more than 25 references.
+
+### Endpoint
+
+```
+GET https://api.notion.com/v1/pages/{page_id}/properties/{property_id}
+```
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | string (UUID) | Yes | Identifier for a Notion page |
+| `property_id` | string | Yes | Identifier for a page property |
+
+**Note:** Use the Retrieve a database endpoint to get property IDs.
+
+### Query Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `page_size` | integer | No | 100 | Number of items per page (max: 100) |
+| `start_cursor` | string | No | - | Cursor for pagination |
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer `{integration_token}` |
+| `Notion-Version` | string | Yes | The API version to use (latest: `2025-09-03`) |
+
+### Required Capabilities
+
+This endpoint requires the **read content** capability.
+
+### Response Types
+
+#### Simple Properties (non-paginated)
+
+```json
+{
+  "object": "property_item",
+  "id": "kjPO",
+  "type": "number",
+  "number": 2
+}
+```
+
+Simple properties include:
+- `checkbox`
+- `date`
+- `email`
+- `number`
+- `phone`
+- `select`
+- `status`
+- `url`
+- `created_time`
+- `created_by`
+- `last_edited_time`
+- `last_edited_by`
+
+#### Paginated Properties
+
+```json
+{
+  "object": "property_item",
+  "id": "title",
+  "type": "title",
+  "title": [
+    {
+      "type": "text",
+      "text": {"content": "Tuscan kale"}
+    }
+  ],
+  "next_cursor": "eyJmaWx0ZXIiOnt9...",
+  "has_more": false
+}
+```
+
+Paginated properties include:
+- `title`
+- `rich_text`
+- `relation`
+- `people`
+
+Look for `next_cursor` and `has_more` to determine if more results exist.
+
+#### Rollup Properties
+
+**"Show original" rollups** return a flattened list:
+```json
+{
+  "object": "property_item",
+  "type": "rollup",
+  "rollup": {
+    "type": "array",
+    "array": [
+      {"type": "number", "number": 10},
+      {"type": "number", "number": 20}
+    ]
+  }
+}
+```
+
+**Rollups with aggregation:**
+```json
+{
+  "object": "property_item",
+  "type": "rollup",
+  "rollup": {
+    "type": "number",
+    "number": 30,
+    "function": "sum"
+  },
+  "next_cursor": "...",
+  "has_more": true
+}
+```
+
+For large rollups, paginate until `has_more` is false to get the final aggregated value.
+
+**Unsupported aggregations** (return list instead):
+- `show_unique`
+- `unique` (count unique)
+- `median`
+
+### SDK Implementation
+
+```python
+async def get_property(
+    self,
+    page_id: str,
+    property_id: str,
+    *,
+    page_size: int = 100,
+    start_cursor: Optional[str] = None
+) -> PropertyItem:
+    """
+    Retrieve a specific page property item.
+
+    Args:
+        page_id: The UUID of the page
+        property_id: The ID of the property
+        page_size: Number of items for paginated properties
+        start_cursor: Cursor for pagination
+
+    Returns:
+        PropertyItem object (check type attribute)
+    """
+    params = {"page_size": page_size}
+    if start_cursor:
+        params["start_cursor"] = start_cursor
+
+    response = await self._client.request(
+        "GET",
+        f"/pages/{page_id}/properties/{property_id}",
+        params=params
+    )
+
+    return PropertyItem.from_dict(response)
+
+async def get_property_all(
+    self,
+    page_id: str,
+    property_id: str
+) -> PropertyItem:
+    """
+    Retrieve all items in a paginated property.
+
+    Automatically paginates to get all results.
+
+    Args:
+        page_id: The UUID of the page
+        property_id: The ID of the property
+
+    Returns:
+        PropertyItem with all results loaded
+    """
+    all_items = []
+    cursor = None
+    has_more = True
+
+    while has_more:
+        item = await self.get_property(
+            page_id,
+            property_id,
+            start_cursor=cursor
+        )
+
+        # Accumulate results based on type
+        if item.type == "relation":
+            all_items.extend(item.relation)
+        elif item.type == "people":
+            all_items.extend(item.people)
+        elif item.type in ("title", "rich_text"):
+            # These are already arrays
+            all_items.extend(getattr(item, item.type))
+
+        has_more = getattr(item, "has_more", False)
+        cursor = getattr(item, "next_cursor", None)
+
+    # Return combined result
+    result = await self.get_property(page_id, property_id)
+    setattr(result, result.type, all_items)
+    result.has_more = False
+    result.next_cursor = None
+
+    return result
+```
+
+### Pagination
+
+For paginated properties (`title`, `rich_text`, `relation`, `people`):
+
+```python
+cursor = None
+while True:
+    prop_item = await client.pages.properties.get(
+        page_id="page-id",
+        property_id="property-id",
+        start_cursor=cursor
+    )
+
+    # Process items
+    if prop_item.type == "relation":
+        for relation in prop_item.relation:
+            process_relation(relation)
+
+    # Check if more results
+    if not prop_item.has_more:
+        break
+
+    cursor = prop_item.next_cursor
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 404 | `object_not_found` | Page or property doesn't exist |
+| 403 | `missing_permission` | Integration lacks read content capability |
+| 400 | `bad_request` | Invalid page_size or property_id |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```python
+# Get a specific property
+prop = await client.pages.properties.get(
+    page_id="page-id",
+    property_id="status"
+)
+
+if prop.type == "status":
+    print(f"Status: {prop.status.name}")
+
+# Get all items in a relation property
+all_relations = await client.pages.properties.get_all(
+    page_id="page-id",
+    property_id="relation-id"
+)
+
+print(f"Total related pages: {len(all_relations.relation)}")
+
+# Paginate through people property
+cursor = None
+all_people = []
+
+while True:
+    result = await client.pages.properties.get(
+        page_id="page-id",
+        property_id="people-id",
+        start_cursor=cursor
+    )
+
+    all_people.extend(result.people)
+
+    if not result.has_more:
+        break
+
+    cursor = result.next_cursor
+```
+
+---
+
+## Update a Page
+
+Modifies attributes of a Notion page such as properties, icon, or cover.
+
+### Endpoint
+
+```
+PATCH https://api.notion.com/v1/pages/{page_id}
+```
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | string (UUID) | Yes | The identifier for the Notion page to update |
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `properties` | object | No | Updated property values |
+| `archived` | boolean | No | Set to true to archive, false to restore |
+| `icon` | object | No | Page icon (emoji or file) |
+| `cover` | object | No | Cover image (external file) |
+| `is_locked` | boolean | No | Lock page from UI editing |
+| `erase_content` | boolean | No | Delete all block children |
+| `template` | object | No | Template to apply |
+
+### Properties Update
+
+**For database pages:**
+```json
+{
+  "properties": {
+    "In stock": {
+      "checkbox": true
+    },
+    "Price": {
+      "number": 5.99
+    },
+    "Status": {
+      "status": {
+        "name": "In Progress"
+      }
+    }
+  }
+}
+```
+
+**For standalone pages:**
+```json
+{
+  "properties": {
+    "title": [
+      {
+        "type": "text",
+        "text": {
+          "content": "Updated Title"
+        }
+      }
+    ]
+  }
+}
+```
+
+### Icon Update
+
+**Emoji:**
+```json
+{
+  "icon": {
+    "type": "emoji",
+    "emoji": "🎉"
+  }
+}
+```
+
+**External file:**
+```json
+{
+  "icon": {
+    "type": "external",
+    "external": {
+      "url": "https://example.com/icon.png"
+    }
+  }
+}
+```
+
+**Remove icon:**
+```json
+{
+  "icon": null
+}
+```
+
+### Cover Update
+
+```json
+{
+  "cover": {
+    "type": "external",
+    "external": {
+      "url": "https://example.com/cover.jpg"
+    }
+  }
+}
+```
+
+**Remove cover:**
+```json
+{
+  "cover": null
+}
+```
+
+### Template Application
+
+```json
+{
+  "template": {
+    "type": "default"
+  }
+}
+```
+
+Or:
+```json
+{
+  "template": {
+    "type": "template_id",
+    "template_id": "template-page-id"
+  }
+}
+```
+
+**Note:** Template is applied asynchronously after the request completes.
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer `{integration_token}` |
+| `Content-Type` | string | Yes | `application/json` |
+| `Notion-Version` | string | Yes | The API version to use (latest: `2025-09-03`) |
+
+### Required Capabilities
+
+This endpoint requires the **update content** capability.
+
+### Limitations
+
+1. **Rollup properties** cannot be updated
+2. **Parent cannot be changed** (use Move endpoint)
+3. **Properties parameter** can only be used for database pages (except title)
+
+### Response
+
+Returns the updated Page object.
+
+```json
+{
+  "object": "page",
+  "id": "60bdc8bd-3880-44b8-a9cd-8a145b3ffbd7",
+  "created_time": "2022-03-01T19:05:00.000Z",
+  "last_edited_time": "2023-06-12T17:30:00.000Z",
+  "icon": {
+    "type": "emoji",
+    "emoji": "🥬"
+  },
+  "parent": {
+    "type": "database_id",
+    "database_id": "d9824bdc-8445-4327-be8b-5b47500af6ce"
+  },
+  "archived": false,
+  "is_locked": false,
+  "properties": {
+    "In stock": {
+      "id": "%60%5Bq%3F",
+      "type": "checkbox",
+      "checkbox": true
+    }
+  },
+  "url": "https://www.notion.so/Tuscan-Kale-598337872cf94fdf8782e53db20768a5"
+}
+```
+
+### SDK Implementation
+
+```python
+async def update(
+    self,
+    page_id: str,
+    *,
+    properties: Optional[dict] = None,
+    icon: Optional[dict] = None,
+    cover: Optional[dict] = None,
+    archived: Optional[bool] = None,
+    is_locked: Optional[bool] = None,
+    erase_content: Optional[bool] = None,
+    template: Optional[dict] = None
+) -> Page:
+    """
+    Update a page.
+
+    Args:
+        page_id: The UUID of the page
+        properties: Updated property values
+        icon: New icon or null to remove
+        cover: New cover or null to remove
+        archived: Archive status
+        is_locked: Lock from UI editing
+        erase_content: Delete all blocks
+        template: Template to apply
+
+    Returns:
+        Updated Page object
+
+    Raises:
+        NotFoundError: If page doesn't exist
+        PermissionError: If lacking update content capability
+    """
+    payload = {}
+
+    if properties is not None:
+        payload["properties"] = properties
+    if icon is not None:
+        payload["icon"] = icon
+    if cover is not None:
+        payload["cover"] = cover
+    if archived is not None:
+        payload["archived"] = archived
+    if is_locked is not None:
+        payload["is_locked"] = is_locked
+    if erase_content is not None:
+        payload["erase_content"] = erase_content
+    if template is not None:
+        payload["template"] = template
+
+    response = await self._client.request(
+        "PATCH",
+        f"/pages/{page_id}",
+        json=payload
+    )
+
+    return Page.from_dict(response, self._client)
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | `bad_request` | Invalid property values or rollup update |
+| 400 | `validation_error` | Properties don't match database schema |
+| 403 | `missing_permission` | Integration lacks update content capability |
+| 404 | `object_not_found` | Page doesn't exist |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```python
+# Update properties
+page = await client.pages.update(
+    page_id="page-id",
+    properties={
+        "Status": {"status": {"name": "Completed"}},
+        "Progress": {"number": 100}
+    }
+)
+
+# Update icon and cover
+page = await client.pages.update(
+    page_id="page-id",
+    icon={"type": "emoji", "emoji": "✅"},
+    cover={
+        "type": "external",
+        "external": {"url": "https://example.com/success.jpg"}
+    }
+)
+
+# Remove icon
+page = await client.pages.update(
+    page_id="page-id",
+    icon=None
+)
+
+# Lock page from UI editing
+page = await client.pages.update(
+    page_id="page-id",
+    is_locked=True
+)
+
+# Clear page content
+page = await client.pages.update(
+    page_id="page-id",
+    erase_content=True
+)
+
+# Apply template
+page = await client.pages.update(
+    page_id="page-id",
+    template={"type": "template_id", "template_id": "template-id"}
+)
+```
+
+---
+
+## Archive/Restore a Page
+
+Archives (soft deletes) or restores a Notion page.
+
+### Endpoint
+
+```
+PATCH https://api.notion.com/v1/pages/{page_id}
+```
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `archived` | boolean | Yes | `true` to archive, `false` to restore |
+| `in_trash` | boolean | Yes | Alias for `archived` |
+
+**Note:** The API does not support permanently deleting pages. Only archival is supported.
+
+### Request Examples
+
+**Archive a page:**
+```bash
+curl -X PATCH https://api.notion.com/v1/pages/60bdc8bd-3880-44b8-a9cd-8a145b3ffbd7 \
+  -H 'Authorization: Bearer secret_*' \
+  -H "Content-Type: application/json" \
+  -H "Notion-Version: 2022-06-28" \
+  --data '{
+    "archived": true
+  }'
+```
+
+**Restore a page:**
+```bash
+curl -X PATCH https://api.notion.com/v1/pages/60bdc8bd-3880-44b8-a9cd-8a145b3ffbd7 \
+  -H 'Authorization: Bearer secret_*' \
+  -H "Content-Type: application/json" \
+  -H "Notion-Version: 2022-06-28" \
+  --data '{
+    "archived": false
+  }'
+```
+
+### Required Capabilities
+
+This endpoint requires the **update content** capability.
+
+### Response
+
+**Archived page response:**
+```json
+{
+  "object": "page",
+  "id": "be633bf1-dfa0-436d-b259-571129a590e5",
+  "created_time": "2022-10-24T22:54:00.000Z",
+  "last_edited_time": "2023-03-08T18:25:00.000Z",
+  "created_by": {
+    "object": "user",
+    "id": "c2f20311-9e54-4d11-8c79-7398424ae41e"
+  },
+  "last_edited_by": {
+    "object": "user",
+    "id": "9188c6a5-7381-452f-b3dc-d4865aa89bdf"
+  },
+  "cover": null,
+  "icon": {
+    "type": "emoji",
+    "emoji": "🐞"
+  },
+  "parent": {
+    "type": "database_id",
+    "database_id": "a1d8501e-1ac1-43e9-a6bd-ea9fe6c8822b"
+  },
+  "archived": true,
+  "in_trash": true,
+  "properties": {
+    "Due date": {
+      "id": "M%3BBw",
+      "type": "date",
+      "date": {
+        "start": "2023-02-23",
+        "end": null
+      }
+    },
+    "Status": {
+      "id": "Z%3ClH",
+      "type": "status",
+      "status": {
+        "id": "86ddb6ec-0627-47f8-800d-b65afd28be13",
+        "name": "Not started",
+        "color": "default"
+      }
+    },
+    "Title": {
+      "id": "title",
+      "type": "title",
+      "title": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Bug bash",
+            "link": null
+          },
+          "plain_text": "Bug bash",
+          "href": null
+        }
+      ]
+    }
+  },
+  "url": "https://www.notion.so/Bug-bash-be633bf1dfa0436db259571129a590e5"
+}
+```
+
+### Behavior
+
+- **Archived pages** are moved to trash in Notion UI
+- **Archived pages** can still be accessed and restored via API
+- **No permanent deletion** - only archival is supported
+- Both `archived` and `in_trash` work as aliases
+
+### SDK Implementation
+
+```python
+async def archive(self, page_id: str) -> Page:
+    """
+    Archive (soft delete) a page.
+
+    Args:
+        page_id: The UUID of the page to archive
+
+    Returns:
+        The archived Page object
+
+    Note:
+        This is a soft delete. Use restore() to unarchive.
+    """
+    return await self.update(page_id, archived=True)
+
+async def restore(self, page_id: str) -> Page:
+    """
+    Restore an archived page.
+
+    Args:
+        page_id: The UUID of the page to restore
+
+    Returns:
+        The restored Page object
+    """
+    return await self.update(page_id, archived=False)
+
+async def delete(self, page_id: str) -> Page:
+    """
+    Alias for archive().
+
+    Note: Notion does not support permanent deletion via API.
+    """
+    return await self.archive(page_id)
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 403 | `missing_permission` | Integration lacks update content capability |
+| 404 | `object_not_found` | Page doesn't exist |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```python
+# Archive a page
+archived_page = await client.pages.archive("page-id")
+
+# Restore a page
+restored_page = await client.pages.restore("page-id")
+
+# Or using update directly
+page = await client.pages.update("page-id", archived=True)
+page = await client.pages.update("page-id", archived=False)
+```
+
+---
+
+## Move a Page
+
+Moves an existing Notion page to a new parent.
+
+### Endpoint
+
+```
+POST https://api.notion.com/v1/pages/{page_id}/move
+```
+
+### Path Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | string (UUID) | Yes | The ID of the page to move |
+
+**Important:** This must be a regular Notion page, not a database. Moving databases is not supported.
+
+### Body Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | object | Yes | The new parent location |
+
+### Parent Object
+
+**Move under another page:**
+```json
+{
+  "parent": {
+    "type": "page_id",
+    "page_id": "f336d0bc-b841-465b-8045-024475c079dd"
+  }
+}
+```
+
+**Move into a database:**
+```json
+{
+  "parent": {
+    "type": "data_source_id",
+    "data_source_id": "1c7b35e6-e67f-8096-bf3f-000ba938459e"
+  }
+}
+```
+
+**Important:** Use `data_source_id`, not `database_id`. Use the Retrieve a database endpoint to get data source IDs.
+
+### Headers
+
+| Header | Type | Required | Description |
+|--------|------|----------|-------------|
+| `Authorization` | string | Yes | Bearer `{integration_token}` |
+| `Content-Type` | string | Yes | `application/json` |
+| `Notion-Version` | string | Yes | The API version to use (latest: `2025-09-03`) |
+
+### Response
+
+Returns the moved Page object with updated parent.
+
+```json
+{
+  "object": "page",
+  "id": "195de922-1179-449f-ab80-75a27c979105",
+  "created_time": "2025-01-15T10:30:00.000Z",
+  "last_edited_time": "2025-01-15T14:45:00.000Z",
+  "created_by": {
+    "object": "user",
+    "id": "abc123..."
+  },
+  "last_edited_by": {
+    "object": "user",
+    "id": "abc123..."
+  },
+  "parent": {
+    "type": "page_id",
+    "page_id": "new-parent-id"
+  },
+  "archived": false,
+  "in_trash": false,
+  "properties": {
+    "Name": {
+      "id": "title"
+    }
+  },
+  "url": "https://notion.so/..."
+}
+```
+
+### Limitations
+
+1. **Page must be a regular page** - Cannot move databases
+2. **Parent must be accessible** - Bot must have edit access to new parent
+3. **Page parent limitation** - `page_id` must be a page, not other block types
+4. **Exception:** For databases with only a single data source, `database_id` can be used (not recommended)
+
+### SDK Implementation
+
+```python
+async def move(
+    self,
+    page_id: str,
+    parent: Union[str, dict]
+) -> Page:
+    """
+    Move a page to a new parent.
+
+    Args:
+        page_id: The UUID of the page to move
+        parent: New parent - can be:
+            - UUID string (auto-detects type)
+            - dict with type and id
+
+    Returns:
+        Moved Page object
+
+    Raises:
+        ValueError: If parent type is invalid
+        NotFoundError: If page or parent doesn't exist
+        PermissionError: If lacking edit access
+
+    Example:
+        # Move under a page
+        await client.pages.move("page-id", "parent-page-id")
+
+        # Move into database
+        await client.pages.move("page-id", {
+            "type": "data_source_id",
+            "data_source_id": "ds-id"
+        })
+    """
+    # Build parent object if string provided
+    if isinstance(parent, str):
+        parent = self._build_move_parent(parent)
+
+    payload = {"parent": parent}
+
+    response = await self._client.request(
+        "POST",
+        f"/pages/{page_id}/move",
+        json=payload
+    )
+
+    return Page.from_dict(response, self._client)
+
+def _build_move_parent(self, parent_id: str) -> dict:
+    """
+    Build parent object from ID.
+
+    Auto-detects if it's a page or data source.
+    """
+    # Try to get the parent to determine its type
+    try:
+        parent_obj = await self._client.request("GET", f"/pages/{parent_id}")
+        return {
+            "type": "page_id",
+            "page_id": parent_id
+        }
+    except NotFoundError:
+        # Might be a data source
+        return {
+            "type": "data_source_id",
+            "data_source_id": parent_id
+        }
+```
+
+### Errors
+
+| Status Code | Error | Description |
+|-------------|-------|-------------|
+| 400 | `bad_request` | Attempting to move a database |
+| 400 | `bad_request` | Invalid parent type |
+| 403 | `missing_permission` | No edit access to new parent |
+| 404 | `object_not_found` | Page or parent doesn't exist |
+| 429 | `rate_limited` | Request rate limit exceeded |
+
+### Example Usage
+
+```bash
+# Move page under another page
+curl -X POST https://api.notion.com/v1/pages/195de9221179449fab8075a27c979105/move \
+  -H "Authorization: Bearer secret_xxx" \
+  -H "Notion-Version: 2022-06-28" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parent": {
+      "type": "page_id",
+      "page_id": "f336d0bc-b841-465b-8045-024475c079dd"
+    }
+  }'
+
+# Move page into a database
+curl -X POST https://api.notion.com/v1/pages/195de9221179449fab8075a27c979105/move \
+  -H "Authorization: Bearer secret_xxx" \
+  -H "Notion-Version: 2022-06-28" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "parent": {
+      "type": "data_source_id",
+      "data_source_id": "1c7b35e6-e67f-8096-bf3f-000ba938459e"
+    }
+  }'
+```
+
+```python
+# Move page under another page
+moved_page = await client.pages.move(
+    page_id="page-to-move",
+    parent="destination-page-id"
+)
+
+# Move page into database
+moved_page = await client.pages.move(
+    page_id="page-to-move",
+    parent={
+        "type": "data_source_id",
+        "data_source_id": "data-source-id"
+    }
+)
+
+# Verify the move
+print(f"New parent: {moved_page.parent}")
+print(f"New URL: {moved_page.url}")
+```
+
+---
+
+## Common Patterns
+
+### Create Page with Content
+
+```python
+async def create_page_with_content(
+    self,
+    database_id: str,
+    title: str,
+    content_blocks: List[Block]
+) -> Page:
+    """Create a page and add content in one call."""
+    page = await self.create(
+        parent={"type": "database_id", "database_id": database_id},
+        properties={"Name": {"title": [{"text": {"content": title}}]}},
+        children=content_blocks
+    )
+
+    return page
+```
+
+### Batch Create Pages
+
+```python
+async def create_pages_batch(
+    self,
+    database_id: str,
+    page_data: List[dict]
+) -> List[Page]:
+    """
+    Create multiple pages in a database.
+
+    Args:
+        database_id: Target database ID
+        page_data: List of property dicts for each page
+
+    Returns:
+        List of created Page objects
+    """
+    created_pages = []
+
+    for data in page_data:
+        page = await self.create(
+            parent={"type": "database_id", "database_id": database_id},
+            properties=data
+        )
+        created_pages.append(page)
+
+    return created_pages
+```
+
+### Get Page with Full Content
+
+```python
+async def get_page_complete(
+    self,
+    page_id: str
+) -> Page:
+    """Get a page with all properties and content loaded."""
+    # Get page
+    page = await self.get(page_id)
+
+    # Load all blocks recursively
+    async def load_blocks(block_id: str) -> List[Block]:
+        children = await self._client.blocks.get_all_children(block_id)
+
+        for child in children:
+            if child.has_children:
+                child.children = await load_blocks(str(child.id))
+
+        return children
+
+    page.blocks = await load_blocks(page_id)
+
+    return page
+```
+
+### Search and Update
+
+```python
+async def find_and_update(
+    self,
+    database_id: str,
+    filter_property: str,
+    filter_value: Any,
+    updates: dict
+) -> List[Page]:
+    """
+    Find pages matching criteria and update them.
+
+    Args:
+        database_id: Database to search
+        filter_property: Property ID to filter on
+        filter_value: Value to match
+        updates: Property updates to apply
+
+    Returns:
+        List of updated pages
+    """
+    # Query database
+    results = await self._client.databases.query(
+        database_id=database_id,
+        filter={
+            "property": filter_property,
+            "value": filter_value
+        }
+    )
+
+    updated_pages = []
+
+    # Update each matching page
+    for page_data in results.get("results", []):
+        page_id = page_data["id"]
+        updated = await self.update(page_id, properties=updates)
+        updated_pages.append(updated)
+
+    return updated_pages
+```
+
+### Duplicate Page
+
+```python
+async def duplicate_page(
+    self,
+    page_id: str,
+    new_parent: Optional[dict] = None,
+    new_title: Optional[str] = None
+) -> Page:
+    """
+    Duplicate a page with its content.
+
+    Args:
+        page_id: Page to duplicate
+        new_parent: Optional new parent (defaults to same parent)
+        new_title: Optional new title
+
+    Returns:
+        New duplicated page
+    """
+    # Get original page
+    original = await self.get(page_id)
+
+    # Get original content
+    blocks = await self._client.blocks.get_all_children(page_id)
+
+    # Determine parent
+    parent = new_parent or original.parent
+
+    # Create new page
+    properties = {"title": [{"text": {"content": new_title or f"Copy of {original.get_title()}"}}]}
+
+    # Add database properties if applicable
+    if original.parent.type == "database_id":
+        # Copy relevant properties
+        for key, value in original.properties.items():
+            if key != "title":
+                properties[key] = value
+
+    new_page = await self.create(
+        parent=parent,
+        properties=properties,
+        children=blocks
+    )
+
+    return new_page
+```
+
+---
+
+## Error Handling
+
+### Page Error Classes
+
+```python
+class PageAPIError(Exception):
+    """Base exception for page API errors."""
+    pass
+
+class PageNotFoundError(PageAPIError):
+    """Page doesn't exist or no access."""
+    pass
+
+class PagePermissionError(PageAPIError):
+    """Missing required capability."""
+    pass
+
+class PageValidationError(PageAPIError):
+    """Invalid property data or schema mismatch."""
+    pass
+
+async def handle_page_errors(func):
+    """Decorator for handling page API errors."""
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except HTTPError as e:
+            if e.status == 404:
+                raise PageNotFoundError(f"Page not found: {e}")
+            elif e.status == 403:
+                raise PagePermissionError(f"Permission denied: {e}")
+            elif e.status == 400:
+                raise PageValidationError(f"Invalid request: {e}")
+            elif e.status == 429:
+                # Handle rate limiting
+                await asyncio.sleep(1)
+                return await func(*args, **kwargs)
+            else:
+                raise PageAPIError(f"Unexpected error: {e}")
+    return wrapper
+```
+
+---
+
+## Best Practices
+
+1. **Property Validation**: Always validate properties against database schema before creating/updating
+2. **Pagination**: Use property item endpoint for properties with >25 references
+3. **Error Handling**: Implement proper error handling for 404, 403, 400 responses
+4. **Rate Limiting**: Respect rate limits with retry logic
+5. **Template Handling**: Use webhooks to detect when template application completes
+6. **Parent Verification**: Verify parent exists before moving pages
+7. **Content Loading**: Load page content separately from page properties
+8. **Data Source IDs**: Use `data_source_id` instead of `database_id` when required
+9. **Archive vs Delete**: Remember only archival is supported, not permanent deletion
+10. **Lock Pages**: Use `is_locked` to prevent UI edits while API updates are in progress
+
+---
+
+## Related Documentation
+
+- [Pages Overview](./pages-overview.md) - Page concepts and structure
+- [Page Properties](./page-properties.md) - Complete property reference
+- [Page Implementation](./page-implementation.md) - SDK implementation details
+- [Users API](../users-api.md) - User information for created_by/last_edited_by
+- [Blocks API](../block/blocks-api.md) - Page content operations
+- [Rich Text Objects](../rich-text-objects.md) - Text formatting
+- [Databases API](../databases/databases-api.md) - Database operations

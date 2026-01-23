@@ -791,11 +791,12 @@ Common scenarios:
 
 ## Related Documentation
 
+- [File Uploads API Reference](./file-uploads-api.md) - Complete file upload API documentation
 - [Blocks Overview](./block/blocks-overview.md) - File blocks
 - [Block Types](./block/block-types.md) - Image, file, PDF blocks
 - [Pages Overview](./pages/pages-overview.md) - Page covers/icons
 - [Database Properties](./databases/data-sources.md) - File properties
-- [Comments](./comments.md) - Comment attachments
+- [Comments API](./comments-api.md) - Comment attachments
 
 ---
 

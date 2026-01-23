@@ -1020,11 +1020,13 @@ If a property type is not supported by the API, it returns `null`:
 
 ## Related Documentation
 
+- [Pages API Reference](./pages-api.md) - Complete API endpoint documentation
 - [Pages Overview](./pages-overview.md) - Page object structure
+- [Users API](../users-api.md) - User information for people properties
 - [Property Types](./page-property-types.md) - Detailed property type information
 - [Page Implementation](./page-implementation.md) - SDK implementation guide
 - [Rich Text Objects](../rich-text-objects.md) - Text formatting in properties
 
 ---
 
-**Next:** See [Property Types](./page-property-types.md) for detailed information about each property type.
+**Next:** See [Pages API Reference](./pages-api.md) for complete API endpoint documentation or [Property Types](./page-property-types.md) for detailed information about each property type.
