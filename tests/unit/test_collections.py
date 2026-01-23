@@ -12,7 +12,7 @@ from better_notion._api.collections import (
     PageCollection,
     UserCollection,
 )
-from better_notion._api.entities import Block, Page
+from better_notion._api.entities import Block, Database, Page, User
 
 
 class TestCollections:
@@ -251,3 +251,128 @@ class TestBlockCollection:
 
         with pytest.raises(ValueError, match="parent_id is required"):
             await blocks.append()
+
+
+class TestDatabaseCollection:
+    """Test suite for DatabaseCollection."""
+
+    @pytest.mark.asyncio
+    async def test_get_database(self, mock_api, sample_database_data):
+        """Test retrieving a database by ID."""
+        mock_api._request = AsyncMock(return_value=sample_database_data)
+
+        database = await mock_api.databases.get(sample_database_data["id"])
+
+        assert isinstance(database, Database)
+        assert database.id == sample_database_data["id"]
+
+    @pytest.mark.asyncio
+    async def test_get_database_not_found(self, mock_api):
+        """Test retrieving a non-existent database raises NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("Database not found"))
+
+        with pytest.raises(NotFoundError):
+            await mock_api.databases.get("nonexistent_database_id")
+
+    @pytest.mark.asyncio
+    async def test_query_database(self, mock_api, sample_page_data):
+        """Test querying a database."""
+        query_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=query_response)
+
+        result = await mock_api.databases.query("database_id")
+
+        assert "results" in result
+        mock_api._request.assert_called_once_with(
+            "POST",
+            "/databases/database_id/query",
+            json={},
+        )
+
+    @pytest.mark.asyncio
+    async def test_create_page_in_database(self, mock_api, sample_page_data):
+        """Test creating a page in a database."""
+        mock_api._request = AsyncMock(return_value=sample_page_data)
+
+        page = await mock_api.databases.create_page(
+            "database_id",
+            properties={
+                "Name": {
+                    "type": "title",
+                    "title": [{"text": {"content": "New Page"}}]
+                }
+            }
+        )
+
+        assert isinstance(page, Page)
+        call_args = mock_api._request.call_args
+        assert call_args[0][0] == "POST"
+        assert call_args[0][1] == "/pages"
+        assert call_args[1]["json"]["parent"] == {"database_id": "database_id"}
+
+
+class TestUserCollection:
+    """Test suite for UserCollection."""
+
+    @pytest.mark.asyncio
+    async def test_get_user(self, mock_api):
+        """Test retrieving a user by ID."""
+        user_data = {
+            "id": "user_id",
+            "type": "person",
+            "name": "Test User"
+        }
+        mock_api._request = AsyncMock(return_value=user_data)
+
+        user = await mock_api.users.get("user_id")
+
+        assert isinstance(user, User)
+        assert user.id == "user_id"
+
+    @pytest.mark.asyncio
+    async def test_get_user_not_found(self, mock_api):
+        """Test retrieving a non-existent user raises NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("User not found"))
+
+        with pytest.raises(NotFoundError):
+            await mock_api.users.get("nonexistent_user_id")
+
+    @pytest.mark.asyncio
+    async def test_list_users(self, mock_api):
+        """Test listing all users."""
+        users_response = {
+            "results": [
+                {"id": "user1", "type": "person", "name": "User 1"},
+                {"id": "user2", "type": "person", "name": "User 2"}
+            ]
+        }
+        mock_api._request = AsyncMock(return_value=users_response)
+
+        users = await mock_api.users.list()
+
+        assert len(users) == 2
+        assert all(isinstance(user, User) for user in users)
+        assert users[0].id == "user1"
+        assert users[1].id == "user2"
+
+    @pytest.mark.asyncio
+    async def test_me(self, mock_api):
+        """Test getting the current bot user."""
+        bot_data = {
+            "id": "bot_id",
+            "type": "bot",
+            "name": "Test Bot"
+        }
+        mock_api._request = AsyncMock(return_value=bot_data)
+
+        user = await mock_api.users.me()
+
+        assert isinstance(user, User)
+        assert user.id == "bot_id"

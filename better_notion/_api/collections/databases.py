@@ -34,24 +34,30 @@ class DatabaseCollection:
             A Database entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the database does not exist.
         """
-        raise NotImplementedError("DatabaseCollection.get() not yet implemented")
+        data = await self._api._request("GET", f"/databases/{database_id}")
+        return Database(self._api, data)
 
     async def query(self, database_id: str, **kwargs: Any) -> Any:
         """Query a database.
 
         Args:
             database_id: The database ID.
-            **kwargs: Query parameters.
+            **kwargs: Query parameters (filter, sorts, start_cursor, etc.).
 
         Returns:
-            Query results.
+            Query results with pages list.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the database does not exist.
+            ValidationError: If the query parameters are invalid.
         """
-        raise NotImplementedError("DatabaseCollection.query() not yet implemented")
+        return await self._api._request(
+            "POST",
+            f"/databases/{database_id}/query",
+            json=kwargs,
+        )
 
     async def create_page(self, database_id: str, **kwargs: Any) -> Page:
         """Create a new page in a database.
@@ -64,6 +70,10 @@ class DatabaseCollection:
             The created Page entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            ValidationError: If the page properties are invalid.
+            NotFoundError: If the database does not exist.
         """
-        raise NotImplementedError("DatabaseCollection.create_page() not yet implemented")
+        # Ensure parent is set to the database
+        page_data = {"parent": {"database_id": database_id}, **kwargs}
+        data = await self._api._request("POST", "/pages", json=page_data)
+        return Page(self._api, data)

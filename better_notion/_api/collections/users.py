@@ -34,28 +34,25 @@ class UserCollection:
             A User entity.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the user does not exist.
         """
-        raise NotImplementedError("UserCollection.get() not yet implemented")
+        data = await self._api._request("GET", f"/users/{user_id}")
+        return User(self._api, data)
 
     async def list(self) -> list[User]:
         """List all users.
 
         Returns:
             List of User entities.
-
-        Raises:
-            NotImplementedError: Not yet implemented.
         """
-        raise NotImplementedError("UserCollection.list() not yet implemented")
+        data = await self._api._request("GET", "/users")
+        return [User(self._api, user_data) for user_data in data.get("results", [])]
 
     async def me(self) -> User:
         """Get the current bot user.
 
         Returns:
             The current User entity.
-
-        Raises:
-            NotImplementedError: Not yet implemented.
         """
-        raise NotImplementedError("UserCollection.me() not yet implemented")
+        data = await self._api._request("GET", "/users/me")
+        return User(self._api, data)
