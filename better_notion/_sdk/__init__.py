@@ -1,8 +1,7 @@
-"""
-High-level API for Better Notion SDK.
+"""High-level SDK for Better Notion SDK.
 
-This module provides rich abstractions and caching for
-interacting with the Notion API.
+This module provides enriched abstractions and caching
+on top of the low-level API.
 """
 
 from better_notion._sdk.client import NotionClient

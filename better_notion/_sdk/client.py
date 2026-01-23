@@ -1,18 +1,23 @@
-"""High-level Notion client with rich abstractions."""
+"""High-level Notion client with caching."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from better_notion._api import NotionAPI
 
-class NotionClient:
+
+class NotionClient(NotionAPI):
     """High-level Notion client with caching and rich abstractions.
 
-    This provides a more developer-friendly interface than NotionAPI.
+    This is an alias for NotionAPI with future support for caching
+    and additional high-level features.
 
     Example:
         >>> client = NotionClient(token="secret_...")
-        >>> page = await client.get_page("page_id")
+        >>> page = await client.pages.get("page_id")
+        >>> print(page.title)
+        >>> await page.delete()
     """
 
     def __init__(
@@ -20,37 +25,14 @@ class NotionClient:
         token: str,
         *,
         cache: bool = True,
+        **kwargs: Any,
     ) -> None:
         """Initialize the Notion client.
 
         Args:
             token: Notion API token.
-            cache: Enable caching.
+            cache: Enable caching (future feature).
+            **kwargs: Additional arguments passed to NotionAPI.
         """
-        from better_notion._api import NotionAPI
-
-        self._api = NotionAPI(auth=token)
+        super().__init__(auth=token, **kwargs)
         self._cache_enabled = cache
-
-    async def __aenter__(self) -> NotionClient:
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        """Async context manager exit."""
-        await self.close()
-
-    async def close(self) -> None:
-        """Close the client and underlying connections."""
-        await self._api.close()
-
-    async def get_page(self, page_id: str) -> Any:
-        """Get a page with rich abstractions.
-
-        Args:
-            page_id: The page identifier.
-
-        Returns:
-            Page object.
-        """
-        raise NotImplementedError("Not yet implemented")
