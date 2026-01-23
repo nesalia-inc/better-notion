@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
+import pytest
+
 from better_notion._api import NotionAPI
 from better_notion._api.entities import Block, Database, Page, User
 
@@ -24,6 +28,32 @@ class TestEntities:
 
         assert page.id == sample_page_data["id"]
         assert page.properties == sample_page_data["properties"]
+
+    @pytest.mark.asyncio
+    async def test_page_save(self, mock_api, sample_page_data):
+        """Test Page save method."""
+        mock_api._request = AsyncMock(return_value=sample_page_data)
+        page = Page(mock_api, sample_page_data)
+
+        await page.save()
+
+        mock_api._request.assert_called_once_with(
+            "PATCH",
+            "/pages/5c6a28216bb14a7eb6e1c50111515c3d",
+            json={"properties": sample_page_data["properties"]},
+        )
+        assert page._modified is False
+
+    @pytest.mark.asyncio
+    async def test_page_save_not_found(self, mock_api, sample_page_data):
+        """Test Page save with NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("Page not found"))
+        page = Page(mock_api, sample_page_data)
+
+        with pytest.raises(NotFoundError):
+            await page.save()
 
     def test_block_entity_creation(self, mock_api):
         """Test Block entity creation."""

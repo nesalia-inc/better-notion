@@ -63,10 +63,18 @@ class Page:
     async def save(self) -> None:
         """Save changes to Notion.
 
+        Updates the page properties on Notion.
+
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the page no longer exists.
+            ValidationError: If the properties are invalid.
         """
-        raise NotImplementedError("Page.save() not yet implemented")
+        await self._api._request(
+            "PATCH",
+            f"/pages/{self.id}",
+            json={"properties": self._data["properties"]},
+        )
+        self._modified = False
 
     async def delete(self) -> None:
         """Delete this page.
