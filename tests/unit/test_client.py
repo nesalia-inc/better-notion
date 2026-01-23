@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from unittest.mock import AsyncMock
+
+import pytest
+
 from better_notion._api import NotionAPI
 from better_notion._api.collections import (
     BlockCollection,
@@ -57,3 +61,81 @@ class TestNotionAPI:
         assert isinstance(api.blocks, BlockCollection)
         assert isinstance(api.databases, DatabaseCollection)
         assert isinstance(api.users, UserCollection)
+
+    @pytest.mark.asyncio
+    async def test_search(self, mock_api, sample_page_data):
+        """Test search method."""
+        search_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=search_response)
+
+        result = await mock_api.search("test query")
+
+        assert "results" in result
+        assert len(result["results"]) == 1
+        mock_api._request.assert_called_once_with(
+            "POST",
+            "/search",
+            json={"query": "test query"},
+        )
+
+    @pytest.mark.asyncio
+    async def test_search_with_filter(self, mock_api, sample_page_data):
+        """Test search with filter parameter."""
+        search_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=search_response)
+
+        filter_param = {"value": "page", "property": "object"}
+        result = await mock_api.search("test query", filter=filter_param)
+
+        assert "results" in result
+        assert mock_api._request.call_args[1]["json"]["filter"] == filter_param
+
+    @pytest.mark.asyncio
+    async def test_search_iterate_single_page(self, mock_api, sample_page_data):
+        """Test search iteration with single page of results."""
+        search_response = {
+            "results": [sample_page_data],
+            "has_more": False
+        }
+        mock_api._request = AsyncMock(return_value=search_response)
+
+        results = await mock_api.search_iterate("test query").to_list()
+
+        assert len(results) == 1
+        assert results[0]["id"] == sample_page_data["id"]
+
+    @pytest.mark.asyncio
+    async def test_search_iterate_multiple_pages(self, mock_api, sample_page_data):
+        """Test search iteration with multiple pages of results."""
+        result2_data = {**sample_page_data, "id": "result2_id"}
+
+        call_count = 0
+
+        async def mock_request(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {
+                    "results": [sample_page_data],
+                    "has_more": True,
+                    "next_cursor": "cursor123"
+                }
+            else:
+                return {
+                    "results": [result2_data],
+                    "has_more": False
+                }
+
+        mock_api._request = AsyncMock(side_effect=mock_request)
+
+        results = await mock_api.search_iterate("test query").to_list()
+
+        assert len(results) == 2
+        assert results[0]["id"] == sample_page_data["id"]
+        assert results[1]["id"] == "result2_id"

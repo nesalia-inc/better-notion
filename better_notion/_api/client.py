@@ -91,6 +91,77 @@ class NotionAPI:
         """User collection for managing users."""
         return UserCollection(self)
 
+    async def search(
+        self,
+        query: str,
+        *,
+        filter: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+        start_cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """Search for pages and blocks in the user's Notion workspace.
+
+        Args:
+            query: Search query text.
+            filter: Optional filter object (e.g., {"value": "page", "property": "object"}).
+            sort: Optional sort object.
+            start_cursor: Optional cursor for pagination.
+
+        Returns:
+            Search results with pages/blocks list.
+
+        Raises:
+            ValidationError: If the search parameters are invalid.
+        """
+        body: dict[str, Any] = {"query": query}
+
+        if filter:
+            body["filter"] = filter
+        if sort:
+            body["sort"] = sort
+        if start_cursor:
+            body["start_cursor"] = start_cursor
+
+        return await self._request("POST", "/search", json=body)
+
+    def search_iterate(
+        self,
+        query: str,
+        *,
+        filter: dict[str, Any] | None = None,
+        sort: dict[str, Any] | None = None,
+    ):
+        """Iterate over all search results with automatic pagination.
+
+        Args:
+            query: Search query text.
+            filter: Optional filter object.
+            sort: Optional sort object.
+
+        Returns:
+            Async iterator that yields search results (raw dicts).
+
+        Example:
+            >>> async for result in api.search_iterate("my query"):
+            ...     if result["object"] == "page":
+            ...         print(result["properties"]["title"])
+
+        Note:
+            This method does not fetch results immediately. Results are fetched
+            as you iterate, making it memory-efficient for large result sets.
+        """
+        from better_notion._api.utils import AsyncPaginatedIterator
+
+        async def fetch_fn(cursor: str | None) -> dict[str, Any]:
+            return await self.search(
+                query,
+                filter=filter,
+                sort=sort,
+                start_cursor=cursor,
+            )
+
+        return AsyncPaginatedIterator(fetch_fn, lambda data: data)
+
     def _default_headers(self) -> dict[str, str]:
         """Get default headers for requests.
 
