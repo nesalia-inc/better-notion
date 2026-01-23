@@ -42,6 +42,9 @@ dev = [
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.10.0",
 
+    # Environment variables
+    "python-dotenv>=1.0.0",
+
     # Type checking
     "mypy>=1.0.0",
 
@@ -193,6 +196,11 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+[dependency-groups]
+dev = [
+    "python-dotenv>=1.2.1",
+]
 
 # =============================================================================
 # Hatch - Build Configuration
