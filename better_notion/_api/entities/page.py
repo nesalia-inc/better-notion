@@ -77,12 +77,19 @@ class Page:
         self._modified = False
 
     async def delete(self) -> None:
-        """Delete this page.
+        """Delete (archive) this page.
+
+        Archives the page in Notion.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            NotFoundError: If the page no longer exists.
         """
-        raise NotImplementedError("Page.delete() not yet implemented")
+        await self._api._request(
+            "PATCH",
+            f"/pages/{self.id}",
+            json={"archived": True},
+        )
+        self._data["archived"] = True
 
     async def reload(self) -> None:
         """Reload page data from Notion.

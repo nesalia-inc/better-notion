@@ -55,6 +55,32 @@ class TestEntities:
         with pytest.raises(NotFoundError):
             await page.save()
 
+    @pytest.mark.asyncio
+    async def test_page_delete(self, mock_api, sample_page_data):
+        """Test Page delete method."""
+        mock_api._request = AsyncMock(return_value={**sample_page_data, "archived": True})
+        page = Page(mock_api, sample_page_data)
+
+        await page.delete()
+
+        mock_api._request.assert_called_once_with(
+            "PATCH",
+            "/pages/5c6a28216bb14a7eb6e1c50111515c3d",
+            json={"archived": True},
+        )
+        assert page._data["archived"] is True
+
+    @pytest.mark.asyncio
+    async def test_page_delete_not_found(self, mock_api, sample_page_data):
+        """Test Page delete with NotFoundError."""
+        from better_notion._api.errors import NotFoundError
+
+        mock_api._request = AsyncMock(side_effect=NotFoundError("Page not found"))
+        page = Page(mock_api, sample_page_data)
+
+        with pytest.raises(NotFoundError):
+            await page.delete()
+
     def test_block_entity_creation(self, mock_api):
         """Test Block entity creation."""
         block_data = {
