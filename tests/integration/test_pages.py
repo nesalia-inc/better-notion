@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from better_notion._api.entities import Page
-from better_notion.properties import Select, Text, Title
+from better_notion._api.properties import Select, Text, Title
 
 
 @pytest.mark.integration

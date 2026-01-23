@@ -10,7 +10,7 @@ import pytest
 from dotenv import load_dotenv
 
 from better_notion import NotionAPI
-from better_notion.properties import Title, Text
+from better_notion._api.properties import Title, Text
 
 # Load environment variables from .env.local
 load_dotenv()
