@@ -105,6 +105,33 @@ class TestEntities:
         with pytest.raises(NotFoundError):
             await page.reload()
 
+    @pytest.mark.asyncio
+    async def test_page_update(self, mock_api, sample_page_data):
+        """Test Page update method."""
+        page = Page(mock_api, sample_page_data)
+
+        new_properties = {
+            "Name": {
+                "type": "title",
+                "title": [{"text": {"content": "Updated Title"}}]
+            }
+        }
+
+        await page.update(properties=new_properties)
+
+        assert page._data["properties"] == new_properties
+        assert page._modified is True
+
+    @pytest.mark.asyncio
+    async def test_page_update_archived(self, mock_api, sample_page_data):
+        """Test Page update archived status."""
+        page = Page(mock_api, sample_page_data)
+
+        await page.update(archived=True)
+
+        assert page._data["archived"] is True
+        assert page._modified is True
+
     def test_block_entity_creation(self, mock_api):
         """Test Block entity creation."""
         block_data = {

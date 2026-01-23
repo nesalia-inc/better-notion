@@ -110,9 +110,19 @@ class Page:
             **kwargs: Properties to update.
 
         Raises:
-            NotImplementedError: Not yet implemented.
+            ValidationError: If the properties are invalid.
+            NotFoundError: If the page no longer exists.
         """
-        raise NotImplementedError("Page.update() not yet implemented")
+        # Merge updated properties with existing data
+        for key, value in kwargs.items():
+            if key not in self._data:
+                self._data[key] = value
+            elif isinstance(value, dict) and isinstance(self._data[key], dict):
+                self._data[key].update(value)
+            else:
+                self._data[key] = value
+
+        self._modified = True
 
     # Navigation
     @property
