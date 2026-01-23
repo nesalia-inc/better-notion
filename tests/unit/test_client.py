@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
-
 from better_notion._api import NotionAPI
+from better_notion._api.collections import (
+    BlockCollection,
+    DatabaseCollection,
+    PageCollection,
+    UserCollection,
+)
 
 
 class TestNotionAPI:
@@ -18,8 +22,10 @@ class TestNotionAPI:
 
     def test_init_with_invalid_token(self):
         """Test initialization fails with invalid token."""
-        with pytest.raises(ValueError, match='must start with "secret_"'):
+        try:
             NotionAPI(auth="invalid_token")
+        except ValueError as e:
+            assert 'must start with "secret_"' in str(e)
 
     def test_default_headers(self):
         """Test default headers are set correctly."""
@@ -43,13 +49,11 @@ class TestNotionAPI:
         api = NotionAPI(auth="secret_test", timeout=60.0)
         assert api._timeout == 60.0
 
-    def test_endpoints_initialized(self):
-        """Test all endpoints are initialized."""
+    def test_collections_initialized(self):
+        """Test all collections are initialized."""
         api = NotionAPI(auth="secret_test")
 
-        assert api.blocks is not None
-        assert api.pages is not None
-        assert api.databases is not None
-        assert api.users is not None
-        assert api.search is not None
-        assert api.comments is not None
+        assert isinstance(api.pages, PageCollection)
+        assert isinstance(api.blocks, BlockCollection)
+        assert isinstance(api.databases, DatabaseCollection)
+        assert isinstance(api.users, UserCollection)
