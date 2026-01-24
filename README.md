@@ -84,7 +84,7 @@ All Notion objects are represented as Python entities:
 Type-safe builders for all Notion property types:
 
 ```python
-from better_notion.properties import Title, Select, Date, Checkbox
+from better_notion._api.properties import Title, Select, Date, Checkbox
 
 properties = {
     **Title("My Page").build(),
@@ -112,7 +112,7 @@ async for page in api.pages.iterate("database_id"):
 
 ```python
 from better_notion import NotionAPI
-from better_notion.properties import Title, Text
+from better_notion._api.properties import Title, Text
 
 async def create_page():
     async with NotionAPI(auth="secret_...") as api:
@@ -129,7 +129,7 @@ async def create_page():
 ### Updating a Page
 
 ```python
-from better_notion.properties import Select
+from better_notion._api.properties import Select
 
 async def update_page():
     async with NotionAPI(auth="secret_...") as api:
@@ -160,7 +160,7 @@ async def manipulate_blocks():
                 "object": "block",
                 "type": "paragraph",
                 "paragraph": {
-                    "text": [{"text": {"content": "New paragraph"}}]
+                    "rich_text": [{"type": "text", "text": {"content": "New paragraph"}}]
                 }
             }
         ])

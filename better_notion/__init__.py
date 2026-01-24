@@ -5,7 +5,7 @@ This package provides both low-level and high-level interfaces for
 interacting with the Notion API.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Low-level API (1:1 mapping with Notion API)
 # High-level API (rich abstractions)
