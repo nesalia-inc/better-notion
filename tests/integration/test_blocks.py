@@ -155,6 +155,7 @@ class TestBlocksIntegration:
     @pytest.mark.asyncio
     async def test_append_block(self, api, test_database):
         """Test appending a block to a page."""
+        # Create a page first (without children)
         page_data = await api._request(
             "POST",
             "/pages",
@@ -163,6 +164,14 @@ class TestBlocksIntegration:
                 "properties": {
                     **Title(content="Append Block Test").build(),
                 },
+            }
+        )
+
+        # Add initial block as a child
+        await api._request(
+            "POST",
+            f"/blocks/{page_data['id']}/children",
+            json={
                 "children": [
                     {
                         "object": "block",
