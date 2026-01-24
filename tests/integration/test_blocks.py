@@ -16,7 +16,7 @@ class TestBlocksIntegration:
     @pytest.mark.asyncio
     async def test_get_block(self, api, test_database):
         """Test retrieving a block by ID."""
-        # Create a page with a block
+        # Create a page first (without children)
         page_data = await api._request(
             "POST",
             "/pages",
@@ -25,6 +25,14 @@ class TestBlocksIntegration:
                 "properties": {
                     **Title(content="Get Block Test").build(),
                 },
+            }
+        )
+
+        # Add a block as a child
+        await api._request(
+            "POST",
+            f"/blocks/{page_data['id']}/children",
+            json={
                 "children": [
                     {
                         "object": "block",
