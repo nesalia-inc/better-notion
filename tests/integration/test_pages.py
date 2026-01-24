@@ -69,8 +69,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title(content="Update Test Page").build(),
-                    **Select("Status", "In Progress").build(),
+                    **Title(content="Update Test Page - Original").build(),
                 }
             }
         )
@@ -78,12 +77,12 @@ class TestPagesIntegration:
 
         # Retrieve and update
         page = await api.pages.get(page_id)
-        await page.update(**Select("Status", "Done").build())
+        await page.update(**Title(content="Update Test Page - Modified").build())
         await page.save()
 
         # Verify the update
         updated = await api.pages.get(page_id)
-        assert updated._data["properties"]["Status"]["select"]["name"] == "Done"
+        assert updated._data["properties"]["Name"]["title"][0]["plain_text"] == "Update Test Page - Modified"
 
         # Cleanup
         await api._request("PATCH", f"/pages/{page_id}", json={"archived": True})
