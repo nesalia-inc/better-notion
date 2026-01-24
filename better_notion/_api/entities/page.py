@@ -24,6 +24,7 @@ class Page:
         """
         self._api = api
         self._data = data
+        self._modified_properties: dict[str, Any] = {}
         self._modified = False
 
     # Properties
