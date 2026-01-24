@@ -38,7 +38,7 @@ class TestBlocksIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Test block"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Test block"}}]
                         }
                     }
                 ]
@@ -83,7 +83,7 @@ class TestBlocksIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Original content"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Original content"}}]
                         }
                     }
                 ]
@@ -99,14 +99,14 @@ class TestBlocksIntegration:
 
             # Update content
             new_content = {
-                "text": [{"type": "text", "text": {"content": "Updated content"}}]
+                "rich_text": [{"type": "text", "text": {"content": "Updated content"}}]
             }
             block.content = new_content
             await block.save()
 
             # Verify update
             updated_block = await api.blocks.get(block.id)
-            assert updated_block.content["text"][0]["text"]["content"] == "Updated content"
+            assert updated_block.content["rich_text"][0]["text"]["content"] == "Updated content"
 
         # Cleanup
         await api._request("PATCH", f"/pages/{page.id}", json={"archived": True})
@@ -132,7 +132,7 @@ class TestBlocksIntegration:
                 "object": "block",
                 "type": "paragraph",
                 "paragraph": {
-                    "text": [{"type": "text", "text": {"content": f"Paragraph {i}"}}]
+                    "rich_text": [{"type": "text", "text": {"content": f"Paragraph {i}"}}]
                 }
             }
             for i in range(3)
@@ -169,7 +169,7 @@ class TestBlocksIntegration:
 
         # Add initial block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [
@@ -177,7 +177,7 @@ class TestBlocksIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Original"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Original"}}]
                         }
                     }
                 ]
@@ -194,7 +194,7 @@ class TestBlocksIntegration:
                 "object": "block",
                 "type": "paragraph",
                 "paragraph": {
-                    "text": [{"type": "text", "text": {"content": "Appended block"}}]
+                    "rich_text": [{"type": "text", "text": {"content": "Appended block"}}]
                 }
             }
         ])
@@ -231,7 +231,7 @@ class TestBlocksIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Delete me"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Delete me"}}]
                         }
                     }
                 ]
@@ -278,7 +278,7 @@ class TestBlocksIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Original content"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Original content"}}]
                         }
                     }
                 ]

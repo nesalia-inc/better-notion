@@ -93,7 +93,7 @@ class TestSearchIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "unique_search_term_12345"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "unique_search_term_12345"}}]
                         }
                     }
                 ]

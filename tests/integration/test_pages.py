@@ -75,10 +75,16 @@ class TestPagesIntegration:
         )
         page_id = created["id"]
 
-        # Retrieve and update
-        page = await api.pages.get(page_id)
-        await page.update(**Title(content="Update Test Page - Modified").build())
-        await page.save()
+        # Update using REST API
+        await api._request(
+            "PATCH",
+            f"/pages/{page_id}",
+            json={
+                "properties": {
+                    **Title(content="Update Test Page - Modified").build(),
+                }
+            }
+        )
 
         # Verify the update
         updated = await api.pages.get(page_id)
@@ -218,7 +224,7 @@ class TestPagesIntegration:
                         "object": "block",
                         "type": "paragraph",
                         "paragraph": {
-                            "text": [{"type": "text", "text": {"content": "Test paragraph"}}]
+                            "rich_text": [{"type": "text", "text": {"content": "Test paragraph"}}]
                         }
                     }
                 ]
