@@ -43,7 +43,7 @@ class TestDatabasesIntegration:
                 json={
                     "parent": {"database_id": test_database["id"]},
                     "properties": {
-                        **Title(f"Query Test {i}").build(),
+                        **Title(content=f"Query Test {i}").build(),
                     }
                 }
             )
@@ -65,7 +65,7 @@ class TestDatabasesIntegration:
         page = await api.databases.create_page(
             test_database["id"],
             properties={
-                **Title("Created via Database").build(),
+                **Title(content="Created via Database").build(),
             }
         )
 

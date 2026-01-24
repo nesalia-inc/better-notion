@@ -23,7 +23,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Get Block Test").build(),
+                    **Title(content="Get Block Test").build(),
                 },
                 "children": [
                     {
@@ -59,7 +59,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Block Content Test").build(),
+                    **Title(content="Block Content Test").build(),
                 },
                 "children": [
                     {
@@ -115,7 +115,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("List Children Test").build(),
+                    **Title(content="List Children Test").build(),
                 },
                 "children": children_blocks
             }
@@ -138,7 +138,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Append Block Test").build(),
+                    **Title(content="Append Block Test").build(),
                 },
                 "children": [
                     {
@@ -183,7 +183,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Delete Block Test").build(),
+                    **Title(content="Delete Block Test").build(),
                 },
                 "children": [
                     {
@@ -221,7 +221,7 @@ class TestBlocksIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Reload Block Test").build(),
+                    **Title(content="Reload Block Test").build(),
                 },
                 "children": [
                     {

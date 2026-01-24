@@ -19,7 +19,7 @@ class TestPagesIntegration:
         page = await api.pages.create(
             parent={"database_id": test_database["id"]},
             properties={
-                **Title("Integration Test Page").build(),
+                **Title(content="Integration Test Page").build(),
                 **Text("Description", "Created by integration test").build(),
             }
         )
@@ -45,7 +45,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Get Test Page").build(),
+                    **Title(content="Get Test Page").build(),
                 }
             }
         )
@@ -70,7 +70,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Update Test Page").build(),
+                    **Title(content="Update Test Page").build(),
                     **Select("Status", "In Progress").build(),
                 }
             }
@@ -99,7 +99,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Delete Test Page").build(),
+                    **Title(content="Delete Test Page").build(),
                 }
             }
         )
@@ -125,7 +125,7 @@ class TestPagesIntegration:
                 json={
                     "parent": {"database_id": test_database["id"]},
                     "properties": {
-                        **Title(f"List Test Page {i}").build(),
+                        **Title(content=f"List Test Page {i}").build(),
                     }
                 }
             )
@@ -151,7 +151,7 @@ class TestPagesIntegration:
                 json={
                     "parent": {"database_id": test_database["id"]},
                     "properties": {
-                        **Title(f"Paginate Test {i}").build(),
+                        **Title(content=f"Paginate Test {i}").build(),
                     }
                 }
             )
@@ -179,7 +179,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Properties Test").build(),
+                    **Title(content="Properties Test").build(),
                 }
             }
         )
@@ -205,7 +205,7 @@ class TestPagesIntegration:
             json={
                 "parent": {"database_id": test_database["id"]},
                 "properties": {
-                    **Title("Blocks Navigation Test").build(),
+                    **Title(content="Blocks Navigation Test").build(),
                 },
                 "children": [
                     {
