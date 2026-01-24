@@ -256,6 +256,7 @@ class TestBlocksIntegration:
     @pytest.mark.asyncio
     async def test_block_reload(self, api, test_database):
         """Test reloading block data."""
+        # Create a page first (without children)
         page_data = await api._request(
             "POST",
             "/pages",
@@ -264,6 +265,14 @@ class TestBlocksIntegration:
                 "properties": {
                     **Title(content="Reload Block Test").build(),
                 },
+            }
+        )
+
+        # Add a block as a child
+        await api._request(
+            "POST",
+            f"/blocks/{page_data['id']}/children",
+            json={
                 "children": [
                     {
                         "object": "block",
