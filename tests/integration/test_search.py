@@ -71,7 +71,7 @@ class TestSearchIntegration:
     @pytest.mark.asyncio
     async def test_search_in_content(self, api, test_database):
         """Test searching within page content."""
-        # Create a page with specific content
+        # Create a page first (without children)
         page_data = await api._request(
             "POST",
             "/pages",
@@ -80,6 +80,14 @@ class TestSearchIntegration:
                 "properties": {
                     **Title(content="Search Test Page").build(),
                 },
+            }
+        )
+
+        # Add a block with unique content as a child
+        await api._request(
+            "POST",
+            f"/blocks/{page_data['id']}/children",
+            json={
                 "children": [
                     {
                         "object": "block",
