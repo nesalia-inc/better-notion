@@ -114,14 +114,9 @@ class Page:
             ValidationError: If the properties are invalid.
             NotFoundError: If the page no longer exists.
         """
-        # Merge updated properties with existing data
+        # Store properties in request format (don't modify _data)
         for key, value in kwargs.items():
-            if key not in self._data:
-                self._data[key] = value
-            elif isinstance(value, dict) and isinstance(self._data[key], dict):
-                self._data[key].update(value)
-            else:
-                self._data[key] = value
+            self._modified_properties[key] = value
 
         self._modified = True
 
