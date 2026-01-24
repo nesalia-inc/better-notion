@@ -30,7 +30,7 @@ class TestBlocksIntegration:
 
         # Add a block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [
@@ -75,7 +75,7 @@ class TestBlocksIntegration:
 
         # Add a block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [
@@ -139,7 +139,7 @@ class TestBlocksIntegration:
         ]
 
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={"children": children_blocks}
         )
@@ -223,7 +223,7 @@ class TestBlocksIntegration:
 
         # Add a block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [
@@ -270,7 +270,7 @@ class TestBlocksIntegration:
 
         # Add a block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [

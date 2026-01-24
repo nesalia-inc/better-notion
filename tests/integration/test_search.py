@@ -85,7 +85,7 @@ class TestSearchIntegration:
 
         # Add a block with unique content as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{page_data['id']}/children",
             json={
                 "children": [

@@ -210,7 +210,7 @@ class TestPagesIntegration:
 
         # Add a block as a child
         await api._request(
-            "POST",
+            "PATCH",
             f"/blocks/{created['id']}/children",
             json={
                 "children": [
