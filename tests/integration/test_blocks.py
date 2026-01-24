@@ -114,7 +114,19 @@ class TestBlocksIntegration:
     @pytest.mark.asyncio
     async def test_list_block_children(self, api, test_database):
         """Test listing children blocks."""
-        # Create a page with multiple blocks
+        # Create a page first (without children)
+        page_data = await api._request(
+            "POST",
+            "/pages",
+            json={
+                "parent": {"database_id": test_database["id"]},
+                "properties": {
+                    **Title(content="List Children Test").build(),
+                },
+            }
+        )
+
+        # Add multiple blocks as children
         children_blocks = [
             {
                 "object": "block",
@@ -126,16 +138,10 @@ class TestBlocksIntegration:
             for i in range(3)
         ]
 
-        page_data = await api._request(
+        await api._request(
             "POST",
-            "/pages",
-            json={
-                "parent": {"database_id": test_database["id"]},
-                "properties": {
-                    **Title(content="List Children Test").build(),
-                },
-                "children": children_blocks
-            }
+            f"/blocks/{page_data['id']}/children",
+            json={"children": children_blocks}
         )
 
         page = await api.pages.get(page_data["id"])
