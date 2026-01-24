@@ -119,7 +119,8 @@ class TestEntities:
 
         await page.update(properties=new_properties)
 
-        assert page._data["properties"] == new_properties
+        # update() now stores in _modified_properties, not _data
+        assert page._modified_properties == new_properties
         assert page._modified is True
 
     @pytest.mark.asyncio
@@ -129,7 +130,8 @@ class TestEntities:
 
         await page.update(archived=True)
 
-        assert page._data["archived"] is True
+        # update() now stores in _modified_properties
+        assert page._modified_properties["archived"] is True
         assert page._modified is True
 
     def test_page_blocks_property(self, mock_api, sample_page_data):
