@@ -196,7 +196,7 @@ class TestPagesIntegration:
     @pytest.mark.asyncio
     async def test_page_blocks_navigation(self, api, test_database):
         """Test page.blocks property for block navigation."""
-        # Create a page with content
+        # Create a page first (without children)
         created = await api._request(
             "POST",
             "/pages",
@@ -205,6 +205,14 @@ class TestPagesIntegration:
                 "properties": {
                     **Title(content="Blocks Navigation Test").build(),
                 },
+            }
+        )
+
+        # Add a block as a child
+        await api._request(
+            "POST",
+            f"/blocks/{created['id']}/children",
+            json={
                 "children": [
                     {
                         "object": "block",
@@ -216,6 +224,7 @@ class TestPagesIntegration:
                 ]
             }
         )
+
         page = await api.pages.get(created["id"])
 
         # Get children blocks
