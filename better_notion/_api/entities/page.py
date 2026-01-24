@@ -70,11 +70,18 @@ class Page:
             NotFoundError: If the page no longer exists.
             ValidationError: If the properties are invalid.
         """
+        if not self._modified:
+            return
+
+        # Send only modified properties in request format
         await self._api._request(
             "PATCH",
             f"/pages/{self.id}",
-            json={"properties": self._data["properties"]},
+            json={"properties": self._modified_properties},
         )
+
+        # Clear modified properties after successful save
+        self._modified_properties = {}
         self._modified = False
 
     async def delete(self) -> None:
