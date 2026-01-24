@@ -20,7 +20,6 @@ class TestPagesIntegration:
             parent={"database_id": test_database["id"]},
             properties={
                 **Title(content="Integration Test Page").build(),
-                **Text("Description", "Created by integration test").build(),
             }
         )
 
