@@ -35,12 +35,17 @@ class TestEntities:
         mock_api._request = AsyncMock(return_value=sample_page_data)
         page = Page(mock_api, sample_page_data)
 
+        # Update the page first to mark it as modified
+        new_properties = {"Name": {"type": "title", "title": [{"text": {"content": "Test"}}]}}
+        await page.update(properties=new_properties)
+
+        # Now save should send the modified properties
         await page.save()
 
         mock_api._request.assert_called_once_with(
             "PATCH",
             "/pages/5c6a28216bb14a7eb6e1c50111515c3d",
-            json={"properties": sample_page_data["properties"]},
+            json={"properties": new_properties},
         )
         assert page._modified is False
 
@@ -51,6 +56,10 @@ class TestEntities:
 
         mock_api._request = AsyncMock(side_effect=NotFoundError("Page not found"))
         page = Page(mock_api, sample_page_data)
+
+        # Update the page first to mark it as modified
+        new_properties = {"Name": {"type": "title", "title": [{"text": {"content": "Test"}}]}}
+        await page.update(properties=new_properties)
 
         with pytest.raises(NotFoundError):
             await page.save()
