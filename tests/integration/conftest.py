@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import pytest_asyncio
 from dotenv import load_dotenv
 
 from better_notion import NotionAPI
@@ -31,20 +32,16 @@ TEST_DATABASE_ID = os.getenv("NOTION_TEST_DATABASE_ID")
 TEST_PAGE_ID = os.getenv("NOTION_TEST_PAGE_ID")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def api() -> NotionAPI:
     """Create a NotionAPI client for integration tests.
 
-    Each test gets its own client to avoid event loop issues.
+    Each test gets its own client to avoid test pollution.
     """
     client = NotionAPI(auth=NOTION_KEY)
     yield client
-    # Close the client after each test, ignoring event loop issues
-    try:
-        await client.close()
-    except RuntimeError:
-        # Ignore "Event loop is closed" errors on Windows with pytest-asyncio
-        pass
+    # Close the client after each test
+    await client.close()
 
 
 @pytest.fixture
@@ -54,14 +51,19 @@ async def test_database(api: NotionAPI) -> dict[str, Any]:
     Creates a temporary database with a title property.
     The database is archived after tests complete.
 
+    Requires NOTION_TEST_PAGE_ID to be set in .env.local.
+
     Returns:
         Database data dictionary with ID and properties.
     """
+    if not TEST_PAGE_ID:
+        pytest.skip("NOTION_TEST_PAGE_ID not set in .env.local")
+
     database_data = await api._request(
         "POST",
         "/databases",
         json={
-            "parent": {"type": "workspace", "workspace": True},
+            "parent": {"type": "page_id", "page_id": TEST_PAGE_ID},
             "title": [
                 {"type": "text", "text": {"content": "Better Notion Integration Tests"}}
             ],
@@ -71,8 +73,8 @@ async def test_database(api: NotionAPI) -> dict[str, Any]:
                     "title": {}
                 },
                 "Notes": {
-                    "type": "text",
-                    "text": {}
+                    "type": "rich_text",
+                    "rich_text": {}
                 }
             }
         }
@@ -115,7 +117,7 @@ async def test_page(api: NotionAPI) -> dict[str, Any]:
         json={
             "parent": {"database_id": TEST_DATABASE_ID},
             "properties": {
-                **Title("Integration Test Page").build(),
+                **Title(content="Integration Test Page").build(),
                 **Text("Notes", "Created by integration tests").build(),
             }
         }
