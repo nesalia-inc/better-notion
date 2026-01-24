@@ -75,16 +75,10 @@ class TestPagesIntegration:
         )
         page_id = created["id"]
 
-        # Update using REST API
-        await api._request(
-            "PATCH",
-            f"/pages/{page_id}",
-            json={
-                "properties": {
-                    **Title(content="Update Test Page - Modified").build(),
-                }
-            }
-        )
+        # Retrieve and update using SDK methods
+        page = await api.pages.get(page_id)
+        await page.update(**Title(content="Update Test Page - Modified").build())
+        await page.save()
 
         # Verify the update
         updated = await api.pages.get(page_id)
