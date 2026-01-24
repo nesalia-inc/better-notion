@@ -109,6 +109,7 @@ class Page:
         """
         data = await self._api._request("GET", f"/pages/{self.id}")
         self._data = data
+        self._modified_properties = {}
         self._modified = False
 
     async def update(self, **kwargs: Any) -> None:
