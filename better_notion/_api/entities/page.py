@@ -116,15 +116,21 @@ class Page:
         """Update page properties.
 
         Args:
-            **kwargs: Properties to update.
+            **kwargs: Properties to update. If 'properties' is passed as a kwarg,
+                     its contents will be unpacked into the modified properties.
 
         Raises:
             ValidationError: If the properties are invalid.
             NotFoundError: If the page no longer exists.
         """
-        # Store properties in request format (don't modify _data)
+        # Special handling for 'properties' kwarg - unpack it
+        if "properties" in kwargs:
+            self._modified_properties.update(kwargs["properties"])
+
+        # Handle other kwargs normally (e.g., 'archived')
         for key, value in kwargs.items():
-            self._modified_properties[key] = value
+            if key != "properties":
+                self._modified_properties[key] = value
 
         self._modified = True
 
