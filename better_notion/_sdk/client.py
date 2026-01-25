@@ -12,6 +12,7 @@ from better_notion._sdk.managers import (
     DatabaseManager,
     BlockManager,
     UserManager,
+    CommentsManager,
 )
 
 
@@ -44,10 +45,12 @@ class NotionClient:
         databases: Database manager for database operations
         blocks: Block manager for block operations
         users: User manager for user operations
+        comments: Comments manager for comment operations
         api: Direct access to low-level NotionAPI
         page_cache: Direct access to page cache
         database_cache: Direct access to database cache
         user_cache: Direct access to user cache
+        comment_cache: Direct access to comment cache
 
     Example:
         >>> client = NotionClient(auth=os.getenv("NOTION_KEY"))
@@ -93,6 +96,7 @@ class NotionClient:
         self._user_cache: Cache[object] = Cache()
         self._database_cache: Cache[object] = Cache()
         self._page_cache: Cache[object] = Cache()
+        self._comment_cache: Cache[object] = Cache()
         # No cache for Block (too many)
 
         # Search cache
@@ -103,6 +107,7 @@ class NotionClient:
         self._databases = DatabaseManager(self)
         self._blocks = BlockManager(self)
         self._users = UserManager(self)
+        self._comments = CommentsManager(self)
 
     # ===== MANAGER PROPERTIES =====
 
@@ -146,6 +151,23 @@ class NotionClient:
             >>> users = client.users.cache.get_all()
         """
         return self._users
+
+    @property
+    def comments(self) -> CommentsManager:
+        """Comments manager for comment operations.
+
+        Example:
+            >>> comment = await client.comments.get(comment_id)
+            >>> comment = await client.comments.create(
+            ...     parent="page-123",
+            ...     rich_text=[{
+            ...         "type": "text",
+            ...         "text": {"content": "Hello!"}
+            ...     }]
+            ... )
+            >>> comments = await client.comments.list_all("page-123")
+        """
+        return self._comments
 
     # ===== DIRECT CACHE ACCESS =====
 
