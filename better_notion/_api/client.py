@@ -14,6 +14,7 @@ from better_notion._api.collections import (
     UserCollection,
 )
 from better_notion._api.errors import NotionAPIError
+from better_notion._api.oauth import OAuthTokenHandler
 
 
 class NotionAPI:
@@ -42,8 +43,9 @@ class NotionAPI:
 
     def __init__(
         self,
-        auth: str,
+        auth: str | None = None,
         *,
+        auth_handler: OAuthTokenHandler | None = None,
         base_url: str = DEFAULT_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
         version: str = DEFAULT_VERSION,
@@ -52,16 +54,30 @@ class NotionAPI:
 
         Args:
             auth: Notion API token (starts with "secret_" or "ntn_").
+                  Required if auth_handler not provided.
+            auth_handler: Optional OAuthTokenHandler for OAuth-based authentication.
+                         If provided, auth parameter is ignored.
             base_url: Base URL for the API.
             timeout: Request timeout in seconds.
             version: Notion API version.
-        """
-        if not (auth.startswith("secret_") or auth.startswith("ntn_")):
-            raise ValueError(
-                'Invalid token format. Token must start with "secret_" or "ntn_"'
-            )
 
-        self._token = auth
+        Raises:
+            ValueError: If neither auth nor auth_handler is provided,
+                       or if auth has invalid format.
+        """
+        if auth_handler:
+            self._auth_handler = auth_handler
+            self._token = auth_handler.access_token
+        elif auth:
+            if not (auth.startswith("secret_") or auth.startswith("ntn_")):
+                raise ValueError(
+                    'Invalid token format. Token must start with "secret_" or "ntn_"'
+                )
+            self._token = auth
+            self._auth_handler = None
+        else:
+            raise ValueError("Either auth or auth_handler must be provided")
+
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._version = version
@@ -176,23 +192,13 @@ class NotionAPI:
         Returns:
             Default headers dictionary.
         """
+        # Use current token from auth_handler if available
+        token = self._auth_handler.access_token if self._auth_handler else self._token
         return {
-            "Authorization": f"Bearer {self._token}",
+            "Authorization": f"Bearer {token}",
             "Notion-Version": self._version,
             "Content-Type": "application/json",
         }
-
-    async def __aenter__(self) -> NotionAPI:
-        """Async context manager entry."""
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        """Async context manager exit."""
-        await self.close()
-
-    async def close(self) -> None:
-        """Close the HTTP client."""
-        await self._http.aclose()
 
     async def _request(
         self,
@@ -201,6 +207,7 @@ class NotionAPI:
         *,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        _retry_count: int = 0,
     ) -> dict[str, Any]:
         """Make an HTTP request to the Notion API.
 
@@ -209,6 +216,7 @@ class NotionAPI:
             path: Request path (will be appended to base_url).
             params: Query parameters.
             json: JSON request body.
+            _retry_count: Internal retry counter for token refresh.
 
         Returns:
             Response data as a dictionary.
@@ -231,6 +239,24 @@ class NotionAPI:
         except httpx.HTTPStatusError as e:
             # Map HTTP errors to NotionAPIError subclasses
             status_code = e.response.status_code
+
+            # Handle 401 Unauthorized with token refresh
+            if status_code == 401 and self._auth_handler and self._auth_handler.has_refresh_token and _retry_count == 0:
+                try:
+                    # Refresh the token
+                    await self._auth_handler.refresh(self._http)
+
+                    # Retry the request with new token
+                    return await self._request(
+                        method,
+                        path,
+                        params=params,
+                        json=json,
+                        _retry_count=_retry_count + 1,
+                    )
+                except Exception:
+                    # If refresh fails, fall through to normal 401 handling
+                    pass
 
             if status_code == 400:
                 from better_notion._api.errors import BadRequestError
@@ -262,3 +288,16 @@ class NotionAPI:
         except httpx.RequestError as e:
             from better_notion._api.errors import NetworkError
             raise NetworkError(f"Network error: {e}") from e
+
+    async def __aenter__(self) -> NotionAPI:
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        """Cleanup on context exit."""
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client."""
+        await self._http.aclose()
+
