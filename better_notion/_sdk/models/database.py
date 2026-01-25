@@ -506,6 +506,42 @@ class Database(BaseEntity):
             count += 1
         return count
 
+    # ===== QUERY =====
+
+    def query(self, **filters: Any) -> "DatabaseQuery":
+        """Create a query builder for this database.
+
+        Args:
+            **filters: Initial filter conditions
+
+        Returns:
+            DatabaseQuery builder for constructing queries
+
+        Example:
+            >>> # Simple query
+            >>> pages = await database.query(status="Done").collect()
+            >>>
+            >>> # Complex query with builder pattern
+            >>> pages = await (database.query()
+            ...     .filter(status="In Progress")
+            ...     .filter(priority__gte=5)
+            ...     .sort("due_date")
+            ...     .limit(10)
+            ... ).collect()
+            >>>
+            >>> # Check existence
+            >>> if await database.query(status="Done").exists():
+            ...     print("Has done tasks")
+        """
+        from better_notion._sdk.query.database_query import DatabaseQuery
+
+        return DatabaseQuery(
+            client=self._client,
+            database_id=self.id,
+            schema=self._schema,
+            filters=filters
+        )
+
     def __repr__(self) -> str:
         """String representation."""
         title = self.title[:30] if self.title else ""
