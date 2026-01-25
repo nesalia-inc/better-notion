@@ -8,6 +8,7 @@ import httpx
 
 from better_notion._api.collections import (
     BlockCollection,
+    CommentCollection,
     DatabaseCollection,
     PageCollection,
     UserCollection,
@@ -26,6 +27,7 @@ class NotionAPI:
         blocks: Block collection for managing blocks.
         databases: Database collection for managing databases.
         users: User collection for managing users.
+        comments: Comment collection for managing comments.
 
     Example:
         >>> api = NotionAPI(auth="secret_...")  # or "ntn_..."
@@ -91,6 +93,11 @@ class NotionAPI:
     def users(self) -> UserCollection:
         """User collection for managing users."""
         return UserCollection(self)
+
+    @property
+    def comments(self) -> CommentCollection:
+        """Comment collection for managing comments."""
+        return CommentCollection(self)
 
     async def search(
         self,

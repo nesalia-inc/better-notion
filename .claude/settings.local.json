@@ -8,7 +8,11 @@
       "Bash(uv run ruff check:*)",
       "Bash(python -m pytest:*)",
       "Bash(uv pip install:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(printf:*)",
+      "Bash(npx create-fumadocs-app:*)",
+      "Bash(PYTEST_ASYNCIO_MODE=auto python -m pytest:*)",
+      "Bash(python:*)"
     ]
   }
 }

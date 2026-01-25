@@ -87,6 +87,7 @@ class CommentsManager:
 
         if parent:
             # Determine if it's a page or block ID
+            # For now, assume it's a page_id (could be enhanced to detect block_id)
             payload["parent"] = {
                 "type": "page_id",
                 "page_id": parent
@@ -102,7 +103,13 @@ class CommentsManager:
             payload["display_name"] = {"type": display_name}
 
         # Create via API
-        data = await self._client.api.comments.create(**payload)
+        data = await self._client.api.comments.create(
+            parent=payload.get("parent"),
+            discussion_id=payload.get("discussion_id"),
+            rich_text=payload["rich_text"],
+            attachments=payload.get("attachments"),
+            display_name=payload.get("display_name")
+        )
 
         # Return Comment object
         from better_notion._sdk.models.comment import Comment
@@ -135,12 +142,11 @@ class CommentsManager:
             >>> for comment_data in response["results"]:
             ...     print(comment_data["rich_text"])
         """
-        params = {"block_id": block_id, "page_size": page_size}
-
-        if start_cursor:
-            params["start_cursor"] = start_cursor
-
-        return await self._client.api.comments.list(**params)
+        return await self._client.api.comments.list(
+            block_id=block_id,
+            page_size=page_size,
+            start_cursor=start_cursor
+        )
 
     async def list_all(self, block_id: str) -> list["Comment"]:
         """List all comments with automatic pagination.
