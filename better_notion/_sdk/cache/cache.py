@@ -100,6 +100,30 @@ class Cache(Generic[T]):
         """
         return list(self._data.values())
 
+    def keys(self) -> list[str]:
+        """Get all cache keys.
+
+        Returns:
+            List of all keys in the cache
+        """
+        return list(self._data.keys())
+
+    def values(self) -> list[T]:
+        """Get all cached values.
+
+        Returns:
+            List of all values in the cache
+        """
+        return list(self._data.values())
+
+    def items(self) -> list[tuple[str, T]]:
+        """Get all cache key-value pairs.
+
+        Returns:
+            List of (key, value) tuples
+        """
+        return list(self._data.items())
+
     def invalidate(self, key: str) -> None:
         """Remove entity from cache.
 

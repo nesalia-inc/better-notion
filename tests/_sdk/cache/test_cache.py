@@ -237,3 +237,187 @@ class TestCache:
         assert retrieved is obj
         assert retrieved.name == "test"
         assert retrieved.value == 42
+
+    def test_iteration_over_cache(self) -> None:
+        """Test iterating over cache keys and values."""
+        cache = Cache[str]()
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+        cache.set("key3", "value3")
+
+        keys = list(cache.keys())
+        values = list(cache.values())
+
+        assert len(keys) == 3
+        assert len(values) == 3
+        assert set(keys) == {"key1", "key2", "key3"}
+        assert set(values) == {"value1", "value2", "value3"}
+
+    def test_items_iteration(self) -> None:
+        """Test iterating over cache items."""
+        cache = Cache[str]()
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+
+        items = dict(cache.items())
+        assert items == {"key1": "value1", "key2": "value2"}
+
+    def test_cache_with_multiple_types(self) -> None:
+        """Test cache handles None values."""
+        cache = Cache[str | None]()
+        cache.set("key1", None)
+        cache.set("key2", "value2")
+
+        assert cache.get("key1") is None
+        assert cache.get("key2") == "value2"
+        assert cache.stats.size == 2
+
+    def test_stats_reset(self) -> None:
+        """Test that stats persist correctly across operations."""
+        cache = Cache[str]()
+
+        # Initial state
+        assert cache.stats.hits == 0
+        assert cache.stats.misses == 0
+
+        # Add items
+        cache.set("key1", "value1")
+        cache.set("key2", "value2")
+
+        # Generate some hits and misses
+        cache.get("key1")  # hit
+        cache.get("key2")  # hit
+        cache.get("missing")  # miss
+
+        assert cache.stats.hits == 2
+        assert cache.stats.misses == 1
+
+        # Clear should reset size but not hits/misses
+        cache.clear()
+        assert cache.stats.size == 0
+        assert cache.stats.hits == 2  # Stats persist
+        assert cache.stats.misses == 1
+
+    def test_performance_hit_rate_edge_cases(self) -> None:
+        """Test hit rate calculation with edge cases."""
+        cache = Cache[str]()
+
+        # No requests
+        assert cache.stats.hit_rate == 0.0
+
+        # Only misses
+        cache.get("missing1")
+        cache.get("missing2")
+        assert cache.stats.hit_rate == 0.0
+
+        # Only hits
+        cache.set("key1", "value1")
+        cache.get("key1")
+        cache.get("key1")
+        # Total: 2 hits, 2 misses
+        expected_rate = 2 / 4  # 0.5
+        assert abs(cache.stats.hit_rate - expected_rate) < 0.001
+
+    def test_cache_key_reuse(self) -> None:
+        """Test reusing the same key updates stats correctly."""
+        cache = Cache[str]()
+
+        cache.set("key1", "value1")
+        cache.get("key1")  # First hit
+
+        cache.set("key1", "value2")  # Overwrite
+        cache.get("key1")  # Second hit
+
+        assert cache.stats.hits == 2
+        assert cache.get("key1") == "value2"
+        assert cache.stats.size == 1
+
+    def test_get_or_else_default(self) -> None:
+        """Test get returns None for missing keys (default behavior)."""
+        cache = Cache[str]()
+        cache.set("key1", "value1")
+
+        assert cache.get("key1") == "value1"
+        assert cache.get("missing") is None
+        assert cache.stats.misses == 1
+
+    def test_concurrent_like_operations(self) -> None:
+        """Test cache handles rapid set/get operations."""
+        cache = Cache[int]()
+
+        # Simulate rapid operations
+        for i in range(100):
+            cache.set(f"key{i}", i)
+
+        for i in range(100):
+            value = cache.get(f"key{i}")
+            assert value == i
+
+        # Check some misses
+        assert cache.get("key100") is None
+        assert cache.get("key101") is None
+
+        assert cache.stats.size == 100
+        assert cache.stats.hits == 100
+        assert cache.stats.misses == 2
+
+    def test_cache_with_dict_like_operations(self) -> None:
+        """Test cache behaves like a dict in common operations."""
+        cache = Cache[str]()
+
+        # __setitem__
+        cache["key1"] = "value1"
+        cache["key2"] = "value2"
+
+        # __contains__
+        assert "key1" in cache
+        assert "key3" not in cache
+
+        # __getitem__
+        assert cache["key1"] == "value1"
+
+        # __len__
+        assert len(cache) == 2
+
+        # get with default
+        assert cache.get("key1") == "value1"
+        assert cache.get("key3") is None
+
+        # del via invalidate
+        cache.invalidate("key1")
+        assert "key1" not in cache
+        assert len(cache) == 1  # Size decreased after invalidation
+
+    def test_stats_accuracy_after_complex_operations(self) -> None:
+        """Test stats remain accurate after complex operation sequences."""
+        cache = Cache[str]()
+
+        # Sequence: add, hit, add, miss, invalidate, hit
+        cache.set("a", "1")      # size=1
+        cache.get("a")           # hit=1
+        cache.set("b", "2")      # size=2
+        cache.get("c")           # miss=1
+        cache.invalidate("a")    # size=1
+        cache.get("b")           # hit=2
+        cache.clear()            # size=0
+
+        assert cache.stats.size == 0
+        assert cache.stats.hits == 2
+        assert cache.stats.misses == 1
+        assert cache.stats.hit_rate == 2/3
+
+    def test_type_safety_with_generic_types(self) -> None:
+        """Test that cache preserves type information."""
+        from typing import Union
+
+        # Union type cache
+        cache = Cache[Union[str, int]]()
+        cache.set("str_key", "string")
+        cache.set("int_key", 42)
+
+        assert cache.get("str_key") == "string"
+        assert cache.get("int_key") == 42
+
+        # Type checker should be happy with this
+        value: Union[str, int] | None = cache.get("str_key")
+        assert value == "string"
