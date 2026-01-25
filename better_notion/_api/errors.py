@@ -4,7 +4,46 @@ from __future__ import annotations
 
 
 class NotionAPIError(Exception):
-    """Base exception for all Notion API errors."""
+    """Base exception for all Notion API errors.
+
+    Attributes:
+        message: Error message.
+        status_code: HTTP status code (optional).
+        code: Error code from API (optional).
+        info: Additional error info (optional).
+    """
+
+    def __init__(
+        self,
+        message: str | int,
+        code: str | None = None,
+        info: dict | None = None
+    ) -> None:
+        """Initialize Notion API error.
+
+        Args:
+            message: Error message (or status code if using 3-param form)
+            code: Error code (optional, or message if using 3-param form)
+            info: Additional error info (optional, only used in 3-param form)
+
+        Supports two calling conventions:
+            1. NotionAPIError("message") - simple message
+            2. NotionAPIError(status_code, code, info) - with status info
+        """
+        # Support 3-parameter form: NotionAPIError(status_code, code, info)
+        if isinstance(message, int):
+            self.status_code = message
+            self.code = code or ""
+            self.info = info or {}
+            self.message = f"{self.code}: {self.status_code}"
+            super().__init__(self.message)
+        else:
+            # Support 1-parameter form: NotionAPIError("message")
+            self.message = message
+            self.status_code = None
+            self.code = None
+            self.info = info or {}
+            super().__init__(message)
 
 
 class HTTPError(NotionAPIError):
