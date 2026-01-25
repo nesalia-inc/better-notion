@@ -1,0 +1,256 @@
+---
+title: PageManager
+description: Manage page entities in Notion
+---
+
+import { FileText, Plus, Search } from 'lucide-react';
+
+# PageManager
+
+Manages **Page** entities with convenient CRUD operations and query capabilities.
+
+## Methods
+
+<FileText /> ### get()
+
+Retrieve a page by ID:
+
+```python
+page = await client.pages.get("page_id")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | `str` | Yes | Page UUID |
+
+**Returns:** `Page` object
+
+**Example:**
+
+```python
+page = await client.pages.get("page-123")
+print(f"Title: {page.title}")
+print(f"URL: {page.url}")
+```
+
+<Plus /> ### create()
+
+Create a new page:
+
+```python
+page = await client.pages.create(
+    parent=database,
+    title="My Page",
+    status="In Progress",
+    priority="High"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Database` or `Page` | Yes | Parent database or page |
+| `title` | `str` | No | Page title |
+| `properties` | `dict` | No | Additional properties |
+| `**kwargs` | `any` | No | Additional parameters (icon, cover, etc.) |
+
+**Returns:** Newly created `Page` object
+
+**Example:**
+
+```python
+# Simple page
+page = await client.pages.create(
+    parent=database,
+    title="New Task"
+)
+
+# With properties
+page = await client.pages.create(
+    parent=database,
+    title="Project X",
+    status="In Progress",
+    priority="High",
+    assignee="user-123"
+)
+
+# With icon and cover
+from better_notion._sdk.models import Page
+
+page = await client.pages.create(
+    parent=database,
+    title="Important Page",
+    icon=Page.format_icon(emoji="🚀"),
+    cover=Page.format_cover(external_url="https://example.com/image.png")
+)
+```
+
+<Search /> ### find()
+
+Find pages matching filters:
+
+```python
+pages = await client.pages.find(
+    database=database,
+    status="Done",
+    priority="High"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `database` | `Database` | Yes | Database to search in |
+| `**filters` | `any` | No | Property filters |
+
+**Returns:** `list` of `Page` objects
+
+**Example:**
+
+```python
+# Single filter
+tasks = await client.pages.find(
+    database=task_db,
+    status="In Progress"
+)
+
+# Multiple filters
+urgent_high = await client.pages.find(
+    database=task_db,
+    status="Todo",
+    priority="High"
+)
+
+# No filters (all pages)
+all_pages = await client.pages.find(database=database)
+```
+
+### find_one()
+
+Find first matching page:
+
+```python
+page = await client.pages.find_one(
+    database=database,
+    title="Specific Page"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `database` | `Database` | Yes | Database to search in |
+| `**filters` | `any` | No | Property filters |
+
+**Returns:** First matching `Page` object or `None`
+
+**Example:**
+
+```python
+# Find by title
+page = await client.pages.find_one(
+    database=database,
+    title="My Page"
+)
+
+if page:
+    print(f"Found: {page.title}")
+else:
+    print("Not found")
+```
+
+### get_multiple()
+
+Get multiple pages by IDs:
+
+```python
+pages = await client.pages.get_multiple([
+    "page-1",
+    "page-2",
+    "page-3"
+])
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_ids` | `list[str]` | Yes | List of page UUIDs |
+
+**Returns:** `list` of `Page` objects
+
+**Example:**
+
+```python
+page_ids = ["page-1", "page-2", "page-3"]
+pages = await client.pages.get_multiple(page_ids)
+
+for page in pages:
+    print(f"{page.title}: {page.url}")
+```
+
+## Cache Access
+
+```python
+# Access page cache directly
+if "page_id" in client.page_cache:
+    page = client.page_cache["page_id"]
+
+# Get all cached pages
+all_pages = client.page_cache.get_all()
+
+# Check cache size
+print(f"Cached pages: {len(client.page_cache)}")
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def manage_pages():
+    """Example page management."""
+    client = NotionClient(auth="secret_...")
+
+    # Get database
+    database = await client.databases.find_by_title("Tasks")
+
+    # Create a page
+    page = await client.pages.create(
+        parent=database,
+        title="New Task",
+        status="Todo",
+        priority="High"
+    )
+
+    # Find pages
+    tasks = await client.pages.find(
+        database=database,
+        status="In Progress"
+    )
+
+    # Get specific page
+    page = await client.pages.get("page_id")
+
+    # Find one
+    specific = await client.pages.find_one(
+        database=database,
+        title="My Task"
+    )
+
+    print(f"Created: {page.url}")
+
+asyncio.run(manage_pages())
+```
+
+## See Also
+
+- [Page Model](../sdk-reference/models/page-model) - Page entity reference
+- [Working with Pages](../../guides/working-with-pages) - Page operations guide
+- [NotionClient](../client) - Main client

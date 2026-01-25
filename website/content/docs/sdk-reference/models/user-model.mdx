@@ -1,0 +1,234 @@
+---
+title: User Model
+description: User entity with profile information
+---
+
+import { Users, Mail, Bot } from 'lucide-react';
+
+# User Model
+
+The `User` model represents Notion users (people and bots).
+
+## Constructor
+
+```python
+from better_notion._sdk.models import User
+
+user = User(client, data)
+```
+
+Typically created via:
+- `User.get()` - Retrieve existing user
+- `User.me()` - Get current user
+- `User.from_data()` - Create from API data
+
+## Properties
+
+<Users /> ### name
+
+User display name.
+
+```python
+user = await User.get("user_id", client=client)
+print(user.name)
+```
+
+**Type:** `str`
+
+<Mail /> ### email
+
+User email address (for person type).
+
+```python
+print(user.email)  # "user@example.com"
+```
+
+**Type:** `str | None`
+
+<Bot /> ### type
+
+User type.
+
+```python
+print(user.type)  # "person" or "bot"
+```
+
+**Type:** `str`
+
+**Values:**
+- `person` - Regular user account
+- `bot` - Bot integration
+
+### avatar_url
+
+Profile picture URL.
+
+```python
+print(user.avatar_url)
+```
+
+**Type:** `str | None`
+
+## Class Methods
+
+### get()
+
+Retrieve a user by ID (uses cache).
+
+```python
+user = await User.get("user_id", client=client)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | `str` | Yes | User UUID |
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** `User` object
+
+### me()
+
+Get the current bot user.
+
+```python
+me = await User.me(client=client)
+print(f"I am: {me.name}")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** Current `User` object
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+from better_notion._sdk.models import User
+
+async def main():
+    client = NotionClient(auth="secret_...")
+
+    # Get user
+    user = await User.get("user_id", client=client)
+
+    # Access properties
+    print(f"Name: {user.name}")
+    print(f"Email: {user.email}")
+    print(f"Type: {user.type}")
+    print(f"Avatar: {user.avatar_url}")
+
+    # Get current user
+    me = await User.me(client=client)
+    print(f"I am: {me.name}")
+
+    # Check type
+    if user.type == "person":
+        print(f"Person: {user.email}")
+    elif user.type == "bot":
+        print(f"Bot: {user.name}")
+
+asyncio.run(main())
+```
+
+## User Types
+
+### Person
+
+Regular user accounts:
+
+```python
+if user.type == "person":
+    print(f"{user.name} <{user.email}>")
+```
+
+Properties:
+- `name` - Full name
+- `email` - Email address
+- `avatar_url` - Profile picture
+
+### Bot
+
+Bot integrations:
+
+```python
+if user.type == "bot":
+    print(f"Bot: {user.name}")
+```
+
+Properties:
+- `name` - Bot name
+- `avatar_url` - Bot icon
+
+## Cache Access
+
+Users are cached automatically:
+
+```python
+# First call - fetches from API
+user1 = await User.get("user_id", client=client)
+
+# Second call - instant (from cache)
+user2 = await User.get("user_id", client=client)
+
+# Direct cache access
+if "user_id" in client.user_cache:
+    user = client.user_cache["user_id"]
+```
+
+## Use Cases
+
+### Get User Info
+
+```python
+user = await User.get("user_id", client=client)
+
+print(f"{user.name}")
+if user.email:
+    print(f"<{user.email}>")
+```
+
+### Check User Type
+
+```python
+user = await User.get("user_id", client=client)
+
+if user.type == "person":
+    # Person-specific logic
+    send_email(user.email, "Hello!")
+elif user.type == "bot":
+    # Bot-specific logic
+    log_bot_activity(user.name)
+```
+
+### Get Current Bot
+
+```python
+me = await User.me(client=client)
+print(f"Running as: {me.name}")
+```
+
+### Display Users
+
+```python
+# Get page property users
+users = page.get_property("Assignees")
+
+for user in users:
+    if user.type == "person":
+        print(f"👤 {user.name}")
+    else:
+        print(f"🤖 {user.name}")
+```
+
+## See Also
+
+- [UserManager](../sdk-reference/managers/user-manager) - Manager operations
+- [NotionClient](../client) - Main client
+- [Caching](../../advanced/caching) - Cache system

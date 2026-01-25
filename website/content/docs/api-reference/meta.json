@@ -1,0 +1,22 @@
+{
+  "title": "API Reference",
+  "description": "Low-level NotionAPI reference",
+  "icon": "terminal",
+  "root": true,
+  "pages": [
+    "client",
+    "---Entities---",
+    "entities",
+    "entities/page",
+    "---Collections---",
+    "collections",
+    "collections/page-collection",
+    "collections/block-collection",
+    "collections/database-collection",
+    "collections/user-collection",
+    "collections/comment-collection",
+    "---Utilities---",
+    "properties",
+    "exceptions"
+  ]
+}

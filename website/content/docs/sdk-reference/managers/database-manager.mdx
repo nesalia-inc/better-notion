@@ -1,0 +1,243 @@
+---
+title: DatabaseManager
+description: Manage database entities in Notion
+---
+
+import { Database, Plus, List, Search } from 'lucide-react';
+
+# DatabaseManager
+
+Manages **Database** entities with CRUD operations and search capabilities.
+
+## Methods
+
+<Database /> ### get()
+
+Retrieve a database by ID:
+
+```python
+database = await client.databases.get("database_id")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `database_id` | `str` | Yes | Database UUID |
+
+**Returns:** `Database` object
+
+**Example:**
+
+```python
+database = await client.databases.get("database-123")
+print(f"Title: {database.title}")
+print(f"Properties: {len(database.schema)}")
+```
+
+<Plus /> ### create()
+
+Create a new database:
+
+```python
+database = await client.databases.create(
+    parent=page,
+    title="Tasks",
+    schema={
+        "Name": {"type": "title"},
+        "Status": {"type": "select"},
+        "Priority": {"type": "select"}
+    }
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` | Yes | Parent page |
+| `title` | `str` | Yes | Database title |
+| `schema` | `dict` | Yes | Property schema |
+| `**kwargs` | `any` | No | Additional parameters |
+
+**Returns:** Newly created `Database` object
+
+**Example:**
+
+```python
+# Define schema
+schema = {
+    "Task Name": {
+        "type": "title",
+        "title": {}
+    },
+    "Status": {
+        "type": "select",
+        "select": {
+            "options": [
+                {"name": "Todo", "color": "default"},
+                {"name": "In Progress", "color": "blue"},
+                {"name": "Done", "color": "green"}
+            ]
+        }
+    },
+    "Priority": {
+        "type": "select",
+        "select": {
+            "options": [
+                {"name": "Low", "color": "gray"},
+                {"name": "Medium", "color": "yellow"},
+                {"name": "High", "color": "red"}
+            ]
+        }
+    }
+}
+
+# Create database
+database = await client.databases.create(
+    parent=parent_page,
+    title="Task Tracker",
+    schema=schema
+)
+
+print(f"Created: {database.url}")
+```
+
+<Search /> ### find_by_title()
+
+Find a database by title (case-insensitive):
+
+```python
+database = await client.databases.find_by_title("Tasks")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | `str` | Yes | Database title |
+
+**Returns:** `Database` object or `None`
+
+**Example:**
+
+```python
+# Find by exact title
+database = await client.databases.find_by_title("Tasks")
+
+if database:
+    print(f"Found: {database.id}")
+    print(f"Properties: {list(database.schema.keys())}")
+else:
+    print("Database not found")
+```
+
+<List /> ### list_all()
+
+List all databases in workspace:
+
+```python
+databases = await client.databases.list_all()
+```
+
+**Returns:** `list` of `Database` objects
+
+**Example:**
+
+```python
+# Get all databases
+databases = await client.databases.list_all()
+
+for database in databases:
+    print(f"{database.title}: {len(database.schema)} properties")
+
+# Find specific one
+task_db = await client.databases.find_by_title("Tasks")
+```
+
+### get_multiple()
+
+Get multiple databases by IDs:
+
+```python
+databases = await client.databases.get_multiple([
+    "database-1",
+    "database-2"
+])
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `database_ids` | `list[str]` | Yes | List of database UUIDs |
+
+**Returns:** `list` of `Database` objects
+
+**Example:**
+
+```python
+db_ids = ["database-1", "database-2"]
+databases = await client.databases.get_multiple(db_ids)
+
+for database in databases:
+    print(f"{database.title}: {database.url}")
+```
+
+## Cache Access
+
+```python
+# Access database cache directly
+if "database_id" in client.database_cache:
+    database = client.database_cache["database_id"]
+
+# Get all cached databases
+all_dbs = client.database_cache.get_all()
+
+# Check cache size
+print(f"Cached databases: {len(client.database_cache)}")
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def manage_databases():
+    """Example database management."""
+    client = NotionClient(auth="secret_...")
+
+    # List all databases
+    databases = await client.databases.list_all()
+
+    # Find specific database
+    tasks_db = await client.databases.find_by_title("Tasks")
+
+    # Get database details
+    database = await client.databases.get("database_id")
+
+    # Query database
+    async for page in database.query():
+        print(f"Page: {page.title}")
+
+    # Create new database
+    new_db = await client.databases.create(
+        parent=parent_page,
+        title="Projects",
+        schema={
+            "Name": {"type": "title"},
+            "Status": {"type": "select"}
+        }
+    )
+
+    print(f"Created database: {new_db.url}")
+
+asyncio.run(manage_databases())
+```
+
+## See Also
+
+- [Database Model](../sdk-reference/models/database-model) - Database entity reference
+- [Querying Databases](../../guides/querying-databases) - Database queries guide
+- [NotionClient](../client) - Main client

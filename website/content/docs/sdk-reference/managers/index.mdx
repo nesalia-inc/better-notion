@@ -1,0 +1,106 @@
+---
+title: SDK Managers
+description: Manager classes for convenient entity operations
+---
+
+import { Blocks, Database, FileText, Users, MessageSquare } from 'lucide-react';
+
+# SDK Managers
+
+Managers provide **thin, convenient wrappers** around autonomous entity classes. They delegate all logic to the entities themselves.
+
+## Architecture
+
+```
+NotionClient
+    ├─ pages → PageManager
+    ├─ databases → DatabaseManager
+    ├─ blocks → BlockManager
+    ├─ users → UserManager
+    └─ comments → CommentsManager
+```
+
+Each manager:
+- Provides shortcuts for common operations
+- Delegates to entity methods
+- Returns the same entity objects
+
+## Usage Patterns
+
+### Via Manager (Recommended)
+
+```python
+# Shorter syntax
+page = await client.pages.get("page_id")
+database = await client.databases.get("database_id")
+```
+
+### Via Entity (Autonomous)
+
+```python
+# Works the same!
+from better_notion._sdk.models import Page, Database
+
+page = await Page.get("page_id", client=client)
+database = await Database.get("database_id", client=client)
+```
+
+Both approaches return the same result.
+
+## Available Managers
+
+<FileText /> **[PageManager](./page-manager)**
+
+Page operations:
+- `get()` - Retrieve page by ID
+- `create()` - Create new page
+- `find()` - Find pages with filters
+- `find_one()` - Find first matching page
+- `get_multiple()` - Get multiple pages
+
+<Database /> **[DatabaseManager](./database-manager)**
+
+Database operations:
+- `get()` - Retrieve database by ID
+- `create()` - Create new database
+- `find_by_title()` - Find database by title
+- `list_all()` - List all databases
+- `get_multiple()` - Get multiple databases
+
+<Blocks /> **[BlockManager](./block-manager)**
+
+Block operations:
+- `get()` - Retrieve block by ID
+- `update()` - Update block content
+- `delete()` - Delete block
+- `create_paragraph()` - Create paragraph
+- `create_heading()` - Create heading
+- `create_code()` - Create code block
+- `create_todo()` - Create todo
+- `create_bullet()` - Create bullet list
+- `create_numbered()` - Create numbered list
+- `create_quote()` - Create quote
+- `create_divider()` - Create divider
+- `create_callout()` - Create callout
+
+<Users /> **[UserManager](./user-manager)**
+
+User operations:
+- `get()` - Retrieve user by ID
+- `find_by_email()` - Find user by email
+- `find_by_name()` - Find user by name
+- `populate_cache()` - Load all users into cache
+- `get_multiple()` - Get multiple users
+
+<MessageSquare /> **[CommentsManager](./comment-manager)**
+
+Comment operations:
+- `get()` - Retrieve comment by ID
+- `create()` - Create comment
+- `list()` - List comments (paginated)
+- `list_all()` - List all comments
+
+## See Also
+
+- [NotionClient](../client) - Main client
+- [Models](../models) - Entity models

@@ -27,6 +27,7 @@ Better Notion provides an object-oriented interface to the Notion API. Instead o
 - `Block` - Content blocks
 - `Database` - Notion databases
 - `User` - Notion users
+- `Comment` - Notion comments
 
 ### 2. Collections
 
@@ -37,6 +38,7 @@ Better Notion provides an object-oriented interface to the Notion API. Instead o
 - `BlockCollection` - Manipulate blocks
 - `DatabaseCollection` - Query databases
 - `UserCollection` - Retrieve users
+- `CommentCollection` - Manage comments
 
 **Accessed via**:
 ```python
@@ -44,9 +46,63 @@ api.pages      # PageCollection
 api.blocks     # BlockCollection
 api.databases  # DatabaseCollection
 api.users      # UserCollection
+api.comments   # CommentCollection
 ```
 
-### 3. Property Builders
+### 3. High-Level SDK (NotionClient)
+
+<Box /> **NotionClient** provides a higher-level SDK with intelligent caching and autonomous entities.
+
+**Key Features**:
+- **Automatic Caching** - Pages, databases, users cached for performance
+- **Autonomous Entities** - Work with entities directly or via managers
+- **Convenient Managers** - Shortcuts for common operations
+- **Type-Safe Properties** - Rich property access on entities
+
+**Accessed via**:
+```python
+from better_notion import NotionClient
+
+client = NotionClient(auth="secret_...")
+
+# Managers
+client.pages      # PageManager
+client.blocks     # BlockManager
+client.databases  # DatabaseManager
+client.users      # UserManager
+client.comments   # CommentsManager
+
+# Direct cache access
+client.page_cache       # Page cache
+client.database_cache   # Database cache
+client.user_cache       # User cache
+client.comment_cache    # Comment cache
+```
+
+**SDK Entities** are autonomous - can be used independently:
+
+```python
+from better_notion._sdk.models import Page, Database, Block
+
+# Get page directly (uses cache)
+page = await Page.get("page_id", client=client)
+
+# Access properties
+print(page.title)  # Type-safe!
+
+# Navigation
+parent = await page.parent()
+async for block in page.children():
+    print(block.type)
+```
+
+**When to use SDK vs API**:
+- **SDK (NotionClient)**: Building applications, need caching, want type safety
+- **API (NotionAPI)**: Building custom abstractions, need raw responses, maximum control
+
+See: [API vs SDK](../api-vs-sdk) for detailed comparison.
+
+### 4. Property Builders
 
 <Type /> **Property Builders** provide type-safe property construction.
 

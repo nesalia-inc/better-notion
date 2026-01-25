@@ -1,0 +1,320 @@
+---
+title: Comment Model
+description: Comment entity for discussions
+---
+
+import { MessageSquare, Users, Paperclip } from 'lucide-react';
+
+# Comment Model
+
+The `Comment` model represents Notion comments on pages and blocks.
+
+## Constructor
+
+```python
+from better_notion._sdk.models import Comment
+
+comment = Comment(client, data)
+```
+
+Typically created via:
+- `Comment.get()` - Retrieve existing comment
+- `Comment.from_data()` - Create from API data
+
+## Properties
+
+<MessageSquare /> ### text
+
+Comment plain text content.
+
+```python
+comment = await Comment.get("comment_id", client=client)
+print(comment.text)
+```
+
+**Type:** `str`
+
+### discussion_id
+
+Discussion thread ID.
+
+```python
+print(comment.discussion_id)
+```
+
+**Type:** `str`
+
+### parent_type
+
+Parent object type.
+
+```python
+print(comment.parent_type)  # "page_id" or "block_id"
+```
+
+**Type:** `str`
+
+### parent_id
+
+Parent page or block ID.
+
+```python
+print(comment.parent_id)
+```
+
+**Type:** `str`
+
+<Users /> ### created_by_id
+
+Creator user ID.
+
+```python
+print(comment.created_by_id)
+```
+
+**Type:** `str`
+
+### created_by
+
+Full creator object.
+
+```python
+creator = comment.created_by
+print(creator["name"])
+print(creator["id"])
+```
+
+**Type:** `dict`
+
+<Paperclip /> ### has_attachments
+
+Whether comment has attachments.
+
+```python
+if comment.has_attachments:
+    print("Has attachments")
+```
+
+**Type:** `bool`
+
+### attachment_count
+
+Number of attachments.
+
+```python
+print(f"Attachments: {comment.attachment_count}")
+```
+
+**Type:** `int`
+
+### display_name
+
+Display name type.
+
+```python
+print(comment.display_name)  # "integration", "user", etc.
+```
+
+**Type:** `str | None`
+
+### resolved_name
+
+Resolved display name string.
+
+```python
+print(comment.resolved_name)  # "My Integration"
+```
+
+**Type:** `str | None`
+
+## Class Methods
+
+### get()
+
+Retrieve a comment by ID (uses cache).
+
+```python
+comment = await Comment.get("comment_id", client=client)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `comment_id` | `str` | Yes | Comment UUID |
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** `Comment` object
+
+## Instance Methods
+
+### parent()
+
+Get parent object.
+
+```python
+parent = await comment.parent()
+
+if isinstance(parent, Page):
+    print(f"On page: {parent.title}")
+```
+
+**Returns:** `Page` or `Block` object
+
+### creator()
+
+Get comment creator user.
+
+```python
+creator = await comment.creator()
+print(f"From: {creator.name}")
+```
+
+**Returns:** `User` object
+
+### children()
+
+Comments don't have children.
+
+```python
+async for _ in comment.children():
+    pass  # Never executes
+```
+
+**Returns:** Empty async iterator
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+from better_notion._sdk.models import Comment
+
+async def main():
+    client = NotionClient(auth="secret_...")
+
+    # Get comment
+    comment = await Comment.get("comment_id", client=client)
+
+    # Access properties
+    print(f"Text: {comment.text}")
+    print(f"Discussion: {comment.discussion_id}")
+    print(f"Parent: {comment.parent_type}/{comment.parent_id}")
+
+    # Creator
+    print(f"Created by: {comment.created_by_id}")
+
+    # Attachments
+    if comment.has_attachments:
+        print(f"Attachments: {comment.attachment_count}")
+
+    # Navigation
+    parent = await comment.parent()
+    creator = await comment.creator()
+
+    print(f"On: {parent.title if parent.is_page else 'Block'}")
+    print(f"By: {creator.name}")
+
+asyncio.run(main())
+```
+
+## Use Cases
+
+### Display Comments
+
+```python
+comments = await client.comments.list_all("page_id")
+
+for comment in comments:
+    creator = await comment.creator()
+    print(f"{creator.name}: {comment.text[:50]}...")
+```
+
+### Thread Management
+
+```python
+# Get all comments in discussion
+comments = await client.comments.list_all("page_id")
+
+# Group by thread
+threads = {}
+for comment in comments:
+    thread_id = comment.discussion_id
+    if thread_id not in threads:
+        threads[thread_id] = []
+    threads[thread_id].append(comment)
+
+# Process each thread
+for thread_id, thread_comments in threads.items():
+    print(f"Thread {thread_id}: {len(thread_comments)} messages")
+```
+
+### Comment with Attachments
+
+```python
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Review this"}
+    }],
+    attachments=[{
+        "type": "external",
+        "external": {"url": "https://example.com/file.pdf"}
+    }]
+)
+
+# Check attachments
+if comment.has_attachments:
+    print(f"Has {comment.attachment_count} attachments")
+```
+
+### Bot Comments
+
+```python
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Automated message"}
+    }],
+    display_name="integration"
+)
+
+print(comment.display_name)  # "integration"
+print(comment.resolved_name)  # Bot integration name
+```
+
+## Rich Text Format
+
+Comments use Notion's rich text:
+
+```python
+# Simple
+rich_text = [{
+    "type": "text",
+    "text": {"content": "Hello!"}
+}]
+
+# With formatting
+rich_text = [{
+    "type": "text",
+    "text": {"content": "Bold"},
+    "annotations": {"bold": True}
+}]
+
+# With link
+rich_text = [{
+    "type": "text",
+    "text": {
+        "content": "Click here",
+        "link": {"url": "https://example.com"}
+    }
+}]
+```
+
+## See Also
+
+- [CommentsManager](../sdk-reference/managers/comment-manager) - Manager operations
+- [Working with Comments](../../guides/working-with-comments) - Usage guide
+- [NotionClient](../client) - Main client

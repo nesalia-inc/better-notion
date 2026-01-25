@@ -1,0 +1,396 @@
+---
+title: NotionClient
+description: Main SDK client with managers and caching
+---
+
+import { Settings, Database, Users, MessageSquare } from 'lucide-react';
+
+# NotionClient
+
+The `NotionClient` is the main entry point for the high-level SDK. It provides managers for working with Notion entities and handles intelligent caching.
+
+## Constructor
+
+### Initialize with Auth Token
+
+```python
+from better_notion import NotionClient
+
+client = NotionClient(auth="secret_...")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `auth` | `str` | Yes\* | Notion API token (starts with `secret_` or `ntn_`) |
+| `auth_handler` | `OAuthTokenHandler` | Yes\* | OAuth token handler for refresh support |
+| `base_url` | `str` | No | API base URL (default: production) |
+| `timeout` | `float` | No | Request timeout in seconds (default: 30.0) |
+
+<Callout type="info">
+  Either `auth` or `auth_handler` must be provided (but not both).
+</Callout>
+
+### Initialize with OAuth
+
+```python
+from better_notion import NotionClient
+from better_notion._api.oauth import OAuthTokenHandler
+
+handler = OAuthTokenHandler(
+    access_token="ntn_...",
+    refresh_token="...",
+    client_id="...",
+    client_secret="..."
+)
+
+client = NotionClient(auth_handler=handler)
+```
+
+See: [OAuth](./oauth) for OAuth configuration.
+
+## Managers
+
+<Settings /> **Managers** provide convenient access to entity operations:
+
+### pages
+
+Type: `PageManager`
+
+```python
+# Get a page
+page = await client.pages.get("page_id")
+
+# Create a page
+page = await client.pages.create(
+    parent=database,
+    title="My Page"
+)
+
+# Find pages
+pages = await client.pages.find(
+    database=database,
+    status="In Progress"
+)
+
+# Find first match
+page = await client.pages.find_one(
+    database=database,
+    title="Specific Page"
+)
+```
+
+See: [PageManager](./managers/page-manager)
+
+### databases
+
+Type: `DatabaseManager`
+
+```python
+# Get a database
+database = await client.databases.get("database_id")
+
+# Create a database
+database = await client.databases.create(
+    parent=page,
+    title="Tasks",
+    schema={...}
+)
+
+# Find by title
+database = await client.databases.find_by_title("Tasks")
+
+# List all
+databases = await client.databases.list_all()
+```
+
+See: [DatabaseManager](./managers/database-manager)
+
+### blocks
+
+Type: `BlockManager`
+
+```python
+# Get a block
+block = await client.blocks.get("block_id")
+
+# Create blocks
+paragraph = await client.blocks.create_paragraph(
+    parent=page,
+    text="Hello, world!"
+)
+
+todo = await client.blocks.create_todo(
+    parent=page,
+    text="Review PR",
+    checked=False
+)
+
+# Update block
+updated = await client.blocks.update(
+    block,
+    paragraph={"rich_text": [...]}
+)
+
+# Delete block
+await client.blocks.delete(block)
+```
+
+See: [BlockManager](./managers/block-manager)
+
+### users
+
+Type: `UserManager`
+
+```python
+# Get a user
+user = await client.users.get("user_id")
+
+# Find by email
+user = await client.users.find_by_email("user@example.com")
+
+# Find by name
+user = await client.users.find_by_name("John Doe")
+
+# Populate cache
+await client.users.populate_cache()
+
+# Access cache
+all_users = client.users.cache.get_all()
+```
+
+See: [UserManager](./managers/user-manager)
+
+### comments
+
+Type: `CommentsManager`
+
+```python
+# Get a comment
+comment = await client.comments.get("comment_id")
+
+# Create comment
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Great work!"}
+    }]
+)
+
+# List comments
+comments = await client.comments.list_all("page_id")
+
+# List with pagination
+response = await client.comments.list(
+    block_id="page_id",
+    page_size=50
+)
+```
+
+See: [CommentsManager](./managers/comment-manager)
+
+## Cache Access
+
+<Database /> **Direct cache access** for performance monitoring:
+
+### page_cache
+
+```python
+# Check if cached
+if "page_id" in client.page_cache:
+    page = client.page_cache["page_id"]
+
+# Get all cached pages
+pages = client.page_cache.get_all()
+
+# Cache size
+print(f"Cached pages: {len(client.page_cache)}")
+```
+
+### database_cache
+
+```python
+# Check if cached
+if "db_id" in client.database_cache:
+    db = client.database_cache["db_id"]
+```
+
+### user_cache
+
+```python
+# Check if cached
+if "user_id" in client.user_cache:
+    user = client.user_cache["user_id"]
+
+# Get all users
+users = client.user_cache.get_all()
+```
+
+## Cache Management
+
+### get_cache_stats()
+
+Get statistics for all caches:
+
+```python
+stats = client.get_cache_stats()
+
+print(stats)
+# {
+#     'user_cache': {
+#         'hits': 100,
+#         'misses': 5,
+#         'size': 50,
+#         'hit_rate': 0.95
+#     },
+#     'database_cache': {...},
+#     'page_cache': {...}
+# }
+```
+
+### clear_all_caches()
+
+Clear all caches:
+
+```python
+client.clear_all_caches()
+```
+
+<Callout type="warning">
+  Clearing caches will require all entities to be fetched from API again.
+</Callout>
+
+## Search
+
+### search()
+
+Search across your workspace:
+
+```python
+results = await client.search(
+    query="project",
+    filter=None,
+    sort=None
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | `str` | Yes | Search query text |
+| `filter` | `dict` | No | Filter by object type |
+| `sort` | `dict` | No | Sort options |
+
+**Returns:** `list` of Page and Database objects
+
+**Examples:**
+
+```python
+# Search all
+results = await client.search("integration test")
+
+# Search only pages
+results = await client.search(
+    query="project",
+    filter={"value": "page", "property": "object"}
+)
+
+# Search with sort
+results = await client.search(
+    query="API",
+    sort={
+        "direction": "descending",
+        "timestamp": "last_edited_time"
+    }
+)
+```
+
+## Context Manager
+
+### Using async with
+
+Recommended for automatic resource cleanup:
+
+```python
+async with NotionClient(auth="secret_...") as client:
+    page = await client.pages.get("page_id")
+    # Caches cleared automatically on exit
+```
+
+### Manual Cleanup
+
+```python
+client = NotionClient(auth="secret_...")
+try:
+    page = await client.pages.get("page_id")
+finally:
+    client.clear_all_caches()
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def main():
+    """Example usage of NotionClient."""
+    # Initialize
+    client = NotionClient(auth="secret_...")
+
+    # Get a page
+    page = await client.pages.get("page_id")
+    print(f"Title: {page.title}")
+
+    # Get database
+    database = await client.databases.find_by_title("Tasks")
+
+    # Find pages
+    tasks = await client.pages.find(
+        database=database,
+        status="In Progress"
+    )
+
+    # Create block
+    await client.blocks.create_paragraph(
+        parent=page,
+        text="Task updated!"
+    )
+
+    # Check cache stats
+    stats = client.get_cache_stats()
+    print(f"Cache hit rate: {stats['page_cache']['hit_rate']}")
+
+    # Clean up
+    client.clear_all_caches()
+
+asyncio.run(main())
+```
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `pages` | `PageManager` | Page manager |
+| `databases` | `DatabaseManager` | Database manager |
+| `blocks` | `BlockManager` | Block manager |
+| `users` | `UserManager` | User manager |
+| `comments` | `CommentsManager` | Comments manager |
+| `page_cache` | `Cache` | Page cache (read-only) |
+| `database_cache` | `Cache` | Database cache (read-only) |
+| `user_cache` | `Cache` | User cache (read-only) |
+| `comment_cache` | `Cache` | Comment cache (read-only) |
+| `api` | `NotionAPI` | Low-level API access |
+
+## See Also
+
+- [PageManager](./managers/page-manager)
+- [BlockManager](./managers/block-manager)
+- [DatabaseManager](./managers/database-manager)
+- [UserManager](./managers/user-manager)
+- [CommentsManager](./managers/comment-manager)
+- [OAuth](./oauth) - OAuth token handling
+- [Working with Pages](../guides/working-with-pages) - Page operations guide

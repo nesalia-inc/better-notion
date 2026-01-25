@@ -1,0 +1,340 @@
+---
+title: Database Model
+description: Database entity with query capabilities
+---
+
+import { Database, List, Filter } from 'lucide-react';
+
+# Database Model
+
+The `Database` model represents Notion databases with query and schema access.
+
+## Constructor
+
+```python
+from better_notion._sdk.models import Database
+
+database = Database(client, data)
+```
+
+Typically created via:
+- `Database.get()` - Retrieve existing database
+- `Database.create()` - Create new database
+- `Database.from_data()` - Create from API data
+
+## Properties
+
+<Database /> ### title
+
+Database title.
+
+```python
+database = await Database.get("database_id", client=client)
+print(database.title)
+```
+
+**Type:** `str`
+
+### url
+
+Notion database URL.
+
+```python
+print(database.url)
+```
+
+**Type:** `str`
+
+### schema
+
+Property schema.
+
+```python
+for prop_name, prop_def in database.schema.items():
+    print(f"{prop_name}: {prop_def['type']}")
+```
+
+**Type:** `dict`
+
+### archived
+
+Archive status.
+
+```python
+if database.archived:
+    print("Database is archived")
+```
+
+**Type:** `bool`
+
+### parent
+
+Parent object data.
+
+```python
+parent_type = database.parent["type"]
+parent_id = database.parent.get("page_id")
+```
+
+**Type:** `dict`
+
+## Class Methods
+
+### get()
+
+Retrieve a database by ID (uses cache).
+
+```python
+database = await Database.get("database_id", client=client)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `database_id` | `str` | Yes | Database UUID |
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** `Database` object
+
+### create()
+
+Create a new database.
+
+```python
+database = await Database.create(
+    parent=page,
+    client=client,
+    title="My Database",
+    schema={...}
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` | Yes | Parent page |
+| `client` | `NotionClient` | Yes | Client instance |
+| `title` | `str` | Yes | Database title |
+| `schema` | `dict` | Yes | Property schema |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** Newly created `Database` object
+
+## Instance Methods
+
+<Filter /> ### query()
+
+Query database pages with optional filters.
+
+```python
+async for page in database.query(filter=None, sort=None):
+    print(page.title)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `filter` | `dict` | No | Filter conditions |
+| `sort` | `list` | No | Sort specifications |
+
+**Returns:** Async iterator of `Page` objects
+
+**Example:**
+
+```python
+# All pages
+async for page in database.query():
+    print(page.title)
+
+# With filter
+async for page in database.query(
+    filter={
+        "property": "Status",
+        "select": {
+            "equals": "In Progress"
+        }
+    }
+):
+    print(page.title)
+
+# With sort
+async for page in database.query(
+    sort=[{
+        "property": "Created",
+        "direction": "descending"
+    }]
+):
+    print(page.title)
+```
+
+### parent()
+
+Get parent object.
+
+```python
+parent = await database.parent()
+
+if isinstance(parent, Page):
+    print(f"In page: {parent.title}")
+```
+
+**Returns:** `Page` or `Workspace` object
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+from better_notion._sdk.models import Database
+
+async def main():
+    client = NotionClient(auth="secret_...")
+
+    # Get database
+    database = await Database.get("database_id", client=client)
+
+    # Access properties
+    print(f"Title: {database.title}")
+    print(f"URL: {database.url}")
+
+    # List schema
+    for prop_name, prop_def in database.schema.items():
+        print(f"{prop_name}: {prop_def['type']}")
+
+    # Query all pages
+    async for page in database.query():
+        print(f"Page: {page.title}")
+
+    # Query with filter
+    async for page in database.query(
+        filter={
+            "property": "Status",
+            "select": {"equals": "Done"}
+        }
+    ):
+        print(f"Completed: {page.title}")
+
+    # Create new database
+    new_db = await Database.create(
+        parent=parent_page,
+        client=client,
+        title="Projects",
+        schema={
+            "Name": {"type": "title"},
+            "Status": {
+                "type": "select",
+                "select": {
+                    "options": [
+                        {"name": "Todo", "color": "default"},
+                        {"name": "Done", "color": "green"}
+                    ]
+                }
+            }
+        }
+    )
+
+asyncio.run(main())
+```
+
+## Schema Format
+
+```python
+schema = {
+    "Property Name": {
+        "type": "property_type",
+        # ... type-specific config
+    }
+}
+```
+
+**Common Property Types:**
+
+| Type | Configuration |
+|------|---------------|
+| `title` | `{"title": {}}` |
+| `text` | `{"text": {}}` |
+| `number` | `{"number": {"format": "number"}}` |
+| `select` | `{"select": {"options": [...]}}` |
+| `multi_select` | `{"multi_select": {"options": [...]}}` |
+| `date` | `{"date": {}}` |
+| `person` | `{"person": {}}` |
+| `files` | `{"files": {}}` |
+| `checkbox` | `{"checkbox": {}}` |
+| `url` | `{"url": {}}` |
+| `email` | `{"email": {}}` |
+| `phone` | `{"phone": {}}` |
+
+## Use Cases
+
+### Query with Filter
+
+```python
+# Single condition
+async for page in database.query(
+    filter={
+        "property": "Status",
+        "select": {"equals": "In Progress"}
+):
+    process_page(page)
+
+# Multiple conditions (AND)
+async for page in database.query(
+    filter={
+        "and": [
+            {"property": "Status", "select": {"equals": "Todo"}},
+            {"property": "Priority", "select": {"equals": "High"}}
+        ]
+    }
+):
+    process_page(page)
+```
+
+### Query with Sort
+
+```python
+# Single sort
+async for page in database.query(
+    sort=[{
+        "property": "Created",
+        "direction": "descending"
+    }]
+):
+    print(page.title)
+
+# Multiple sorts
+async for page in database.query(
+    sort=[
+        {"property": "Status", "direction": "ascending"},
+        {"property": "Priority", "direction": "descending"}
+    ]
+):
+    print(page.title)
+```
+
+### Process Query Results
+
+```python
+# Collect all results
+pages = []
+async for page in database.query():
+    pages.append(page)
+
+print(f"Total: {len(pages)}")
+
+# Process streaming
+count = 0
+async for page in database.query():
+    count += 1
+    if count > 100:
+        break
+    process_page(page)
+```
+
+## See Also
+
+- [DatabaseManager](../sdk-reference/managers/database-manager) - Manager operations
+- [Querying Databases](../../guides/querying-databases) - Query guide
+- [NotionClient](../client) - Main client

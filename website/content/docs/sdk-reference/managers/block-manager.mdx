@@ -1,0 +1,372 @@
+---
+title: BlockManager
+description: Manage block entities in Notion pages
+---
+
+import { Blocks, Edit, Trash2, FileText, CheckSquare, Heading, Code, List, Quote } from 'lucide-react';
+
+# BlockManager
+
+Manages **Block** entities with create, update, and delete operations.
+
+## Generic Operations
+
+<Blocks /> ### get()
+
+Retrieve a block by ID:
+
+```python
+block = await client.blocks.get("block_id")
+```
+
+**Returns:** Specialized `Block` object (Code, Todo, Paragraph, etc.)
+
+**Example:**
+
+```python
+block = await client.blocks.get("block-123")
+
+if block.is_paragraph:
+    print(f"Text: {block.text}")
+elif block.is_todo:
+    print(f"Todo: {block.checked}")
+```
+
+<Edit /> ### update()
+
+Update a block:
+
+```python
+updated = await client.blocks.update(
+    block,
+    paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `block` | `Block` | Yes | Block to update |
+| `**kwargs` | `dict` | Yes | Block properties to update |
+
+**Returns:** Updated `Block` object
+
+**Example:**
+
+```python
+# Update paragraph
+block = await client.blocks.get("block_id")
+updated = await client.blocks.update(
+    block,
+    paragraph={"rich_text": [...]}
+)
+
+# Update todo
+todo = await client.blocks.get("todo_id")
+updated = await client.blocks.update(
+    todo,
+    to_do={
+        "checked": True,
+        "rich_text": todo._data.get("to_do", {}).get("rich_text", [])
+    }
+)
+```
+
+<Trash2 /> ### delete()
+
+Delete a block:
+
+```python
+await client.blocks.delete(block)
+```
+
+**Example:**
+
+```python
+block = await client.blocks.get("block_id")
+await client.blocks.delete(block)
+```
+
+## Create Methods
+
+<FileText /> ### create_paragraph()
+
+Create a paragraph block:
+
+```python
+paragraph = await client.blocks.create_paragraph(
+    parent=page,
+    text="Hello, world!"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | Paragraph text |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Paragraph` block object
+
+<CheckSquare /> ### create_todo()
+
+Create a todo block:
+
+```python
+todo = await client.blocks.create_todo(
+    parent=page,
+    text="Review PR",
+    checked=False
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | Todo text |
+| `checked` | `bool` | No | Whether checked (default: False) |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Todo` block object
+
+<Heading /> ### create_heading()
+
+Create a heading block:
+
+```python
+heading = await client.blocks.create_heading(
+    parent=page,
+    text="Introduction",
+    level=1
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | Heading text |
+| `level` | `int` | No | Heading level 1-3 (default: 1) |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Heading` block object
+
+<Code /> ### create_code()
+
+Create a code block:
+
+```python
+code = await client.blocks.create_code(
+    parent=page,
+    code="print('Hello')",
+    language="python"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `code` | `str` | Yes | Code content |
+| `language` | `str` | No | Programming language (default: "python") |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Code` block object
+
+**Supported Languages:**
+
+`python`, `javascript`, `typescript`, `java`, `c`, `cpp`, `csharp`, `go`, `rust`, `php`, `ruby`, `swift`, `kotlin`, `sql`, `html`, `css`, `bash`, `shell`, `markdown`, `json`, `yaml`, `xml`, etc.
+
+<List /> ### create_bullet()
+
+Create a bulleted list item:
+
+```python
+item = await client.blocks.create_bullet(
+    parent=page,
+    text="First item"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | List item text |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Bullet` block object
+
+### create_numbered()
+
+Create a numbered list item:
+
+```python
+item = await client.blocks.create_numbered(
+    parent=page,
+    text="First item"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | List item text |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Numbered` block object
+
+<Quote /> ### create_quote()
+
+Create a quote block:
+
+```python
+quote = await client.blocks.create_quote(
+    parent=page,
+    text="Code is poetry"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | Quote text |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Quote` block object
+
+### create_divider()
+
+Create a divider block:
+
+```python
+divider = await client.blocks.create_divider(parent=page)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Divider` block object
+
+### create_callout()
+
+Create a callout block:
+
+```python
+callout = await client.blocks.create_callout(
+    parent=page,
+    text="Important note!",
+    icon="💡"
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Page` or `Block` | Yes | Parent page or block |
+| `text` | `str` | Yes | Callout text |
+| `icon` | `str` | No | Emoji icon |
+| `**kwargs` | `any` | No | Additional properties |
+
+**Returns:** `Callout` block object
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def create_document():
+    """Create a document with various blocks."""
+    client = NotionClient(auth="secret_...")
+
+    # Get parent page
+    page = await client.pages.get("page_id")
+
+    # Create heading
+    h1 = await client.blocks.create_heading(
+        parent=page,
+        text="Introduction",
+        level=1
+    )
+
+    # Create paragraph
+    para = await client.blocks.create_paragraph(
+        parent=page,
+        text="This is the introduction."
+    )
+
+    # Create todo
+    todo = await client.blocks.create_todo(
+        parent=page,
+        text="Review document",
+        checked=False
+    )
+
+    # Update todo
+    await todo.set_checked(True)
+
+    # Create code block
+    code = await client.blocks.create_code(
+        parent=page,
+        code="print('Hello, world!')",
+        language="python"
+    )
+
+    # Create list
+    for i in range(3):
+        await client.blocks.create_bullet(
+            parent=page,
+            text=f"Point {i+1}"
+        )
+
+    # Create quote
+    await client.blocks.create_quote(
+        parent=page,
+        text="Simplicity is the ultimate sophistication"
+    )
+
+    # Create divider
+    await client.blocks.create_divider(parent=page)
+
+    print(f"Created document with blocks")
+
+asyncio.run(create_document())
+```
+
+## Helper Methods
+
+Blocks also have convenient helper methods:
+
+```python
+# Paragraph
+await paragraph.set_text("Updated text")
+
+# Todo
+await todo.set_checked(True)
+```
+
+See: [Block Model](../sdk-reference/models/block-model) for details.
+
+## See Also
+
+- [Block Model](../sdk-reference/models/block-model) - Block entity reference
+- [Working with Blocks](../../guides/working-with-blocks) - Block operations guide
+- [NotionClient](../client) - Main client

@@ -176,6 +176,125 @@ async with NotionAPI(auth=os.getenv("NOTION_TOKEN")) as api:
     page = await api.pages.get("page_id")
 ```
 
+## OAuth Authentication
+
+For production applications with user-specific access, use OAuth authentication.
+
+### Setup OAuthTokenHandler
+
+```python
+from better_notion import NotionClient
+from better_notion._api.oauth import OAuthTokenHandler
+
+def save_tokens(tokens):
+    """Save refreshed tokens to database/storage."""
+    # Save to database, config file, etc.
+    database.save_tokens(tokens)
+
+handler = OAuthTokenHandler(
+    access_token="ntn_...",  # From OAuth flow
+    refresh_token="...",     # From OAuth flow
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    on_refresh=save_tokens  # Callback for token refresh
+)
+
+client = NotionClient(auth_handler=handler)
+```
+
+### Automatic Token Refresh
+
+The SDK automatically refreshes tokens when they expire:
+
+```python
+# Token refreshes automatically on 401
+page = await client.pages.get("page_id")
+
+# If token expired:
+# 1. Request fails with 401
+# 2. Handler refreshes token automatically
+# 3. Request retries with new token
+# 4. Returns result seamlessly
+```
+
+### OAuth Flow
+
+1. **User Authorization**: Redirect user to Notion's OAuth URL
+2. **Authorization Code**: Notion redirects back with `code` parameter
+3. **Exchange Code**: Exchange code for access and refresh tokens
+4. **Use SDK**: Initialize NotionClient with OAuthTokenHandler
+
+```python
+import httpx
+import base64
+
+async def exchange_code_for_tokens(code, client_id, client_secret):
+    """Exchange authorization code for tokens."""
+    credentials = base64.b64encode(
+        f"{client_id}:{client_secret}".encode()
+    ).decode()
+
+    async with httpx.AsyncClient() as http:
+        response = await http.post(
+            "https://api.notion.com/v1/oauth/token",
+            headers={
+                "Authorization": f"Basic {credentials}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": "https://your-app.com/callback"
+            }
+        )
+        response.raise_for_status()
+        return response.json()
+
+# Usage
+tokens = await exchange_code_for_tokens(
+    code="authorization_code_from_callback",
+    client_id="your-client-id",
+    client_secret="your-client-secret"
+)
+
+access_token = tokens["access_token"]
+refresh_token = tokens["refresh_token"]
+```
+
+### Token Persistence
+
+Always save tokens after refresh:
+
+```python
+# Database example
+def save_tokens(tokens):
+    """Save tokens to database."""
+    db.oauth_tokens.update(
+        {"integration_id": "my-integration"},
+        {
+            "$set": {
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "updated_at": datetime.now()
+            }
+        }
+    )
+
+# File example (single-user apps)
+import json
+
+def save_tokens(tokens):
+    """Save tokens to file."""
+    with open("tokens.json", "w") as f:
+        json.dump(tokens, f)
+```
+
+<Callout type="warning">
+  **Critical**: Always implement `on_refresh` callback to persist tokens. Without it, tokens won't be saved after refresh.
+</Callout>
+
+See: [OAuth](../sdk/oauth) for complete OAuth reference, [Token Refresh](../advanced/token-refresh) for advanced topics.
+
 ## Token Format
 
 Valid tokens start with `secret_` and are 50+ characters long.

@@ -1,0 +1,24 @@
+{
+  "title": "SDK Reference",
+  "description": "High-level NotionClient SDK with rich entities",
+  "icon": "layers",
+  "root": true,
+  "pages": [
+    "index",
+    "---Core---",
+    "client",
+    "oauth",
+    "---Managers---",
+    "managers/page-manager",
+    "managers/block-manager",
+    "managers/database-manager",
+    "managers/user-manager",
+    "managers/comment-manager",
+    "---Models---",
+    "models/page-model",
+    "models/block-model",
+    "models/database-model",
+    "models/user-model",
+    "models/comment-model"
+  ]
+}

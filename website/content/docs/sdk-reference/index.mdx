@@ -1,0 +1,259 @@
+---
+title: Notion SDK
+description: High-level SDK for Notion API with rich entity models and intelligent caching
+---
+
+import { Code, Layers, Zap } from 'lucide-react';
+
+# Notion SDK
+
+<Layers /> **The Notion SDK** provides a high-level, object-oriented interface for working with Notion API. It offers rich entity models, intelligent caching, and convenient managers for common operations.
+
+## Overview
+
+The SDK is built on top of the low-level NotionAPI and provides:
+
+- **Rich Entity Models** - Page, Database, Block, User, Comment with type-safe properties
+- **Autonomous Entities** - Entities work independently or via managers
+- **Intelligent Caching** - Built-in cache for pages, databases, users, and comments
+- **Convenient Managers** - Shortcuts for common operations
+- **Helper Methods** - Type-safe property access and manipulation
+
+## SDK vs Low-Level API
+
+<Code /> **When to use SDK:**
+
+- Working with entities (pages, databases, blocks, users, comments)
+- Need type-safe property access
+- Want automatic caching
+- Building applications with rich domain models
+
+<Zap /> **When to use Low-Level API:**
+
+- Need raw API responses
+- Implementing custom abstractions
+- Working with unsupported Notion features
+- Maximum control over requests
+
+Both approaches can be used together in the same application.
+
+## Architecture
+
+The SDK follows a **dual-layer architecture**:
+
+```
+┌─────────────────────────────────────┐
+│         NotionClient                │
+│  ┌───────────────────────────────┐  │
+│  │  Managers (thin wrappers)     │  │
+│  │  - pages, databases, blocks   │  │
+│  │  - users, comments            │  │
+│  └───────────────────────────────┘  │
+│                 ▼                   │
+│  ┌───────────────────────────────┐  │
+│  │  Autonomous Entities          │  │
+│  │  - Page, Database, Block      │  │
+│  │  - User, Comment              │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+                 ▼
+┌─────────────────────────────────────┐
+│         NotionAPI (low-level)       │
+└─────────────────────────────────────┘
+```
+
+### Key Principles
+
+1. **Managers are Ultra-Thin** - They delegate all logic to entity classes
+2. **Entities are Autonomous** - Can be used directly without managers
+3. **Both Approaches Work** - Choose based on preference
+
+## Quick Start
+
+### Installation
+
+```bash
+pip install better-notion
+```
+
+### Initialize Client
+
+```python
+import os
+from better_notion import NotionClient
+
+client = NotionClient(auth=os.getenv("NOTION_TOKEN"))
+```
+
+### Using Managers (Recommended)
+
+```python
+# Get a page
+page = await client.pages.get("page_id")
+print(f"Title: {page.title}")
+
+# Create a block
+block = await client.blocks.create_paragraph(
+    parent=page,
+    text="Hello from SDK!"
+)
+```
+
+### Using Entities Directly
+
+```python
+from better_notion._sdk.models import Page
+
+# Works the same way!
+page = await Page.get("page_id", client=client)
+print(f"Title: {page.title}")
+```
+
+Both approaches return the same result.
+
+## Features
+
+### Entity Models
+
+#### Page
+
+```python
+page = await client.pages.get("page_id")
+
+# Properties
+print(page.title)
+print(page.url)
+print(page.icon)
+print(page.cover)
+
+# Smart property access
+status = page.get_property("Status")
+tags = page.get_property("Tags")
+
+# Navigation
+parent = await page.parent()
+async for block in page.children():
+    print(block.type)
+```
+
+#### Block
+
+```python
+block = await client.blocks.get("block_id")
+
+# Type checking
+if block.is_paragraph:
+    print(block.text)
+elif block.is_todo:
+    print(block.checked)
+
+# Update operations
+await block.set_text("New text")
+await todo_block.set_checked(True)
+```
+
+#### Database
+
+```python
+db = await client.databases.get("database_id")
+
+# Properties
+print(db.title)
+print(db.schema)
+
+# Query
+async for page in db.query():
+    print(page.title)
+```
+
+#### User
+
+```python
+user = await client.users.get("user_id")
+
+# Properties
+print(user.name)
+print(user.email)
+print(user.type)
+
+# Cache population
+await client.users.populate_cache()
+all_users = client.users.cache.get_all()
+```
+
+#### Comment
+
+```python
+# Create comment
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Great work!"}
+    }]
+)
+
+# List comments
+comments = await client.comments.list_all("page_id")
+for comment in comments:
+    print(comment.text)
+```
+
+### Intelligent Caching
+
+```python
+# Automatic caching
+page1 = await client.pages.get("page_id")
+page2 = await client.pages.get("page_id")  # Instant (cached)
+
+# Manual cache access
+if "page_id" in client.page_cache:
+    page = client.page_cache["page_id"]
+
+# Cache statistics
+stats = client.get_cache_stats()
+print(f"Page cache hit rate: {stats['page_cache']['hit_rate']}")
+```
+
+### Search
+
+```python
+# Search everything
+results = await client.search(query="project")
+
+# Filter by type
+pages = await client.search(
+    query="API",
+    filter={"value": "page", "property": "object"}
+)
+```
+
+## OAuth Support
+
+```python
+from better_notion._api.oauth import OAuthTokenHandler
+
+def save_tokens(tokens):
+    # Save to database/config
+    config.update(tokens)
+
+handler = OAuthTokenHandler(
+    access_token="ntn_...",
+    refresh_token="...",
+    client_id="...",
+    client_secret="...",
+    on_refresh=save_tokens
+)
+
+client = NotionClient(auth_handler=handler)
+# Token refreshes automatically on 401
+```
+
+## See Also
+
+- [NotionClient](./client) - Client reference
+- [Managers](./managers) - Manager reference
+- [Models](./models) - Entity model reference
+- [API vs SDK](../api-vs-sdk) - Choosing between API and SDK
+- [Working with Pages](../guides/working-with-pages) - Page operations guide
+- [Working with Blocks](../guides/working-with-blocks) - Block operations guide

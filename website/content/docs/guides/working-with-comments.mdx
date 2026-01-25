@@ -1,0 +1,496 @@
+---
+title: Working with Comments
+description: Create and manage comments on Notion pages and blocks
+---
+
+import { MessageSquare, Plus, Users, Reply, Users2 } from 'lucide-react';
+
+# Working with Comments
+
+<MessageSquare /> **Comments** enable discussions on Notion pages and blocks. This guide covers creating, retrieving, and managing comments using the SDK.
+
+## Overview
+
+Notion comments support:
+- Threaded discussions on pages and blocks
+- Rich text formatting
+- File attachments (images, PDFs, etc.)
+- User and bot mentions
+- Display name customization
+
+## Creating Comments
+
+<Plus /> ### Create New Discussion
+
+Start a new comment thread on a page:
+
+```python
+from better_notion import NotionClient
+
+client = NotionClient(auth="secret_...")
+
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Great work on this page!"}
+    }]
+)
+
+print(f"Created: {comment.id}")
+print(f"Discussion: {comment.discussion_id}")
+```
+
+### Reply to Thread
+
+Reply to an existing discussion:
+
+```python
+# Get existing comment
+comment = await client.comments.get("comment_id")
+
+# Reply to the same discussion
+reply = await client.comments.create(
+    discussion_id=comment.discussion_id,
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "I agree!"}
+    }]
+)
+```
+
+### Rich Text Comments
+
+Use formatted text in comments:
+
+```python
+# Bold text
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Important note"},
+        "annotations": {"bold": True}
+    }]
+)
+
+# Link
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {
+            "content": "Click here",
+            "link": {"url": "https://example.com"}
+        }
+    }]
+)
+
+# Mixed formatting
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[
+        {
+            "type": "text",
+            "text": {"content": "Bold "},
+            "annotations": {"bold": True}
+        },
+        {
+            "type": "text",
+            "text": {"content": "and "}
+        },
+        {
+            "type": "text",
+            "text": {"content": "italic"},
+            "annotations": {"italic": True}
+        }
+    ]
+)
+```
+
+### Comments with Attachments
+
+Attach files to comments:
+
+```python
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Please review this design:"}
+    }],
+    attachments=[{
+        "type": "external",
+        "external": {
+            "url": "https://example.com/design.png"
+        }
+    }]
+)
+
+print(f"Has attachments: {comment.has_attachments}")
+print(f"Count: {comment.attachment_count}")
+```
+
+<Callout type="warning">
+  Maximum 3 attachments per comment.
+</Callout>
+
+### Custom Display Name
+
+Set display name for bot comments:
+
+```python
+# Automation bot
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Task completed successfully"}
+    }],
+    display_name="automation"
+)
+
+# Custom integration
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "New ticket created"}
+    }],
+    display_name="integration"
+)
+
+# User (default)
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Manual comment"}
+    }],
+    display_name="user"
+)
+```
+
+## Retrieving Comments
+
+<Users /> ### Get Single Comment
+
+```python
+comment = await client.comments.get("comment_id")
+
+print(f"Text: {comment.text}")
+print(f"Creator: {comment.created_by_id}")
+print(f"Parent: {comment.parent_type}/{comment.parent_id}")
+```
+
+### List Comments (Paginated)
+
+```python
+response = await client.comments.list(
+    block_id="page_id",
+    page_size=50
+)
+
+comments = response["results"]
+has_more = response["has_more"]
+next_cursor = response.get("next_cursor")
+
+print(f"Page 1: {len(comments)} comments")
+
+if has_more:
+    # Get next page
+    response = await client.comments.list(
+        block_id="page_id",
+        page_size=50,
+        start_cursor=next_cursor
+    )
+```
+
+### List All Comments
+
+Automatic pagination to get all comments:
+
+```python
+comments = await client.comments.list_all("page_id")
+
+print(f"Total: {len(comments)}")
+
+for comment in comments:
+    print(f"{comment.text[:50]}...")
+```
+
+## Comment Information
+
+### Basic Properties
+
+```python
+comment = await client.comments.get("comment_id")
+
+# Content
+print(comment.text)  # Plain text
+
+# IDs
+print(comment.id)  # Comment UUID
+print(comment.discussion_id)  # Thread ID
+
+# Parent
+print(comment.parent_type)  # "page_id" or "block_id"
+print(comment.parent_id)  # Parent UUID
+```
+
+### Creator Information
+
+```python
+# Creator ID
+creator_id = comment.created_by_id
+
+# Full creator object
+creator = comment.created_by
+print(f"{creator['name']} ({creator['type']})")
+
+# Get User object
+user = await comment.creator()
+print(f"Email: {user.email}")
+```
+
+### Attachments
+
+```python
+# Check for attachments
+if comment.has_attachments:
+    print(f"Has {comment.attachment_count} attachments")
+
+# Access attachments
+attachments = comment._data.get("attachments", [])
+for attachment in attachments:
+    print(f"Type: {attachment['type']}")
+```
+
+### Display Name
+
+```python
+# Display name type
+display_type = comment.display_name  # "integration", "user", etc.
+
+# Resolved name
+resolved_name = comment.resolved_name  # "My Integration"
+
+print(f"Display as: {display_type}")
+if resolved_name:
+    print(f"Name: {resolved_name}")
+```
+
+## Discussion Threads
+
+<Users2 /> ### Group Comments by Thread
+
+```python
+comments = await client.comments.list_all("page_id")
+
+# Group by discussion
+threads = {}
+for comment in comments:
+    thread_id = comment.discussion_id
+    if thread_id not in threads:
+        threads[thread_id] = []
+    threads[thread_id].append(comment)
+
+# Process each thread
+for thread_id, thread_comments in threads.items():
+    print(f"\nThread {thread_id}: {len(thread_comments)} comments")
+
+    for comment in thread_comments:
+        creator = await comment.creator()
+        print(f"  {creator.name}: {comment.text[:50]}")
+```
+
+### Create Thread
+
+```python
+# Start discussion
+first = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "What do you think about this approach?"}
+    }]
+)
+
+# Others reply
+await client.comments.create(
+    discussion_id=first.discussion_id,
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "I think it's great!"}
+    }]
+)
+
+await client.comments.create(
+    discussion_id=first.discussion_id,
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "I have some suggestions..."}
+    }]
+)
+```
+
+## Use Cases
+
+### Code Review System
+
+```python
+async def add_review_comment(page_id, review_text, attachments=None):
+    """Add a code review comment."""
+    rich_text = [{
+        "type": "text",
+        "text": {"content": f"Review: {review_text}"}
+    }]
+
+    kwargs = {"parent": page_id, "rich_text": rich_text}
+
+    if attachments:
+        kwargs["attachments"] = [
+            {"type": "external", "external": {"url": url}}
+            for url in attachments
+        ]
+
+    comment = await client.comments.create(**kwargs)
+    return comment
+```
+
+### Task Comments
+
+```python
+async def add_task_update(task_page_id, update_text):
+    """Add an update comment to a task."""
+    await client.comments.create(
+        parent=task_page_id,
+        rich_text=[{
+            "type": "text",
+            "text": {"content": f"Update: {update_text}"}
+        }],
+        display_name="automation"
+    )
+```
+
+### Feedback Collection
+
+```python
+async def collect_feedback(page_id):
+    """Collect all feedback from comments."""
+    comments = await client.comments.list_all(page_id)
+
+    feedback = []
+    for comment in comments:
+        creator = await comment.creator()
+
+        feedback.append({
+            "user": creator.name,
+            "text": comment.text,
+            "time": comment.created_time
+        })
+
+    return feedback
+```
+
+### Comment Notifications
+
+```python
+async def notify_new_comments(page_id, webhook_url):
+    """Notify when new comments are added."""
+    comments = await client.comments.list_all(page_id)
+
+    for comment in comments:
+        # Send notification
+        await send_webhook(webhook_url, {
+            "comment": comment.text,
+            "creator": comment.created_by_id,
+            "link": f"https://notion.so/{comment.parent_id}"
+        })
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def comment_demo():
+    """Demonstrate comment operations."""
+    client = NotionClient(auth="secret_...")
+
+    # Create a discussion
+    comment = await client.comments.create(
+        parent="page_id",
+        rich_text=[{
+            "type": "text",
+            "text": {"content": "Let's discuss this proposal"}
+        }]
+    )
+
+    print(f"Started discussion: {comment.discussion_id}")
+
+    # Reply to discussion
+    reply = await client.comments.create(
+        discussion_id=comment.discussion_id,
+        rich_text=[{
+            "type": "text",
+            "text": {"content": "I think we should proceed"}
+        }]
+    )
+
+    # List all comments
+    comments = await client.comments.list_all("page_id")
+
+    # Group by thread
+    threads = {}
+    for comment in comments:
+        thread_id = comment.discussion_id
+        if thread_id not in threads:
+            threads[thread_id] = []
+        threads[thread_id].append(comment)
+
+    # Display threads
+    for thread_id, thread_comments in threads.items():
+        print(f"\nThread: {thread_id}")
+        for comment in thread_comments:
+            creator = await comment.creator()
+            print(f"  {creator.name}: {comment.text}")
+
+asyncio.run(comment_demo())
+```
+
+## Troubleshooting
+
+### Comments Not Appearing
+
+**Problem:** Created comment doesn't show
+
+**Solutions:**
+- Verify `parent` is valid page or block ID
+- Check `rich_text` format is correct
+- Ensure proper permissions
+
+### Attachments Not Working
+
+**Problem:** Attachments not appearing
+
+**Solutions:**
+- Verify attachment URLs are publicly accessible
+- Check attachment format is correct
+- Ensure max 3 attachments
+
+### Pagination Issues
+
+**Problem:** `list_all()` hangs or times out
+
+**Solutions:**
+- Check API rate limits
+- Verify `block_id` is valid
+- Use paginated `list()` instead
+
+## See Also
+
+- [CommentsManager](../sdk/managers/comment-manager) - Manager reference
+- [Comment Model](../sdk/models/comment-model) - Model reference
+- [Examples](../examples) - Real-world examples

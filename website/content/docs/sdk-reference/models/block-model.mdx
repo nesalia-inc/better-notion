@@ -1,0 +1,438 @@
+---
+title: Block Model
+description: Block entity with type-specific operations
+---
+
+import { Blocks, Edit, Trash2, CheckSquare, FileText } from 'lucide-react';
+
+# Block Model
+
+The `Block` model represents Notion content blocks with type-specific properties and operations.
+
+## Constructor
+
+```python
+from better_notion._sdk.models import Block
+
+block = Block(client, data)
+```
+
+Typically created via:
+- `Block.get()` - Retrieve existing block
+- `Block.from_data()` - Create from API data (returns specialized type)
+
+## Common Properties
+
+<Blocks /> ### type
+
+Block type string.
+
+```python
+print(block.type)  # "paragraph", "heading_1", "code", etc.
+```
+
+**Type:** `str`
+
+**Types:**
+- `paragraph` - Text paragraph
+- `heading_1`, `heading_2`, `heading_3` - Headings
+- `bulleted_list_item`, `numbered_list_item` - Lists
+- `to_do` - Checkbox item
+- `code` - Code block
+- `quote` - Quote
+- `callout` - Callout box
+- `divider` - Horizontal rule
+- `synced_block`, `toggle`, etc.
+
+### has_children
+
+Whether block has child blocks.
+
+```python
+if block.has_children:
+    async for child in block.children():
+        print(child.type)
+```
+
+**Type:** `bool`
+
+### archived
+
+Archive status.
+
+```python
+if block.archived:
+    print("Block is archived")
+```
+
+**Type:** `bool`
+
+### text
+
+Plain text content (for text-based blocks).
+
+```python
+print(block.text)  # Plain text without formatting
+```
+
+**Type:** `str`
+
+## Class Methods
+
+### get()
+
+Retrieve a block by ID (returns specialized instance).
+
+```python
+block = await Block.get("block_id", client=client)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `block_id` | `str` | Yes | Block UUID |
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** Specialized `Block` object (Paragraph, Todo, Code, etc.)
+
+### from_data()
+
+Create appropriate block subclass from data.
+
+```python
+block = Block.from_data(client, data)
+```
+
+**Returns:** Specialized block based on `type` field
+
+## Instance Methods
+
+<Edit /> ### update()
+
+Update block content.
+
+```python
+updated = await block.update(**kwargs)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `**kwargs` | `dict` | Yes | Block properties to update |
+
+**Returns:** Updated block object
+
+**Examples:**
+
+```python
+# Update paragraph
+await block.update(
+    paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
+)
+
+# Update todo
+await block.update(
+    to_do={
+        "checked": True,
+        "rich_text": [...]
+    }
+)
+
+# Update heading
+await block.update(
+    heading_1={"rich_text": [...]}
+)
+```
+
+<Trash2 /> ### delete()
+
+Delete block.
+
+```python
+await block.delete()
+```
+
+### parent()
+
+Get parent object.
+
+```python
+parent = await block.parent()
+
+if isinstance(parent, Page):
+    print(f"In page: {parent.title}")
+```
+
+**Returns:** `Page` or `Block` object
+
+### children()
+
+Iterate over child blocks.
+
+```python
+async for child in block.children():
+    print(f"{child.type}: {child.text}")
+```
+
+**Returns:** Async iterator of `Block` objects
+
+## Type Checking
+
+Convenient type check methods:
+
+```python
+# Paragraph
+if block.is_paragraph:
+    print(block.text)
+
+# Todo
+if block.is_todo:
+    print(f"Checked: {block.checked}")
+
+# Heading
+if block.is_heading:
+    print(f"Level: {block.level}")
+
+# Code
+if block.is_code:
+    print(f"Language: {block.language}")
+```
+
+## Specialized Types
+
+<CheckSquare /> ### Todo Block
+
+Todo blocks have additional properties:
+
+```python
+todo = await Block.get("block_id", client=client)
+
+if isinstance(todo, Todo):
+    print(todo.checked)  # bool
+
+    # Helper method
+    await todo.set_checked(True)
+```
+
+**Properties:**
+- `checked` - Checkbox state
+
+**Methods:**
+- `set_checked(checked)` - Set checked state
+
+<FileText /> ### Paragraph Block
+
+```python
+para = await Block.get("block_id", client=client)
+
+if isinstance(para, Paragraph):
+    print(para.text)
+
+    # Helper method
+    await para.set_text("New text")
+```
+
+**Properties:**
+- `text` - Plain text content
+
+**Methods:**
+- `set_text(text)` - Set text content
+
+### Code Block
+
+```python
+code = await Block.get("block_id", client=client)
+
+if code.is_code:
+    print(code.language)  # "python", "javascript", etc.
+    print(code.code)      # Code content
+```
+
+**Properties:**
+- `language` - Programming language
+- `code` - Code content
+
+### Heading Block
+
+```python
+heading = await Block.get("block_id", client=client)
+
+if heading.is_heading:
+    print(heading.level)  # 1, 2, or 3
+    print(heading.text)
+```
+
+**Properties:**
+- `level` - Heading level (1-3)
+- `text` - Heading text
+
+### List Blocks
+
+```python
+# Bullet list
+bullet = await Block.get("block_id", client=client)
+if bullet.is_bullet:
+    print(bullet.text)
+
+# Numbered list
+numbered = await Block.get("block_id", client=client)
+if numbered.is_numbered:
+    print(numbered.text)
+```
+
+**Properties:**
+- `text` - List item text
+
+### Quote Block
+
+```python
+quote = await Block.get("block_id", client=client)
+if quote.is_quote:
+    print(quote.text)
+```
+
+**Properties:**
+- `text` - Quote text
+
+### Callout Block
+
+```python
+callout = await Block.get("block_id", client=client)
+if callout.is_callout:
+    print(callout.text)
+    print(callout.icon)  # Emoji
+```
+
+**Properties:**
+- `text` - Callout text
+- `icon` - Emoji icon
+
+### Divider Block
+
+```python
+divider = await Block.get("block_id", client=client)
+if divider.is_divider:
+    print("Horizontal divider")
+```
+
+No additional properties.
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+from better_notion._sdk.models import Block
+
+async def main():
+    client = NotionClient(auth="secret_...")
+
+    # Get block
+    block = await Block.get("block_id", client=client)
+
+    # Type checking
+    if block.is_paragraph:
+        print(f"Text: {block.text}")
+
+    elif block.is_todo:
+        print(f"Todo: {block.text}")
+        print(f"Checked: {block.checked}")
+
+        # Update
+        await block.set_checked(True)
+
+    elif block.is_code:
+        print(f"Code: {block.code}")
+        print(f"Language: {block.language}")
+
+    # Update generic
+    await block.update(
+        paragraph={"rich_text": [{"type": "text", "text": {"content": "Updated"}}]}
+    )
+
+    # Navigate
+    parent = await block.parent()
+    if parent.is_page:
+        print(f"Parent: {parent.title}")
+
+    # Children
+    if block.has_children:
+        async for child in block.children():
+            print(f"Child: {child.type}")
+
+    # Delete
+    await block.delete()
+
+asyncio.run(main())
+```
+
+## Use Cases
+
+### Update Paragraph Text
+
+```python
+# Get paragraph
+para = await Block.get("block_id", client=client)
+
+# Helper method
+await para.set_text("New text here")
+
+# Or generic update
+await para.update(
+    paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
+)
+```
+
+### Toggle Todo
+
+```python
+# Get todo
+todo = await Block.get("block_id", client=client)
+
+# Check current state
+if not todo.checked:
+    # Toggle it
+    await todo.set_checked(True)
+```
+
+### Process All Blocks in Page
+
+```python
+async def process_blocks(page):
+    """Process all blocks in a page."""
+    async for block in page.children():
+        if block.is_paragraph:
+            print(f"Paragraph: {block.text[:50]}")
+
+        elif block.is_heading:
+            print(f"Heading {block.level}: {block.text}")
+
+        elif block.is_todo:
+            status = "✓" if block.checked else "☐"
+            print(f"{status} {block.text}")
+```
+
+### Create Block Hierarchy
+
+```python
+# Create parent blocks
+heading = await client.blocks.create_heading(
+    parent=page,
+    text="Section",
+    level=2
+)
+
+# Add children
+await client.blocks.create_paragraph(
+    parent=heading,
+    text="Content here"
+)
+```
+
+## See Also
+
+- [BlockManager](../sdk-reference/managers/block-manager) - Manager operations
+- [Working with Blocks](../../guides/working-with-blocks) - Usage guide
+- [NotionClient](../client) - Main client

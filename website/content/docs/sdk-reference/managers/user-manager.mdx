@@ -1,0 +1,233 @@
+---
+title: UserManager
+description: Manage user entities in Notion
+---
+
+import { Users, Search, RefreshCw } from 'lucide-react';
+
+# UserManager
+
+Manages **User** entities with search and caching capabilities.
+
+## Methods
+
+<Users /> ### get()
+
+Retrieve a user by ID:
+
+```python
+user = await client.users.get("user_id")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | `str` | Yes | User UUID |
+
+**Returns:** `User` object
+
+**Example:**
+
+```python
+user = await client.users.get("user-123")
+print(f"Name: {user.name}")
+print(f"Email: {user.email}")
+print(f"Type: {user.type}")
+```
+
+<Search /> ### find_by_email()
+
+Find a user by email address:
+
+```python
+user = await client.users.find_by_email("user@example.com")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `email` | `str` | Yes | User email address |
+
+**Returns:** `User` object or `None`
+
+**Example:**
+
+```python
+user = await client.users.find_by_email("john@example.com")
+
+if user:
+    print(f"Found: {user.name}")
+else:
+    print("User not found")
+```
+
+### find_by_name()
+
+Find a user by name (case-insensitive):
+
+```python
+user = await client.users.find_by_name("John Doe")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | Yes | User name |
+
+**Returns:** `User` object or `None`
+
+**Example:**
+
+```python
+user = await client.users.find_by_name("Alice")
+
+if user:
+    print(f"Found: {user.email}")
+```
+
+<RefreshCw /> ### populate_cache()
+
+Load all users into cache for fast lookups:
+
+```python
+await client.users.populate_cache()
+```
+
+**Example:**
+
+```python
+# Load all users once
+await client.users.populate_cache()
+
+# Now all lookups are instant (cached)
+user1 = client.users.cache.get("user-1")
+user2 = client.users.cache.get("user-2")
+
+# Get all users
+all_users = client.users.cache.get_all()
+print(f"Total users: {len(all_users)}")
+```
+
+### get_multiple()
+
+Get multiple users by IDs:
+
+```python
+users = await client.users.get_multiple([
+    "user-1",
+    "user-2"
+])
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_ids` | `list[str]` | Yes | List of user UUIDs |
+
+**Returns:** `list` of `User` objects
+
+**Example:**
+
+```python
+user_ids = ["user-1", "user-2", "user-3"]
+users = await client.users.get_multiple(user_ids)
+
+for user in users:
+    print(f"{user.name}: {user.email}")
+```
+
+## Cache Access
+
+```python
+# Access user cache directly
+if "user_id" in client.user_cache:
+    user = client.user_cache["user_id"]
+
+# Get all cached users
+all_users = client.user_cache.get_all()
+
+# Iterate through users
+for user_id, user in client.user_cache.items():
+    print(f"{user.name}: {user.email}")
+
+# Check cache size
+print(f"Cached users: {len(client.user_cache)}")
+```
+
+## Cache Properties
+
+The user cache provides:
+
+- **Instant lookups** - No API calls for cached users
+- **Statistics tracking** - Hit rate monitoring
+- **Type-safe access** - Returns User objects
+
+```python
+# Cache stats
+stats = client.get_cache_stats()
+print(f"User cache hit rate: {stats['user_cache']['hit_rate']}")
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def manage_users():
+    """Example user management."""
+    client = NotionClient(auth="secret_...")
+
+    # Populate cache once
+    await client.users.populate_cache()
+
+    # Now all lookups are instant
+    alice = await client.users.find_by_name("Alice Smith")
+    bob = await client.users.find_by_email("bob@example.com")
+
+    print(f"Alice: {alice.id}")
+    print(f"Bob: {bob.id}")
+
+    # Get all users
+    all_users = client.user_cache.get_all()
+    for user in all_users:
+        print(f"{user.name} ({user.type})")
+
+    # Get multiple
+    users = await client.users.get_multiple(["user-1", "user-2"])
+
+    # Check cache performance
+    stats = client.get_cache_stats()
+    print(f"Hit rate: {stats['user_cache']['hit_rate']:.2%}")
+
+asyncio.run(manage_users())
+```
+
+## User Types
+
+Notion has different user types:
+
+| Type | Description |
+|------|-------------|
+| `person` | Regular user account |
+| `bot` | Bot integration |
+| `workspace` | Workspace user |
+
+```python
+user = await client.users.get("user_id")
+
+if user.type == "person":
+    print(f"Person: {user.name}")
+elif user.type == "bot":
+    print(f"Bot: {user.name}")
+```
+
+## See Also
+
+- [User Model](../sdk-reference/models/user-model) - User entity reference
+- [NotionClient](../client) - Main client
+- [Caching](../../advanced/caching) - Cache system details

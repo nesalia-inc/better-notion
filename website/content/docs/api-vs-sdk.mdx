@@ -1,0 +1,425 @@
+---
+title: API vs SDK
+description: Choose between low-level API and high-level SDK
+---
+
+import { Code, Layers, Zap } from 'lucide-react';
+
+# API vs SDK
+
+Better Notion provides **two ways** to interact with Notion: the low-level NotionAPI and the high-level SDK. This guide helps you choose the right approach.
+
+## Quick Comparison
+
+| Feature | Low-Level API | High-Level SDK |
+|---------|---------------|----------------|
+| **Abstraction** | Raw API responses | Rich entity models |
+| **Caching** | Manual | Automatic |
+| **Type Safety** | Dict-based | Type-safe models |
+| **Usage** | Direct API calls | Entity-oriented |
+| **Complexity** | Lower-level | Higher-level |
+| **Control** | Maximum | Convenient |
+
+<Code /> **Use Low-Level API when:**
+- You need raw API responses
+- Building custom abstractions
+- Maximum control over requests
+- Implementing unsupported features
+
+<Layers /> **Use SDK when:**
+- Working with entities (pages, databases, etc.)
+- Want automatic caching
+- Need type-safe property access
+- Building applications quickly
+
+## Code Comparison
+
+### Get a Page
+
+**Low-Level API:**
+
+```python
+from better_notion import NotionAPI
+
+api = NotionAPI(auth="secret_...")
+
+# Returns dict
+data = await api.pages.get("page_id")
+title = data["properties"]["title"]["title"][0]["plain_text"]
+```
+
+**SDK:**
+
+```python
+from better_notion import NotionClient
+
+client = NotionClient(auth="secret_...")
+
+# Returns Page object with properties
+page = await client.pages.get("page_id")
+title = page.title  # Type-safe property access
+```
+
+### Create a Block
+
+**Low-Level API:**
+
+```python
+# Manually build block structure
+block_data = {
+    "object": "block",
+    "type": "paragraph",
+    "paragraph": {
+        "rich_text": [
+            {"type": "text", "text": {"content": "Hello!"}}
+        ]
+    }
+}
+
+data = await api.blocks.children.append(
+    block_id="page_id",
+    children=[block_data]
+)
+```
+
+**SDK:**
+
+```python
+# Helper method with type safety
+paragraph = await client.blocks.create_paragraph(
+    parent=page,
+    text="Hello!"
+)
+```
+
+### Query Database
+
+**Low-Level API:**
+
+```python
+# Manual query construction
+data = await api.databases.query(
+    database_id="database_id",
+    filter={
+        "property": "Status",
+        "select": {"equals": "Done"}
+    }
+)
+
+# Manual iteration
+for page_data in data.get("results", []):
+    title = page_data["properties"]["Name"]["title"][0]["plain_text"]
+```
+
+**SDK:**
+
+```python
+# Type-safe iteration
+database = await client.databases.get("database_id")
+
+async for page in database.query(
+    filter={"property": "Status", "select": {"equals": "Done"}}
+):
+    print(page.title)
+```
+
+## Architecture Differences
+
+### Low-Level API
+
+```
+NotionAPI
+    └─ Direct HTTP requests
+    └─ Returns raw JSON dicts
+    └─ Manual caching (if needed)
+    └─ Full API coverage
+```
+
+### SDK
+
+```
+NotionClient
+    ├─ Managers (thin wrappers)
+    │   └─ Delegate to entities
+    ├─ Autonomous Entities
+    │   ├─ Rich properties
+    │   ├─ CRUD methods
+    │   └─ Navigation methods
+    ├─ Automatic Caching
+    │   ├─ Pages
+    │   ├─ Databases
+    │   ├─ Users
+    │   └─ Comments
+    └─ Built on NotionAPI
+```
+
+## When to Use Each
+
+<Zap /> **Use Low-Level API for:**
+
+### Custom Abstractions
+
+Building your own ORM or framework:
+
+```python
+# Low-level gives you full control
+api = NotionAPI(auth="secret_...")
+
+class MyPage:
+    def __init__(self, data):
+        self.data = data
+
+    # Your custom abstraction
+    async def refresh(self):
+        self.data = await api.pages.get(self.id)
+```
+
+### Maximum Performance
+
+When every microsecond counts:
+
+```python
+# No overhead, direct API calls
+data = await api._request("GET", "/pages/page_id")
+```
+
+### Unsupported Features
+
+Using new Notion API features before SDK support:
+
+```python
+# Access new endpoint directly
+data = await api._request(
+    "POST",
+    "/new-endpoint",
+    json={...}
+)
+```
+
+### Testing and Debugging
+
+Seeing exactly what Notion returns:
+
+```python
+# Raw response for debugging
+data = await api.pages.get("page_id")
+import json
+print(json.dumps(data, indent=2))
+```
+
+<Layers /> **Use SDK for:**
+
+### Application Development
+
+Building apps with rich domain models:
+
+```python
+# Natural, type-safe code
+page = await client.pages.get("page_id")
+print(f"Title: {page.title}")
+print(f"URL: {page.url}")
+
+# Smart property access
+status = page.get_property("Status")
+tags = page.get_property("Tags")
+```
+
+### Complex Workflows
+
+Multi-step operations:
+
+```python
+# High-level, readable code
+database = await client.databases.find_by_title("Tasks")
+
+tasks = await client.pages.find(
+    database=database,
+    status="In Progress"
+)
+
+for task in tasks:
+    await client.blocks.create_todo(
+        parent=task,
+        text="Review this task",
+        checked=False
+    )
+```
+
+### Team Collaboration
+
+Code that others will maintain:
+
+```python
+# Self-documenting, type-safe
+user = await client.users.find_by_email("user@example.com")
+print(f"User: {user.name}")
+
+# Clear intent
+if page.has_property("Priority"):
+    priority = page.get_property("Priority")
+```
+
+### Caching Benefits
+
+Automatic performance optimization:
+
+```python
+# First call - fetches from API
+page1 = await client.pages.get("page_id")
+
+# Second call - instant (from cache)
+page2 = await client.pages.get("page_id")
+
+# No cache management needed!
+```
+
+## Mixing Both Approaches
+
+You can use both in the same application:
+
+```python
+from better_notion import NotionAPI, NotionClient
+
+# Low-level for custom endpoint
+api = NotionAPI(auth="secret_...")
+
+# SDK for regular operations
+client = NotionClient(auth="secret_...")
+
+# Use SDK for pages
+page = await client.pages.get("page_id")
+
+# Use API for custom feature
+custom_data = await api._request("GET", "/custom/endpoint")
+```
+
+## Decision Tree
+
+```
+Need to interact with Notion?
+│
+├─ Building custom abstraction/ORM?
+│  └─→ Use Low-Level API
+│
+├─ Need maximum control/performance?
+│  └─→ Use Low-Level API
+│
+├─ Using new/unsupported features?
+│  └─→ Use Low-Level API
+│
+├─ Building application with entities?
+│  └─→ Use SDK
+│
+├─ Want automatic caching?
+│  └─→ Use SDK
+│
+├─ Need type-safe properties?
+│  └─→ Use SDK
+│
+└─ Working with team?
+│  └─→ Use SDK
+```
+
+## Performance Comparison
+
+### API Overhead
+
+**Low-Level API:**
+- Direct HTTP requests
+- No abstraction overhead
+- Manual caching if needed
+
+**SDK:**
+- Same HTTP requests
+- Entity model overhead (~1-2ms)
+- Automatic caching (major performance gain)
+
+### Caching Impact
+
+```python
+# Low-Level API (no cache)
+page1 = await api.pages.get("page_id")  # 200ms
+page2 = await api.pages.get("page_id")  # 200ms
+# Total: 400ms
+
+# SDK (automatic cache)
+page1 = await client.pages.get("page_id")  # 200ms
+page2 = await client.pages.get("page_id")  # <1ms (cached)
+# Total: ~201ms
+```
+
+## Migration Path
+
+### Start with SDK
+
+```python
+# Quick development
+client = NotionClient(auth="secret_...")
+page = await client.pages.get("page_id")
+```
+
+### Drop to API When Needed
+
+```python
+# SDK doesn't support feature
+# Access low-level API directly
+data = await client.api._request("GET", "/new-feature")
+```
+
+### Build Custom Layer
+
+```python
+# Combine both
+class MyCustomLayer:
+    def __init__(self, auth):
+        self.sdk = NotionClient(auth=auth)
+        self.api = NotionAPI(auth=auth)
+
+    async def get_page_enhanced(self, page_id):
+        # SDK for regular stuff
+        page = await self.sdk.pages.get(page_id)
+
+        # API for custom stuff
+        custom_data = await self.api._request(
+            "GET",
+            f"/custom/{page_id}"
+        )
+
+        return {
+            "page": page,
+            "custom": custom_data
+        }
+```
+
+## Summary
+
+| Aspect | Low-Level API | SDK |
+|--------|---------------|-----|
+| **Learning Curve** | Steeper | Gentler |
+| **Development Speed** | Slower | Faster |
+| **Type Safety** | No | Yes |
+| **Caching** | Manual | Automatic |
+| **Control** | Maximum | Convenient |
+| **Best For** | Libraries, performance | Apps, teams |
+
+## Recommendation
+
+<Layers /> **Start with SDK** for most applications. It provides:
+- Type-safe entities
+- Automatic caching
+- Faster development
+- Easier maintenance
+
+<Code /> **Drop to API** when you need:
+- Custom abstractions
+- Maximum performance
+- Unsupported features
+- Raw response handling
+
+You can always mix both approaches in the same codebase!
+
+## See Also
+
+- [NotionAPI Client](../api/client) - Low-level API reference
+- [NotionClient](../sdk/client) - SDK reference
+- [SDK Overview](../sdk) - SDK guide

@@ -1,0 +1,460 @@
+---
+title: Comments System Example
+description: Build a complete comment notification system
+---
+
+import { MessageSquare, Bell, Users } from 'lucide-react';
+
+# Comments System Example
+
+Build a **complete comment notification system** that monitors Notion pages and sends notifications for new comments.
+
+## Overview
+
+This example demonstrates:
+- Monitoring pages for new comments
+- Sending notifications (webhook, email, Slack)
+- Thread management
+- User mention detection
+
+## Features
+
+<MessageSquare /> **Comment Monitoring**
+- Poll for new comments periodically
+- Track last processed comment
+- Filter by discussion threads
+
+<Bell /> **Notifications**
+- Webhook notifications
+- Email notifications
+- Slack integration
+
+<Users /> **User Features**
+- User mentions
+- Thread subscriptions
+- Activity digest
+
+## Implementation
+
+### Step 1: Comment Tracker
+
+```python
+from better_notion import NotionClient
+from datetime import datetime, timedelta
+import asyncio
+
+class CommentTracker:
+    """Track comments on Notion pages."""
+
+    def __init__(self, client: NotionClient):
+        self.client = client
+        self.last_checked = {}
+
+    async def get_new_comments(self, page_id: str):
+        """Get new comments since last check."""
+        # Get all comments
+        comments = await self.client.comments.list_all(page_id)
+
+        # Filter new ones
+        last_time = self.last_checked.get(page_id)
+        if last_time:
+            new_comments = [
+                c for c in comments
+                if datetime.fromisoformat(c.created_time) > last_time
+            ]
+        else:
+            new_comments = comments
+
+        # Update last checked
+        self.last_checked[page_id] = datetime.now()
+
+        return new_comments
+
+    async def watch_page(self, page_id: str, callback):
+        """Watch page for new comments."""
+        while True:
+            new_comments = await self.get_new_comments(page_id)
+
+            for comment in new_comments:
+                await callback(comment)
+
+            # Wait before next check
+            await asyncio.sleep(60)  # Check every minute
+```
+
+### Step 2: Notification System
+
+```python
+import httpx
+import os
+
+class NotificationService:
+    """Send notifications for new comments."""
+
+    def __init__(self):
+        self.webhook_url = os.getenv("WEBHOOK_URL")
+        self.slack_webhook = os.getenv("SLACK_WEBHOOK")
+
+    async def send_webhook(self, comment, page):
+        """Send webhook notification."""
+        if not self.webhook_url:
+            return
+
+        creator = await comment.creator()
+
+        payload = {
+            "comment_id": comment.id,
+            "page_id": page.id,
+            "page_title": page.title,
+            "comment_text": comment.text,
+            "creator_name": creator.name,
+            "creator_email": creator.email,
+            "created_time": comment.created_time,
+            "url": f"https://notion.so/{page.id}"
+        }
+
+        async with httpx.AsyncClient() as client:
+            await client.post(self.webhook_url, json=payload)
+
+    async def send_slack(self, comment, page):
+        """Send Slack notification."""
+        if not self.slack_webhook:
+            return
+
+        creator = await comment.creator()
+
+        message = {
+            "text": f"New comment on {page.title}",
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"*New comment on* <https://notion.so/{page.id}|{page.title}>"
+                    }
+                },
+                {
+                    "type": "section",
+                    "fields": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*Author:*\n{creator.name}"
+                        },
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*Time:*\n{comment.created_time}"
+                        }
+                    ]
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "plain_text",
+                        "text": comment.text
+                    }
+                }
+            ]
+        }
+
+        async with httpx.AsyncClient() as client:
+            await client.post(self.slack_webhook, json=message)
+
+    async def notify(self, comment, page):
+        """Send all notifications."""
+        await self.send_webhook(comment, page)
+        await self.send_slack(comment, page)
+```
+
+### Step 3: Comment Monitor
+
+```python
+class CommentMonitor:
+    """Monitor pages and send notifications."""
+
+    def __init__(self, client: NotionClient):
+        self.client = client
+        self.tracker = CommentTracker(client)
+        self.notifications = NotificationService()
+        self.watching = set()
+
+    async def watch_page(self, page_id: str):
+        """Start watching a page."""
+        self.watching.add(page_id)
+
+        async def notify_callback(comment):
+            page = await self.client.pages.get(page_id)
+            await self.notifications.notify(comment, page)
+
+        await self.tracker.watch_page(page_id, notify_callback)
+
+    async def watch_multiple(self, page_ids: list[str]):
+        """Watch multiple pages concurrently."""
+        tasks = [
+            self.watch_page(page_id)
+            for page_id in page_ids
+        ]
+        await asyncio.gather(*tasks)
+
+    def stop_watching(self, page_id: str):
+        """Stop watching a page."""
+        self.watching.discard(page_id)
+```
+
+### Step 4: User Mentions
+
+```python
+class MentionDetector:
+    """Detect user mentions in comments."""
+
+    def __init__(self, client: NotionClient):
+        self.client = client
+
+    async def find_mentions(self, comment_text: str) -> list:
+        """Find @mentions in comment text."""
+        # Simple mention detection (looks for @username pattern)
+        import re
+
+        mentions = re.findall(r'@(\w+)', comment_text)
+        users = []
+
+        for username in mentions:
+            # Try to find user by name
+            user = await self.client.users.find_by_name(username)
+            if user:
+                users.append(user)
+
+        return users
+
+    async def notify_mentioned_users(self, comment, page):
+        """Notify users mentioned in comment."""
+        mentions = await self.find_mentions(comment.text)
+
+        for user in mentions:
+            # Send notification to mentioned user
+            await send_user_notification(user, comment, page)
+```
+
+### Step 5: Thread Management
+
+```python
+class ThreadManager:
+    """Manage comment threads."""
+
+    def __init__(self, client: NotionClient):
+        self.client = client
+        self.subscribers = {}  # discussion_id -> list of user_ids
+
+    async def get_threads(self, page_id: str):
+        """Get all discussion threads on a page."""
+        comments = await self.client.comments.list_all(page_id)
+
+        # Group by discussion
+        threads = {}
+        for comment in comments:
+            thread_id = comment.discussion_id
+            if thread_id not in threads:
+                threads[thread_id] = []
+            threads[thread_id].append(comment)
+
+        return threads
+
+    async def subscribe_to_thread(self, discussion_id: str, user_id: str):
+        """Subscribe user to thread."""
+        if discussion_id not in self.subscribers:
+            self.subscribers[discussion_id] = []
+        self.subscribers[discussion_id].append(user_id)
+
+    async def notify_thread_subscribers(self, comment):
+        """Notify subscribers of new comment."""
+        discussion_id = comment.discussion_id
+
+        if discussion_id in self.subscribers:
+            for user_id in self.subscribers[discussion_id]:
+                await send_notification(user_id, comment)
+```
+
+## Complete System
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def main():
+    """Run comment monitoring system."""
+    # Initialize client
+    client = NotionClient(auth=os.getenv("NOTION_TOKEN"))
+
+    # Create monitor
+    monitor = CommentMonitor(client)
+
+    # Watch specific pages
+    pages_to_watch = [
+        "page-1",
+        "page-2",
+        "page-3"
+    ]
+
+    print(f"Watching {len(pages_to_watch)} pages...")
+
+    # Start monitoring
+    await monitor.watch_multiple(pages_to_watch)
+
+asyncio.run(main())
+```
+
+## Advanced Features
+
+### Comment Digest
+
+```python
+class CommentDigest:
+    """Create periodic comment digests."""
+
+    async def create_digest(self, page_id: str, period: timedelta):
+        """Create digest of comments in time period."""
+        now = datetime.now()
+        start_time = now - period
+
+        comments = await client.comments.list_all(page_id)
+
+        # Filter by time
+        period_comments = [
+            c for c in comments
+            if datetime.fromisoformat(c.created_time) > start_time
+        ]
+
+        # Group by thread
+        threads = {}
+        for comment in period_comments:
+            thread_id = comment.discussion_id
+            if thread_id not in threads:
+                threads[thread_id] = []
+            threads[thread_id].append(comment)
+
+        return {
+            "page_id": page_id,
+            "period": period,
+            "total_comments": len(period_comments),
+            "total_threads": len(threads),
+            "threads": threads
+        }
+
+    async def send_digest(self, digest: dict):
+        """Send comment digest."""
+        # Create digest message
+        message = f"""
+        Comment Digest ({digest['period']})
+
+        Page: {digest['page_id']}
+        Total Comments: {digest['total_comments']}
+        Total Threads: {digest['total_threads']}
+
+        Threads:
+        """
+
+        for thread_id, comments in digest['threads'].items():
+            message += f"\nThread {thread_id}: {len(comments)} comments\n"
+
+        await send_email(message)
+```
+
+### Comment Analytics
+
+```python
+class CommentAnalytics:
+    """Analyze comment activity."""
+
+    async def most_active_pages(self, limit: int = 10):
+        """Find pages with most comments."""
+        page_comments = {}
+
+        databases = await client.databases.list_all()
+
+        for db in databases:
+            async for page in db.query():
+                comments = await client.comments.list_all(page.id)
+                page_comments[page.id] = len(comments)
+
+        # Sort by comment count
+        sorted_pages = sorted(
+            page_comments.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        return sorted_pages[:limit]
+
+    async def most_active_users(self, limit: int = 10):
+        """Find users with most comments."""
+        user_comments = {}
+
+        # Get all pages
+        databases = await client.databases.list_all()
+
+        for db in databases:
+            async for page in db.query():
+                comments = await client.comments.list_all(page.id)
+
+                for comment in comments:
+                    user_id = comment.created_by_id
+                    user_comments[user_id] = user_comments.get(user_id, 0) + 1
+
+        # Sort by comment count
+        sorted_users = sorted(
+            user_comments.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        return sorted_users[:limit]
+```
+
+## Deployment
+
+### Docker Setup
+
+```dockerfile
+FROM python:3.11
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "-m", "comment_monitor"]
+```
+
+### Environment Variables
+
+```bash
+NOTION_TOKEN=secret_...
+WEBHOOK_URL=https://your-webhook.com/comments
+SLACK_WEBHOOK=https://hooks.slack.com/services/...
+```
+
+### Systemd Service
+
+```ini
+[Unit]
+Description=Notion Comment Monitor
+After=network.target
+
+[Service]
+Type=simple
+User=notion
+WorkingDirectory=/opt/comment-monitor
+Environment="NOTION_TOKEN=secret_..."
+ExecStart=/opt/comment-monitor/venv/bin/python -m comment_monitor
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## See Also
+
+- [Working with Comments](../guides/working-with-comments) - Comments guide
+- [CommentsManager](../sdk/managers/comment-manager) - Manager reference
+- [Async Patterns](./async-patterns) - Async patterns

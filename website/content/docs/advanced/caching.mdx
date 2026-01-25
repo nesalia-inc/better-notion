@@ -1,0 +1,406 @@
+---
+title: Caching System
+description: Intelligent caching for performance optimization
+---
+
+import { Database, Zap, TrendingUp } from 'lucide-react';
+
+# Caching System
+
+The SDK includes an **intelligent caching system** that automatically caches entities for fast access and reduced API calls.
+
+## Overview
+
+<Database /> **Cache** provides:
+- Automatic caching of frequently accessed entities
+- Cache statistics (hits, misses, hit rate)
+- Manual cache management
+- Type-safe cache access
+
+## What Gets Cached
+
+The SDK caches these entity types:
+
+| Entity | Cache Property | Max Size |
+|--------|---------------|----------|
+| Pages | `client.page_cache` | Unlimited |
+| Databases | `client.database_cache` | Unlimited |
+| Users | `client.user_cache` | Unlimited |
+| Comments | `client.comment_cache` | Unlimited |
+| Blocks | Not cached (too many) | N/A |
+
+## Cache Statistics
+
+<Zap /> ### get_cache_stats()
+
+Get statistics for all caches:
+
+```python
+stats = client.get_cache_stats()
+
+print(stats)
+# {
+#     'user_cache': {
+#         'hits': 100,
+#         'misses': 5,
+#         'size': 50,
+#         'hit_rate': 0.95
+#     },
+#     'database_cache': {
+#         'hits': 20,
+#         'misses': 2,
+#         'size': 10,
+#         'hit_rate': 0.91
+#     },
+#     'page_cache': {...},
+#     'comment_cache': {...}
+# }
+```
+
+### Understanding Statistics
+
+- **hits** - Number of cache hits (served from cache)
+- **misses** - Number of cache misses (fetched from API)
+- **size** - Current number of items in cache
+- **hit_rate** - Ratio of hits / (hits + misses)
+
+<Callout type="info">
+  Higher hit rate = Better performance. Aim for > 0.80 (80%).
+</Callout>
+
+## Direct Cache Access
+
+### Check if Cached
+
+```python
+# Page cache
+if "page_id" in client.page_cache:
+    page = client.page_cache["page_id"]
+
+# Database cache
+if "database_id" in client.database_cache:
+    db = client.database_cache["database_id"]
+
+# User cache
+if "user_id" in client.user_cache:
+    user = client.user_cache["user_id"]
+
+# Comment cache
+if "comment_id" in client.comment_cache:
+    comment = client.comment_cache["comment_id"]
+```
+
+### Get All Cached Items
+
+```python
+# All pages
+pages = client.page_cache.get_all()
+
+# All databases
+databases = client.database_cache.get_all()
+
+# All users
+users = client.user_cache.get_all()
+
+# All comments
+comments = client.comment_cache.get_all()
+```
+
+### Iterate Over Cache
+
+```python
+# Iterate pages
+for page_id, page in client.page_cache.items():
+    print(f"{page.title}: {page.url}")
+
+# Iterate users
+for user_id, user in client.user_cache.items():
+    print(f"{user.name}: {user.email}")
+```
+
+<TrendingUp /> ### Cache Performance
+
+Monitor cache performance:
+
+```python
+stats = client.get_cache_stats()
+
+# User cache
+user_stats = stats['user_cache']
+print(f"Hit rate: {user_stats['hit_rate']:.2%}")
+print(f"Requests: {user_stats['hits'] + user_stats['misses']}")
+
+# Page cache
+page_stats = stats['page_cache']
+print(f"Cached pages: {page_stats['size']}")
+```
+
+## Cache Management
+
+### clear_all_caches()
+
+Clear all caches at once:
+
+```python
+client.clear_all_caches()
+```
+
+<Callout type="warning">
+  Clearing caches requires all entities to be fetched from API again.
+</Callout>
+
+### Clear Individual Cache
+
+```python
+# Clear specific item
+client.page_cache.invalidate("page_id")
+client.user_cache.invalidate("user_id")
+
+# Clear all items in cache
+client.page_cache.clear()
+client.user_cache.clear()
+```
+
+### Check Cache Size
+
+```python
+# Cache sizes
+print(f"Pages: {len(client.page_cache)}")
+print(f"Databases: {len(client.database_cache)}")
+print(f"Users: {len(client.user_cache)}")
+print(f"Comments: {len(client.comment_cache)}")
+```
+
+## Automatic Caching
+
+### Cache-First Lookup
+
+Entities check cache before API:
+
+```python
+# First call - API + cache
+page1 = await client.pages.get("page_id")
+
+# Second call - cache only (instant)
+page2 = await client.pages.get("page_id")
+
+# Still the same object
+assert page1 is page2
+```
+
+### Cache Population
+
+Some operations pre-populate cache:
+
+```python
+# Populate user cache
+await client.users.populate_cache()
+
+# Now all user lookups are instant
+user1 = client.users.cache.get("user-1")
+user2 = client.users.cache.get("user-2")
+```
+
+## Cache Behavior
+
+### Write-Through Cache
+
+Cache updates automatically when entities change:
+
+```python
+# Get page (cached)
+page = await client.pages.get("page_id")
+
+# Update page
+updated = await page.update(title="New Title")
+
+# Cache is automatically updated
+page2 = await client.pages.get("page_id")
+assert page2.title == "New Title"
+```
+
+### Cache Invalidation
+
+Cache invalidates on delete:
+
+```python
+# Get page (cached)
+page = await client.pages.get("page_id")
+
+# Delete page
+await page.delete()
+
+# Cache is cleared
+assert "page_id" not in client.page_cache
+```
+
+## Performance Optimization
+
+### Populate User Cache
+
+Load all users once for repeated lookups:
+
+```python
+# Initial load
+await client.users.populate_cache()
+
+# Now all lookups are instant
+for page in pages:
+    assignee = page.get_property("Assignee")
+    if assignee:
+        # Uses cache (instant)
+        user = client.users.cache.get(assignee)
+        print(f"{user.name}")
+```
+
+### Cache-First Patterns
+
+Design code to maximize cache hits:
+
+```python
+# Good: Reuse cached entities
+page = await client.pages.get("page_id")
+for block_id in block_ids:
+    block = await client.blocks.get(block_id)
+    parent = await block.parent()
+    # parent.page might be cached
+
+# Bad: Don't bypass cache
+async def get_page_uncached(page_id):
+    # Bypasses cache
+    data = await client.api.pages.retrieve(page_id)
+    return Page(client, data)
+```
+
+### Monitor Hit Rates
+
+Track cache performance over time:
+
+```python
+def log_cache_stats(client):
+    """Log cache statistics."""
+    stats = client.get_cache_stats()
+
+    for cache_name, cache_stats in stats.items():
+        hit_rate = cache_stats['hit_rate']
+        size = cache_stats['size']
+
+        if hit_rate < 0.5:
+            logger.warning(
+                f"{cache_name}: Low hit rate ({hit_rate:.2%})"
+            )
+        else:
+            logger.info(
+                f"{cache_name}: {hit_rate:.2%} hit rate, {size} items"
+            )
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def cache_demo():
+    """Demonstrate caching."""
+    client = NotionClient(auth="secret_...")
+
+    # Populate user cache
+    print("Populating user cache...")
+    await client.users.populate_cache()
+
+    # Check cache stats
+    stats = client.get_cache_stats()
+    print(f"User cache: {stats['user_cache']['size']} users")
+
+    # Now all user lookups are instant
+    user = await client.users.get("user_id")  # Instant (cached)
+
+    # Manual cache access
+    if "user_id" in client.user_cache:
+        user = client.user_cache["user_id"]
+        print(f"Found: {user.name}")
+
+    # Iterate all users
+    for user_id, user in client.user_cache.items():
+        print(f"{user.name}: {user.email}")
+
+    # Clear specific cache
+    client.user_cache.invalidate("user_id")
+
+    # Clear all caches
+    client.clear_all_caches()
+
+asyncio.run(cache_demo())
+```
+
+## Best Practices
+
+<Database /> **1. Populate User Cache**
+
+Load users once for repeated lookups:
+
+```python
+await client.users.populate_cache()
+```
+
+**2. Monitor Hit Rates**
+
+Track cache performance regularly:
+
+```python
+stats = client.get_cache_stats()
+for cache_name, cache_stats in stats.items():
+    if cache_stats['hit_rate'] < 0.5:
+        # Investigate low hit rate
+        pass
+```
+
+**3. Clear Caches Strategically**
+
+Clear caches when:
+- Data becomes stale
+- Memory is constrained
+- Testing requires fresh data
+
+**4. Use Cache-First Patterns**
+
+Design to maximize cache hits:
+- Reuse entity objects
+- Populate caches before bulk operations
+- Avoid bypassing cache
+
+## Troubleshooting
+
+### Low Hit Rate
+
+**Problem:** Cache hit rate < 50%
+
+**Solutions:**
+- Populate caches before operations
+- Reuse entity objects
+- Check cache invalidation logic
+
+### High Memory Usage
+
+**Problem:** Cache consuming too much memory
+
+**Solutions:**
+- Clear caches periodically
+- Clear individual items instead of all
+- Implement cache size limits
+
+### Stale Data
+
+**Problem:** Cached data is outdated
+
+**Solutions:**
+- Clear cache after external updates
+- Use `invalidate()` for specific items
+- Implement cache expiration
+
+## See Also
+
+- [NotionClient](../sdk/client) - Client cache access
+- [UserManager](../sdk/managers/user-manager) - User cache population
+- [Performance](../guides/performance) - Performance optimization

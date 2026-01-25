@@ -1,0 +1,421 @@
+---
+title: OAuth Token Refresh
+description: Automatic token refresh for long-running OAuth integrations
+---
+
+import { RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
+
+# OAuth Token Refresh
+
+OAuth access tokens expire periodically. The SDK provides **automatic token refresh** to keep long-running integrations working seamlessly.
+
+## Overview
+
+<RefreshCw /> **Automatic refresh** happens when:
+1. Access token expires
+2. API returns 401 Unauthorized
+3. SDK refreshes token automatically
+4. Request retries with new token
+5. Result returns seamlessly
+
+## How It Works
+
+### Token Refresh Flow
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Client Request                                          │
+│     ↓                                                    │
+│  API Request (with access_token)                          │
+│     ↓                                                    │
+│  401 Unauthorized (token expired)                         │
+│     ↓                                                    │
+│  OAuthTokenHandler.refresh()                             │
+│     ↓                                                    │
+│  POST /oauth/token with refresh_token                    │
+│     ↓                                                    │
+│  New access_token + refresh_token returned               │
+│     ↓                                                    │
+│  on_refresh callback invoked (persist tokens)            │
+│     ↓                                                    │
+│  Retry original request with new token                   │
+│     ↓                                                    │
+│  Return result (seamless!)                               │
+└──────────────────────────────────────────────────────────┘
+```
+
+## Setup
+
+### 1. Configure OAuthTokenHandler
+
+```python
+from better_notion import NotionClient
+from better_notion._api.oauth import OAuthTokenHandler
+
+def save_tokens(tokens):
+    """Save refreshed tokens."""
+    # Save to database, file, etc.
+    db.save_tokens(tokens)
+
+handler = OAuthTokenHandler(
+    access_token="ntn_1234...",
+    refresh_token="refresh_1234...",
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    on_refresh=save_tokens
+)
+
+client = NotionClient(auth_handler=handler)
+```
+
+### 2. Implement Token Persistence
+
+<AlertTriangle /> **Critical:** Save tokens after refresh!
+
+```python
+# Database example
+def save_tokens(tokens):
+    """Save tokens to database."""
+    db.oauth_tokens.update(
+        {"integration_id": "my-integration"},
+        {
+            "$set": {
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "updated_at": datetime.utcnow()
+            }
+        }
+    )
+
+# File example (single-user apps)
+import json
+
+def save_tokens(tokens):
+    """Save tokens to file."""
+    with open("tokens.json", "w") as f:
+        json.dump(tokens, f)
+```
+
+### 3. Use Client Normally
+
+```python
+# Everything works seamlessly
+page = await client.pages.get("page_id")
+
+# Token refreshes automatically if needed
+async for block in page.children():
+    print(block.type)
+```
+
+## Automatic Behavior
+
+### Transparent Refresh
+
+Refresh happens automatically - no code changes needed:
+
+```python
+# This works even if token expires
+for page_id in page_ids:
+    page = await client.pages.get(page_id)  # Auto-refreshes!
+    process_page(page)
+```
+
+### One Retry Per Request
+
+Each request retries once after refresh:
+
+```python
+# Request 1: Fails with 401
+# ↓
+# Auto refresh token
+# ↓
+# Request 2: Succeeds with new token
+result = await client.pages.get("page_id")
+```
+
+### Callback Invocation
+
+`on_refresh` callback is invoked after successful refresh:
+
+```python
+refresh_count = 0
+
+def save_tokens(tokens):
+    global refresh_count
+    refresh_count += 1
+    print(f"Token refreshed (count: {refresh_count})")
+
+    # Persist to storage
+    save_to_database(tokens)
+
+handler = OAuthTokenHandler(..., on_refresh=save_tokens)
+```
+
+## Error Handling
+
+### Refresh Failure
+
+If token refresh fails:
+
+```python
+from better_notion._api.errors import UnauthorizedError
+
+try:
+    page = await client.pages.get("page_id")
+except UnauthorizedError:
+    # Token expired AND refresh failed
+    # User must re-authenticate
+    redirect_to_oauth_flow()
+```
+
+### No Refresh Token
+
+If no refresh token available:
+
+```python
+handler = OAuthTokenHandler(
+    access_token="ntn_...",
+    # No refresh_token - won't auto-refresh
+)
+
+client = NotionClient(auth_handler=handler)
+
+try:
+    page = await client.pages.get("page_id")
+except UnauthorizedError:
+    # Cannot refresh - no refresh_token
+    redirect_to_oauth_flow()
+```
+
+<Callout type="warning">
+  Always provide `refresh_token`, `client_id`, and `client_secret` for automatic refresh.
+</Callout>
+
+## Monitoring
+
+### Track Refresh Events
+
+```python
+class TokenMonitor:
+    def __init__(self):
+        self.refresh_count = 0
+        self.last_refresh = None
+
+    def save_tokens(self, tokens):
+        self.refresh_count += 1
+        self.last_refresh = datetime.now()
+
+        # Log event
+        logger.info(
+            f"Token refreshed (count: {self.refresh_count})"
+        )
+
+        # Persist
+        save_to_database(tokens)
+
+monitor = TokenMonitor()
+handler = OAuthTokenHandler(..., on_refresh=monitor.save_tokens)
+```
+
+### Alert on Excessive Refreshes
+
+```python
+def save_tokens(tokens):
+    monitor.refresh_count += 1
+
+    # Alert if refreshing too frequently
+    if monitor.refresh_count > 10:
+        logger.error("Excessive token refreshes!")
+        send_alert("Token refresh issue")
+
+    save_to_database(tokens)
+```
+
+## Best Practices
+
+<CheckCircle /> **1. Persist Tokens Immediately**
+
+Save tokens in callback before doing anything else:
+
+```python
+def save_tokens(tokens):
+    # Save FIRST
+    db.save(tokens)
+
+    # Then do other stuff
+    send_notification(tokens)
+```
+
+**2. Use Transactional Storage**
+
+Ensure tokens save atomically:
+
+```python
+def save_tokens(tokens):
+    # Transactional save
+    with db.transaction():
+        db.update("tokens", {
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"]
+        })
+```
+
+**3. Implement Retry Logic**
+
+Handle refresh failures gracefully:
+
+```python
+from better_notion._api.errors import UnauthorizedError
+
+async def robust_api_call(client):
+    """API call with refresh failure handling."""
+    try:
+        return await client.pages.get("page_id")
+    except UnauthorizedError:
+        # Refresh failed - re-auth needed
+        new_tokens = reauthenticate_user()
+        handler.update_access_token(new_tokens["access_token"])
+        return await client.pages.get("page_id")
+```
+
+**4. Monitor Refresh Frequency**
+
+Track refresh events to detect issues:
+
+```python
+# Alert if refreshing more than once per hour
+if monitor.refresh_count > 0:
+    time_since_refresh = datetime.now() - monitor.last_refresh
+    if time_since_refresh < timedelta(hours=1):
+        logger.warning("Rapid token refresh detected")
+```
+
+**5. Handle Refresh Rotation**
+
+Notion may rotate refresh tokens:
+
+```python
+def save_tokens(tokens):
+    # Save BOTH tokens
+    db.save({
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"]  # May be new!
+    })
+```
+
+## Complete Example
+
+```python
+import asyncio
+from datetime import datetime, timedelta
+from better_notion import NotionClient
+from better_notion._api.oauth import OAuthTokenHandler
+from better_notion._api.errors import UnauthorizedError
+
+class OAuthManager:
+    """Manage OAuth tokens with automatic refresh."""
+
+    def __init__(self, db, client_id, client_secret):
+        self.db = db
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.refresh_count = 0
+        self.last_refresh = None
+
+    def load_tokens(self):
+        """Load tokens from database."""
+        return self.db.get_tokens()
+
+    def save_tokens(self, tokens):
+        """Save tokens to database."""
+        self.refresh_count += 1
+        self.last_refresh = datetime.now()
+
+        self.db.save_tokens(tokens)
+
+        # Log event
+        print(f"Token refreshed (count: {self.refresh_count})")
+
+        # Alert if excessive
+        if self.refresh_count > 10:
+            print("Warning: Excessive token refreshes!")
+
+    def create_client(self):
+        """Create NotionClient with OAuth."""
+        tokens = self.load_tokens()
+
+        handler = OAuthTokenHandler(
+            access_token=tokens["access_token"],
+            refresh_token=tokens["refresh_token"],
+            client_id=self.client_id,
+            client_secret=self.client_secret,
+            on_refresh=self.save_tokens
+        )
+
+        return NotionClient(auth_handler=handler)
+
+async def main():
+    # Initialize OAuth manager
+    oauth = OAuthManager(
+        db=database,
+        client_id="your-client-id",
+        client_secret="your-client-secret"
+    )
+
+    # Create client
+    client = oauth.create_client()
+
+    # Use client normally
+    # Token refreshes automatically when needed
+    for page_id in page_ids:
+        try:
+            page = await client.pages.get(page_id)
+            print(f"Page: {page.title}")
+        except UnauthorizedError:
+            # Refresh failed - re-auth needed
+            print("Re-authentication required")
+            break
+
+    # Check refresh stats
+    if oauth.last_refresh:
+        time_since = datetime.now() - oauth.last_refresh
+        print(f"Last refresh: {time_since} ago")
+        print(f"Refresh count: {oauth.refresh_count}")
+
+asyncio.run(main())
+```
+
+## Troubleshooting
+
+### Infinite Refresh Loop
+
+**Problem:** Tokens keep refreshing
+
+**Solutions:**
+- Check callback is persisting tokens correctly
+- Verify database writes are succeeding
+- Ensure `refresh_token` is being saved
+
+### Refresh Fails Silently
+
+**Problem:** Request fails without refresh
+
+**Solutions:**
+- Verify `refresh_token` is provided
+- Check `client_id` and `client_secret` are correct
+- Ensure callback doesn't raise exceptions
+
+### Token Not Persisting
+
+**Problem:** New tokens not saved
+
+**Solutions:**
+- Check callback is being invoked
+- Verify database connection
+- Ensure transaction completes successfully
+
+## See Also
+
+- [OAuth](../sdk/oauth) - OAuth configuration
+- [Authentication](../getting-started/authentication) - Auth guide
+- [NotionClient](../sdk/client) - Client reference

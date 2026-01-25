@@ -1,0 +1,384 @@
+---
+title: CommentsManager
+description: Manage comment entities in Notion
+---
+
+import { MessageSquare, Plus, List } from 'lucide-react';
+
+# CommentsManager
+
+Manages **Comment** entities for page and block discussions.
+
+## Methods
+
+<MessageSquare /> ### get()
+
+Retrieve a comment by ID:
+
+```python
+comment = await client.comments.get("comment_id")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `comment_id` | `str` | Yes | Comment UUID |
+
+**Returns:** `Comment` object
+
+**Example:**
+
+```python
+comment = await client.comments.get("comment-123")
+print(f"Text: {comment.text}")
+print(f"Created by: {comment.created_by_id}")
+print(f"Discussion: {comment.discussion_id}")
+```
+
+<Plus /> ### create()
+
+Create a new comment:
+
+```python
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Great work!"}
+    }]
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `str` | No\* | Page ID or block ID (for new thread) |
+| `discussion_id` | `str` | No\* | Discussion ID (for replies) |
+| `rich_text` | `list[dict]` | Yes | Rich text content |
+| `attachments` | `list[dict]` | No | File attachments (max 3) |
+| `display_name` | `str` | No | Display name type |
+
+<Callout type="info">
+  Either `parent` or `discussion_id` must be provided (but not both).
+</Callout>
+
+**Returns:** Created `Comment` object
+
+**Examples:**
+
+```python
+# Create new comment thread
+comment = await client.comments.create(
+    parent="page-123",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "This looks great!"}
+    }]
+)
+
+# Reply to existing thread
+reply = await client.comments.create(
+    discussion_id="discussion-456",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "I agree!"}
+    }]
+)
+
+# With attachments
+comment = await client.comments.create(
+    parent="page-123",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Check this image"}
+    }],
+    attachments=[{
+        "type": "external",
+        "external": {"url": "https://example.com/image.png"}
+    }]
+)
+
+# With display name
+comment = await client.comments.create(
+    parent="page-123",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Automated comment"}
+    }],
+    display_name="integration"
+)
+```
+
+### list()
+
+List comments for a page or block (paginated):
+
+```python
+response = await client.comments.list(
+    block_id="page_id",
+    page_size=100,
+    start_cursor=None
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `block_id` | `str` | Yes | Page ID or block ID |
+| `page_size` | `int` | No | Number per page (max: 100) |
+| `start_cursor` | `str` | No | Pagination cursor |
+
+**Returns:** Dict with `results`, `has_more`, `next_cursor`
+
+**Example:**
+
+```python
+# First page
+response = await client.comments.list(
+    block_id="page-123",
+    page_size=50
+)
+
+comments = response["results"]
+has_more = response["has_more"]
+
+if has_more:
+    next_cursor = response["next_cursor"]
+```
+
+<List /> ### list_all()
+
+List all comments with automatic pagination:
+
+```python
+comments = await client.comments.list_all("page_id")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `block_id` | `str` | Yes | Page ID or block ID |
+
+**Returns:** `list` of `Comment` objects
+
+**Example:**
+
+```python
+# Get all comments
+comments = await client.comments.list_all("page-123")
+
+for comment in comments:
+    print(f"{comment.created_by_id}: {comment.text}")
+
+print(f"Total: {len(comments)}")
+```
+
+## Rich Text Format
+
+Comments use Notion's rich text format:
+
+```python
+# Simple text
+rich_text = [{
+    "type": "text",
+    "text": {"content": "Hello!"}
+}]
+
+# With formatting
+rich_text = [{
+    "type": "text",
+    "text": {"content": "Bold text"},
+    "annotations": {
+        "bold": True
+    }
+}]
+
+# With link
+rich_text = [{
+    "type": "text",
+    "text": {
+        "content": "Click here",
+        "link": {"url": "https://example.com"}
+    }
+}]
+```
+
+## Attachments
+
+Comments can include file attachments:
+
+```python
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "See attachment"}
+    }],
+    attachments=[{
+        "type": "external",
+        "external": {
+            "url": "https://example.com/file.pdf"
+        }
+    }]
+)
+```
+
+<Callout type="warning">
+  Maximum 3 attachments per comment.
+</Callout>
+
+## Cache Access
+
+```python
+# Access comment cache directly
+if "comment_id" in client.comment_cache:
+    comment = client.comment_cache["comment_id"]
+
+# Get all cached comments
+all_comments = client.comment_cache.get_all()
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+
+async def manage_comments():
+    """Example comment management."""
+    client = NotionClient(auth="secret_...")
+
+    # Create a comment
+    comment = await client.comments.create(
+        parent="page-123",
+        rich_text=[{
+            "type": "text",
+            "text": {"content": "Great work on this!"}
+        }]
+    )
+
+    print(f"Created: {comment.id}")
+
+    # Get comment
+    comment = await client.comments.get("comment_id")
+    print(f"Text: {comment.text}")
+
+    # List all comments
+    comments = await client.comments.list_all("page-123")
+    for comment in comments:
+        print(f"{comment.text[:50]}...")
+
+    # Reply to discussion
+    reply = await client.comments.create(
+        discussion_id=comment.discussion_id,
+        rich_text=[{
+            "type": "text",
+            "text": {"content": "Thanks!"}
+        }]
+    )
+
+    # With attachments
+    await client.comments.create(
+        parent="page-123",
+        rich_text=[{
+            "type": "text",
+            "text": {"content": "Review this"}
+        }],
+        attachments=[{
+            "type": "external",
+            "external": {"url": "https://example.com/doc.pdf"}
+        }]
+    )
+
+asyncio.run(manage_comments())
+```
+
+## Comment Properties
+
+```python
+comment = await client.comments.get("comment_id")
+
+# Basic properties
+comment.id              # Comment UUID
+comment.text            # Plain text content
+comment.discussion_id   # Discussion thread ID
+comment.parent_type     # "page_id" or "block_id"
+comment.parent_id       # Parent ID
+
+# Creator
+comment.created_by_id   # Creator user ID
+comment.created_by      # Full creator object
+
+# Attachments
+comment.has_attachments  # bool
+comment.attachment_count # int
+
+# Display name
+comment.display_name    # "integration", "user", etc.
+comment.resolved_name  # Resolved name string
+```
+
+## Use Cases
+
+### Discussion Threads
+
+```python
+# Start discussion
+comment = await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "What do you think?"}
+    }]
+)
+
+# Others reply
+reply = await client.comments.create(
+    discussion_id=comment.discussion_id,
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "I agree!"}
+    }]
+)
+```
+
+### Automated Notifications
+
+```python
+# Bot comment with display name
+await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Task completed successfully"}
+    }],
+    display_name="automation"
+)
+```
+
+### Feedback System
+
+```python
+# Add feedback with attachment
+await client.comments.create(
+    parent="page_id",
+    rich_text=[{
+        "type": "text",
+        "text": {"content": "Please review the design"}
+    }],
+    attachments=[{
+        "type": "external",
+        "external": {"url": "https://example.com/design.png"}
+    }]
+)
+```
+
+## See Also
+
+- [Comment Model](../sdk-reference/models/comment-model) - Comment entity reference
+- [Working with Comments](../../guides/working-with-comments) - Comments guide
+- [NotionClient](../client) - Main client

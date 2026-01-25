@@ -1,0 +1,361 @@
+---
+title: Page Model
+description: Page entity with rich properties and methods
+---
+
+import { FileText, Link, Image, EyeOff } from 'lucide-react';
+
+# Page Model
+
+The `Page` model represents Notion pages with rich properties and autonomous CRUD operations.
+
+## Constructor
+
+```python
+from better_notion._sdk.models import Page
+
+page = Page(client, data)
+```
+
+Typically created via:
+- `Page.get()` - Retrieve existing page
+- `Page.create()` - Create new page
+- `Page.from_data()` - Create from API data
+
+## Properties
+
+<FileText /> ### title
+
+Page title (derived from title property).
+
+```python
+page = await Page.get("page_id", client=client)
+print(page.title)
+```
+
+**Type:** `str | None`
+
+<Link /> ### url
+
+Notion page URL.
+
+```python
+print(page.url)
+# https://notion.so/page-id-encoded
+```
+
+**Type:** `str`
+
+### icon
+
+Page icon (emoji or image URL).
+
+```python
+icon = page.icon
+print(icon)  # "🚀" or "https://..."
+```
+
+**Type:** `str | None`
+
+### cover
+
+Page cover image URL.
+
+```python
+cover = page.cover
+print(cover)  # "https://..."
+```
+
+**Type:** `str | None`
+
+<EyeOff /> ### archived
+
+Archive status.
+
+```python
+if page.archived:
+    print("This page is archived")
+```
+
+**Type:** `bool`
+
+### parent
+
+Parent object data.
+
+```python
+parent_type = page.parent["type"]  # "database_id", "page_id", etc.
+parent_id = page.parent.get("database_id") or page.parent.get("page_id")
+```
+
+**Type:** `dict`
+
+### created_time, last_edited_time
+
+ISO 8601 timestamps.
+
+```python
+from datetime import datetime
+
+created = datetime.fromisoformat(page.created_time)
+edited = datetime.fromisoformat(page.last_edited_time)
+```
+
+**Type:** `str`
+
+## Class Methods
+
+### get()
+
+Retrieve a page by ID (uses cache).
+
+```python
+page = await Page.get("page_id", client=client)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `page_id` | `str` | Yes | Page UUID |
+| `client` | `NotionClient` | Yes | Client instance |
+
+**Returns:** `Page` object
+
+### create()
+
+Create a new page.
+
+```python
+page = await Page.create(
+    parent=database,
+    client=client,
+    title="My Page",
+    **properties
+)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `parent` | `Database` or `Page` | Yes | Parent object |
+| `client` | `NotionClient` | Yes | Client instance |
+| `title` | `str` | No | Page title |
+| `**kwargs` | `any` | No | Additional properties (icon, cover, etc.) |
+
+**Returns:** Newly created `Page` object
+
+**Example:**
+
+```python
+# Simple page
+page = await Page.create(
+    parent=database,
+    client=client,
+    title="New Task"
+)
+
+# With properties
+page = await Page.create(
+    parent=database,
+    client=client,
+    title="Project X",
+    status="In Progress",
+    priority="High"
+)
+
+# With icon and cover
+page = await Page.create(
+    parent=database,
+    client=client,
+    title="Important Page",
+    icon=Page.format_icon(emoji="🚀"),
+    cover=Page.format_cover(external_url="https://example.com/img.png")
+)
+```
+
+## Instance Methods
+
+### get_property()
+
+Get a property value by name.
+
+```python
+status = page.get_property("Status")
+tags = page.get_property("Tags")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `str` | Yes | Property name |
+
+**Returns:** Property value (type varies)
+
+### has_property()
+
+Check if property exists.
+
+```python
+if page.has_property("Priority"):
+    priority = page.get_property("Priority")
+```
+
+### parent()
+
+Get parent object.
+
+```python
+parent = await page.parent()
+
+if isinstance(parent, Database):
+    print(f"In database: {parent.title}")
+```
+
+**Returns:** `Database`, `Page`, or `Workspace` object
+
+### children()
+
+Iterate over child blocks.
+
+```python
+async for block in page.children():
+    print(f"{block.type}: {block}")
+```
+
+**Returns:** Async iterator of `Block` objects
+
+## Static Methods
+
+<Image /> ### format_icon()
+
+Format icon for API requests.
+
+```python
+icon_dict = Page.format_icon(emoji="🚀")
+icon_dict = Page.format_icon(external_url="https://example.com/icon.png")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `emoji` | `str` | No\* | Emoji icon |
+| `external_url` | `str` | No\* | External image URL |
+
+<Callout type="info">
+  Either `emoji` or `external_url` must be provided (but not both).
+</Callout>
+
+**Returns:** `dict` or `None`
+
+### format_cover()
+
+Format cover for API requests.
+
+```python
+cover_dict = Page.format_cover(external_url="https://example.com/cover.png")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `external_url` | `str` | Yes | External image URL |
+
+**Returns:** `dict` or `None`
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionClient
+from better_notion._sdk.models import Page
+
+async def main():
+    client = NotionClient(auth="secret_...")
+
+    # Get page
+    page = await Page.get("page_id", client=client)
+
+    # Access properties
+    print(f"Title: {page.title}")
+    print(f"URL: {page.url}")
+    print(f"Icon: {page.icon}")
+    print(f"Cover: {page.cover}")
+
+    # Get custom properties
+    status = page.get_property("Status")
+    priority = page.get_property("Priority")
+
+    # Check property exists
+    if page.has_property("Due Date"):
+        due_date = page.get_property("Due Date")
+
+    # Navigate
+    parent = await page.parent()
+    async for block in page.children():
+        print(f"Block: {block.type}")
+
+    # Create new page
+    new_page = await Page.create(
+        parent=database,
+        client=client,
+        title="New Page",
+        icon=Page.format_icon(emoji="✨"),
+        cover=Page.format_cover(external_url="https://example.com/img.png")
+    )
+
+asyncio.run(main())
+```
+
+## Use Cases
+
+### Create Page with Icon/Cover
+
+```python
+page = await Page.create(
+    parent=database,
+    client=client,
+    title="Launch Page",
+    icon=Page.format_icon(emoji="🚀"),
+    cover=Page.format_cover(external_url="https://example.com/banner.png")
+)
+```
+
+### Access Custom Properties
+
+```python
+# Safe property access
+status = page.get_property("Status") if page.has_property("Status") else None
+
+# Get multiple properties
+properties = {
+    "Status": page.get_property("Status"),
+    "Priority": page.get_property("Priority"),
+    "Assignee": page.get_property("Assignee")
+}
+```
+
+### Navigate Hierarchy
+
+```python
+# Get parent database
+parent = await page.parent()
+if isinstance(parent, Database):
+    print(f"Database: {parent.title}")
+    print(f"Properties: {list(parent.schema.keys())}")
+
+# Iterate children
+async for block in page.children():
+    if block.is_paragraph:
+        print(block.text)
+```
+
+## See Also
+
+- [PageManager](../sdk-reference/managers/page-manager) - Manager operations
+- [Working with Pages](../../guides/working-with-pages) - Usage guide
+- [NotionClient](../client) - Main client

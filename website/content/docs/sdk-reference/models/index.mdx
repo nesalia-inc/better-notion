@@ -1,0 +1,204 @@
+---
+title: SDK Models
+description: Rich entity models for Notion objects
+---
+
+import { FileText, Blocks, Database, Users, MessageSquare } from 'lucide-react';
+
+# SDK Models
+
+**Models** are rich, autonomous entity classes that represent Notion objects with type-safe properties and methods.
+
+## Architecture
+
+Each model:
+- Wraps raw API data in a rich interface
+- Provides type-safe property access
+- Includes autonomous CRUD methods
+- Can be used independently or via managers
+
+## Available Models
+
+<FileText /> **[Page Model](./page-model)**
+
+Represents Notion pages.
+
+**Key Properties:**
+- `title` - Page title
+- `url` - Notion URL
+- `icon` - Emoji or image icon
+- `cover` - Cover image URL
+- `archived` - Archive status
+- `parent` - Parent object
+- `created_time`, `last_edited_time` - Timestamps
+
+**Key Methods:**
+- `get()` - Retrieve page
+- `create()` - Create new page
+- `update()` - Update page
+- `delete()` - Archive page
+- `get_property()` - Get property value
+- `parent()` - Get parent object
+- `children()` - Iterate child blocks
+
+<Blocks /> **[Block Model](./block-model)**
+
+Represents Notion content blocks.
+
+**Key Properties:**
+- `type` - Block type (paragraph, heading, etc.)
+- `has_children` - Whether block has children
+- `archived` - Archive status
+- Type-specific properties (text, code, checked, etc.)
+
+**Key Methods:**
+- `get()` - Retrieve block
+- `update()` - Update block
+- `delete()` - Delete block
+- `parent()` - Get parent object
+- `children()` - Iterate child blocks
+
+**Specialized Types:**
+- `Paragraph` - Text paragraphs
+- `Todo` - Checkbox items
+- `Heading` - Headers (H1-H3)
+- `Code` - Code blocks
+- `Bullet`, `Numbered` - List items
+- `Quote` - Quote blocks
+- `Callout` - Callout boxes
+
+<Database /> **[Database Model](./database-model)**
+
+Represents Notion databases.
+
+**Key Properties:**
+- `title` - Database title
+- `schema` - Property schema
+- `url` - Notion URL
+- `archived` - Archive status
+- `parent` - Parent object
+
+**Key Methods:**
+- `get()` - Retrieve database
+- `query()` - Query database pages
+- `parent()` - Get parent object
+
+<Users /> **[User Model](./user-model)**
+
+Represents Notion users.
+
+**Key Properties:**
+- `name` - User name
+- `email` - Email address
+- `type` - User type (person, bot)
+- `avatar_url` - Profile picture
+
+**Key Methods:**
+- `get()` - Retrieve user
+- `me()` - Get current user
+
+<MessageSquare /> **[Comment Model](./comment-model)**
+
+Represents Notion comments.
+
+**Key Properties:**
+- `text` - Comment text
+- `discussion_id` - Thread ID
+- `parent_type`, `parent_id` - Parent info
+- `created_by_id` - Creator ID
+- `has_attachments` - Attachment presence
+- `display_name` - Display name type
+
+**Key Methods:**
+- `get()` - Retrieve comment
+- `parent()` - Get parent object
+- `creator()` - Get creator user
+- `children()` - Comments have no children
+
+## Common Patterns
+
+### Autonomous Usage
+
+All models can be used directly without managers:
+
+```python
+from better_notion._sdk.models import Page, Database, Block
+
+# Get page directly
+page = await Page.get("page_id", client=client)
+
+# Get database directly
+database = await Database.get("database_id", client=client)
+
+# Get block directly
+block = await Block.get("block_id", client=client)
+```
+
+### Type Checking
+
+Models provide convenient type checking:
+
+```python
+block = await Block.get("block_id", client=client)
+
+# Type checks
+if block.is_paragraph:
+    print(block.text)
+elif block.is_todo:
+    print(f"Checked: {block.checked}")
+elif block.is_code:
+    print(f"Language: {block.language}")
+```
+
+### Cache Access
+
+Models integrate with client cache:
+
+```python
+# From cache
+page = await Page.get("page_id", client=client)
+
+# Uses cache automatically
+page2 = await Page.get("page_id", client=client)  # Instant
+```
+
+## Property Access
+
+Models provide smart property access:
+
+```python
+page = await Page.get("page_id", client=client)
+
+# Get property by name
+status = page.get_property("Status")
+tags = page.get_property("Tags")
+date = page.get_property("Due Date")
+
+# Check if property exists
+if page.has_property("Priority"):
+    priority = page.get_property("Priority")
+```
+
+## Navigation
+
+Models support navigation between entities:
+
+```python
+# Page parent
+parent = await page.parent()
+if isinstance(parent, Database):
+    print(f"In database: {parent.title}")
+
+# Block children
+async for block in page.children():
+    print(f"{block.type}: {block}")
+
+# Comment creator
+creator = await comment.creator()
+print(f"From: {creator.name}")
+```
+
+## See Also
+
+- [Managers](../managers) - Manager reference
+- [NotionClient](../client) - Main client
