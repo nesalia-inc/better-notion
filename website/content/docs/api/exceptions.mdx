@@ -1,0 +1,137 @@
+---
+title: Exceptions
+description: Exception hierarchy and error types
+---
+
+## Exception Hierarchy
+
+```
+NotionAPIError (base exception)
+├── HTTPError (HTTP-related errors)
+│   ├── BadRequestError (400)
+│   ├── UnauthorizedError (401)
+│   ├── ForbiddenError (403)
+│   ├── NotFoundError (404)
+│   ├── ConflictError (409)
+│   └── RateLimitedError (429)
+├── ValidationError (Invalid data)
+└── ConfigurationError (SDK misconfiguration)
+```
+
+## Importing
+
+```python
+from better_notion._api.errors import (
+    NotionAPIError,
+    HTTPError,
+    BadRequestError,
+    UnauthorizedError,
+    ForbiddenError,
+    NotFoundError,
+    ConflictError,
+    RateLimitedError,
+    ValidationError,
+    ConfigurationError
+)
+```
+
+## Exception Types
+
+### NotFoundError
+
+Resource not found or access denied.
+
+**When to expect**: Invalid ID, no access, deleted resource
+
+```python
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found")
+```
+
+### UnauthorizedError
+
+Invalid authentication token.
+
+**When to expect**: Wrong token, expired token
+
+```python
+try:
+    page = await api.pages.get("page_id")
+except UnauthorizedError:
+    print("Check your NOTION_TOKEN")
+```
+
+### RateLimitedError
+
+Too many requests (rate limit exceeded).
+
+**When to expect**: More than ~3 requests/second
+
+```python
+try:
+    # API call
+except RateLimitedError as e:
+    print(f"Wait {e.retry_after} seconds")
+```
+
+### ValidationError
+
+Invalid data or property format.
+
+**When to expect**: Invalid select option, wrong date format
+
+```python
+try:
+    await page.update(**Select("Status", "Invalid").build())
+    await page.save()
+except ValidationError as e:
+    print(f"Invalid data: {e}")
+```
+
+## Handling Errors
+
+### Basic Pattern
+
+```python
+from better_notion._api.errors import NotFoundError
+
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found")
+except NotionAPIError as e:
+    print(f"API error: {e}")
+```
+
+### Multiple Exceptions
+
+```python
+from better_notion._api.errors import (
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError
+)
+
+try:
+    # API operation
+    pass
+
+except NotFoundError:
+    print("Resource not found")
+
+except UnauthorizedError:
+    print("Authentication failed")
+
+except ValidationError as e:
+    print(f"Validation error: {e}")
+
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+## See Also
+
+- [Error Handling Guide](../../guides/error-handling)
+- [Working with Pages](../../guides/working-with-pages)

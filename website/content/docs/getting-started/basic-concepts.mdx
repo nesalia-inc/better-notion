@@ -1,0 +1,366 @@
+---
+title: Basic Concepts
+description: Understand the entity model, collections, and property builders
+---
+
+import { Layers, Database, Type, Box } from 'lucide-react';
+
+This guide explains the core concepts and architecture of the Better Notion SDK.
+
+## Overview
+
+Better Notion provides an object-oriented interface to the Notion API. Instead of working with raw JSON, you interact with Python objects that represent Notion resources.
+
+## Core Concepts
+
+### 1. Entities
+
+<Layers /> **Entities** represent Notion objects (Pages, Blocks, Databases, Users). They encapsulate both data and behavior.
+
+**Key Features**:
+- Properties accessed via attributes (`page.id`, `page.properties`)
+- Methods for operations (`save()`, `delete()`, `reload()`)
+- Automatic connection management
+
+**Available Entities**:
+- `Page` - Notion pages
+- `Block` - Content blocks
+- `Database` - Notion databases
+- `User` - Notion users
+
+### 2. Collections
+
+<Database /> **Collections** provide methods for working with groups of entities.
+
+**Available Collections**:
+- `PageCollection` - Query and manage pages
+- `BlockCollection` - Manipulate blocks
+- `DatabaseCollection` - Query databases
+- `UserCollection` - Retrieve users
+
+**Accessed via**:
+```python
+api.pages      # PageCollection
+api.blocks     # BlockCollection
+api.databases  # DatabaseCollection
+api.users      # UserCollection
+```
+
+### 3. Property Builders
+
+<Type /> **Property Builders** provide type-safe property construction.
+
+Instead of building raw JSON:
+
+```python
+# Without property builders (error-prone)
+properties = {
+    "Name": {
+        "title": [
+            {"text": {"content": "My Page"}}
+        ]
+    }
+}
+```
+
+Use builders:
+
+```python
+# With property builders (type-safe)
+from better_notion._api.properties import Title
+
+properties = Title("My Page").build()
+```
+
+**Available Builders**:
+- `Title` - Page titles
+- `Text` / `RichText` - Text content
+- `Select` / `MultiSelect` - Select options
+- `Date` - Dates and date ranges
+- `Checkbox` - Boolean values
+- `Number` - Numeric values
+- `URL` / `Email` / `Phone` - Contact info
+
+## Architecture
+
+<Box /> **Two-Level Design**
+
+The SDK has two levels:
+
+### Level 1: Low-Level API (`NotionAPI`)
+
+Direct 1:1 mapping with Notion REST API.
+
+```python
+api = NotionAPI(auth="secret_...")
+
+# Direct API call
+data = await api._request("GET", "/pages/page_id")
+```
+
+Use when:
+- You need raw API responses
+- Working with undocumented endpoints
+- Fine-grained control over requests
+
+### Level 2: High-Level Entities
+
+Object-oriented wrapper around the API.
+
+```python
+# Entity-based (recommended)
+page = await api.pages.get("page_id")
+await page.update(**Select("Status", "Done").build())
+await page.save()
+```
+
+Use when:
+- Standard operations on entities
+- Type safety is important
+- Cleaner, more readable code
+
+## Request vs Response Format
+
+### Response Format (from Notion)
+
+Contains metadata and extra information:
+
+```python
+{
+    "id": "page_id",
+    "properties": {
+        "Name": {
+            "type": "title",
+            "title": [
+                {
+                    "type": "text",
+                    "text": {
+                        "content": "My Page",
+                        "link": None
+                    },
+                    "plain_text": "My Page",
+                    "annotations": {...}
+                }
+            ]
+        }
+    }
+}
+```
+
+### Request Format (to Notion)
+
+Simplified, without metadata:
+
+```python
+{
+    "properties": {
+        "Name": {
+            "title": [
+                {"text": {"content": "My Page"}}
+            ]
+        }
+    }
+}
+```
+
+<Callout type="info">
+  **SDK Handles Conversion**: The SDK automatically converts between request and response formats. You don't need to worry about this.
+</Callout>
+
+## Entity Lifecycle
+
+### Retrieval
+
+```python
+# Get an entity
+page = await api.pages.get("page_id")
+# Returns: Page entity with data from Notion
+```
+
+### Modification
+
+```python
+# Update locally
+await page.update(**Select("Status", "Done").build())
+# Changes stored in memory, not persisted yet
+```
+
+### Persistence
+
+```python
+# Save to Notion
+await page.save()
+# Sends only modified properties
+```
+
+### Reloading
+
+```python
+# Reload from Notion
+await page.reload()
+# Discards unsaved changes, fetches fresh data
+```
+
+### Deletion
+
+```python
+# Delete (archive)
+await page.delete()
+# Permanently archives the page
+```
+
+## Navigation
+
+### Page to Blocks
+
+Access child blocks via the `blocks` property:
+
+```python
+page = await api.pages.get("page_id")
+
+# Get blocks collection
+blocks = page.blocks
+
+# Get children
+children = await blocks.children()
+```
+
+### Collection Iteration
+
+Memory-efficient iteration over large datasets:
+
+```python
+# Iterate over all pages
+async for page in api.pages.iterate("database_id"):
+    print(page.id)
+```
+
+<Callout type="tip">
+  **Use iterate() for Large Datasets**: `list()` fetches all items at once, while `iterate()` fetches pages lazily.
+</Callout>
+
+## Async/Await Pattern
+
+The SDK is fully async. All I/O operations require `await`:
+
+```python
+import asyncio
+from better_notion import NotionAPI
+
+async def main():
+    async with NotionAPI(auth="secret_...") as api:
+        # All operations are async
+        page = await api.pages.get("page_id")
+        await page.update(**Select("Status", "Done").build())
+        await page.save()
+
+asyncio.run(main())
+```
+
+<Callout type="info">
+  **Why Async?**: Async operations allow concurrent requests, improving performance when working with multiple resources.
+</Callout>
+
+## Context Manager Usage
+
+Use `async with` for automatic resource cleanup:
+
+```python
+# Good - automatic cleanup
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+    # Connection closed automatically
+
+# Manual cleanup
+api = NotionAPI(auth="secret_...")
+try:
+    page = await api.pages.get("page_id")
+finally:
+    await api.close()
+```
+
+## Error Handling
+
+The SDK provides specific exception types:
+
+```python
+from better_notion._api.errors import NotFoundError, UnauthorizedError
+
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found")
+except UnauthorizedError:
+    print("Invalid token")
+```
+
+<Callout type="warning">
+  **Always Handle Exceptions**: Network errors, invalid data, and permission issues can occur. Wrap API calls in try/except blocks.
+</Callout>
+
+## Quick Reference
+
+### Common Operations
+
+```python
+# Get a page
+page = await api.pages.get("page_id")
+
+# Create a page
+page = await api.pages.create(
+    parent={"database_id": "db_id"},
+    properties={**Title("New Page").build()}
+)
+
+# Update a page
+await page.update(**Select("Status", "Done").build())
+await page.save()
+
+# Delete a page
+await page.delete()
+
+# List pages
+pages = await api.pages.list("database_id")
+
+# Iterate pages
+async for page in api.pages.iterate("database_id"):
+    print(page.id)
+```
+
+### Property Builders
+
+```python
+from better_notion._api.properties import (
+    Title, Text, Select, Date, Checkbox
+)
+
+# Title
+**Title("My Page").build()
+
+# Text
+**Text("Notes", "Some text").build()
+
+# Select
+**Select("Status", "In Progress").build()
+
+# Date
+**Date("Due Date", "2025-01-30").build()
+
+# Checkbox
+**Checkbox("Done", True).build()
+```
+
+## Next Steps
+
+Now that you understand the core concepts:
+
+- [Project Setup](project-setup) - Configure your project
+- [Working with Pages](../guides/working-with-pages) - Learn page operations
+- [Property Builders](../guides/property-builders) - Master property builders
+- [Error Handling](../guides/error-handling) - Handle exceptions properly
+
+## See Also
+
+- [API Reference - Client](../api/client)
+- [API Reference - Entities](../api/entities)
+- [Advanced - Async Patterns](../advanced/async-patterns)

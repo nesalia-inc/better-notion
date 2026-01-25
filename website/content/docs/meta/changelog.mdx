@@ -1,0 +1,129 @@
+---
+title: Changelog
+description: Version history and changes
+---
+
+import { GitBranch, Calendar } from 'lucide-react';
+
+## [0.2.0] - 2025-01-24
+
+### Added
+
+#### Bug Fixes
+- Fixed `Page.update()` method to properly unpack `properties` kwarg
+- Fixed `Page.save()` method to send only modified properties in request format
+- Fixed `Page.reload()` method to reset modified properties tracking
+- Added `_modified_properties` tracking to separate request format from response format
+
+#### Testing
+- Fixed integration tests for block children API (POST → PATCH)
+- Fixed paragraph block format to use `rich_text` instead of `text`
+- Updated Page entity unit tests for new behavior
+- Fixed Title property usage across all tests
+- All 137 tests now passing (100%)
+
+#### Documentation
+- Fixed README import paths for property builders
+- Fixed block examples to use correct `rich_text` format
+
+### Changed
+- Development status updated from Alpha to Beta
+- Integration tests now use page-level parent instead of workspace
+- Added Python 3.14 support
+
+## [0.1.0] - 2025-01-23
+
+### Added
+
+#### Core API
+- Complete object-oriented architecture with entities and collections
+- **Entities**: Page, Block, Database, User with full CRUD operations
+- **Collections**: PageCollection, BlockCollection, DatabaseCollection, UserCollection
+- Async-first design using `asyncio` and `httpx`
+- Comprehensive error handling with specific exception types
+
+#### Page Operations
+- `get()` - Retrieve pages by ID
+- `create()` - Create new pages with properties
+- `list()` - List pages in databases (first page)
+- `iterate()` - Iterate over all pages with automatic pagination
+- `save()` - Save page changes to Notion
+- `delete()` - Archive pages
+- `reload()` - Reload page data from Notion
+- `update()` - Update page properties locally
+- Navigation via `page.blocks` property
+
+#### Block Operations
+- `get()` - Retrieve blocks by ID
+- `save()` - Save block changes
+- `delete()` - Delete blocks
+- `reload()` - Reload block data
+- `content` property - Get/set block content
+- `children()` - Get children blocks
+- `append()` - Append new blocks to parent
+
+#### Database Operations
+- `get()` - Retrieve databases by ID
+- `query()` - Query databases with filters
+- `create_page()` - Create pages in databases
+
+#### User Operations
+- `get()` - Retrieve users by ID
+- `list()` - List all users
+- `me()` - Get current bot user
+
+#### Property Builders
+- Type-safe builders for all Notion property types:
+  - RichText, Text, Title
+  - Select, MultiSelect
+  - Checkbox, Date, CreatedTime, LastEditedTime
+  - Number, URL, Email, Phone
+- Fluent API for building properties without raw dict manipulation
+
+#### Search
+- `search()` - Search pages and blocks in workspace
+- `search_iterate()` - Iterate over all search results with pagination
+- Support for filters and sorting
+
+#### Utilities
+- Helper functions: `parse_datetime()`, `extract_title()`, `extract_content()`
+- Async pagination with `AsyncPaginatedIterator`
+- Memory-efficient iteration over large datasets
+
+#### Documentation
+- Comprehensive README with quick start guide
+- Usage examples for common operations
+- Complete API reference
+
+#### Testing
+- 110 unit tests with mocking
+- Coverage for all major functionality
+
+---
+
+## Version Scheme
+
+Better Notion follows [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** - incompatible changes
+- **MINOR** - new features, backwards compatible
+- **PATCH** - bug fixes, backwards compatible
+
+## Upgrade Guides
+
+### From 0.1.0 to 0.2.0
+
+No breaking changes. Upgrade with:
+
+```bash
+pip install --upgrade better-notion
+```
+
+## Migration Notes
+
+See [GitHub Releases](https://github.com/nesalia-inc/better-notion/releases) for detailed migration guides.
+
+## See Also
+
+- [GitHub Releases](https://github.com/nesalia-inc/better-notion/releases)
+- [GitHub Tags](https://github.com/nesalia-inc/better-notion/tags)

@@ -1,0 +1,264 @@
+---
+title: Testing
+description: Test SDK code with mocks and fixtures
+---
+
+## Overview
+
+Testing SDK code requires mocking API calls and handling async operations.
+
+## Test Setup
+
+### Install Test Dependencies
+
+```bash
+pip install pytest pytest-asyncio pytest-mock
+```
+
+### Test Configuration
+
+`pytest.ini`:
+```bash
+[pytest]
+asyncio_mode = auto
+asyncio_default_fixture_loop_scope = function
+```
+
+## Unit Tests
+
+### Mock API Client
+
+```python
+import pytest
+from unittest.mock import AsyncMock
+from better_notion import NotionAPI
+from better_notion._api.entities import Page
+
+@pytest.mark.asyncio
+async def test_get_page():
+    """Test getting a page."""
+    api = NotionAPI(auth="secret_test")
+
+    # Mock _request method
+    api._request = AsyncMock(return_value={
+        "id": "page_id",
+        "properties": {"Name": {"title": [{"text": {"content": "Test"}}]}}
+    })
+
+    page = await api.pages.get("page_id")
+
+    assert page.id == "page_id"
+    assert page.properties == {"Name": {"title": [{"text": {"content": "Test"}}]}}
+```
+
+### Test Page Entity
+
+```python
+@pytest.mark.asyncio
+async def test_page_save():
+    """Test Page save method."""
+    api = NotionAPI(auth="secret_test")
+    api._request = AsyncMock(return_value={})
+
+    page = Page(api, {
+        "id": "page_id",
+        "properties": {}
+    })
+
+    await page.update(**Select("Status", "Done").build())
+    await page.save()
+
+    api._request.assert_called_once()
+```
+
+## Integration Tests
+
+### Setup
+
+`tests/conftest.py`:
+```python
+import pytest
+import os
+from better_notion import NotionAPI
+
+@pytest.fixture
+async def api():
+    """Create API client for testing."""
+    token = os.getenv("NOTION_TEST_TOKEN")
+
+    if not token:
+        pytest.skip("NOTION_TEST_TOKEN not set")
+
+    async with NotionAPI(auth=token) as api:
+        yield api
+```
+
+### Test with Real API
+
+```python
+import pytest
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_create_and_delete_page(api):
+    """Test creating and deleting a page."""
+    # Create
+    page = await api.pages.create(
+        parent={"database_id": "db_id"},
+        properties={**Title("Test Page").build()}
+    )
+
+    assert page.id is not None
+
+    # Delete
+    await page.delete()
+
+    # Verify
+    updated = await api.pages.get(page.id)
+    assert updated.archived is True
+```
+
+## Fixtures
+
+### Page Data Fixture
+
+```python
+@pytest.fixture
+def sample_page_data():
+    """Sample page data for testing."""
+    return {
+        "id": "page_id",
+        "created_time": "2025-01-24T00:00:00.000Z",
+        "last_edited_time": "2025-01-24T00:00:00.000Z",
+        "archived": False,
+        "properties": {
+            "Name": {"title": [{"text": {"content": "Test"}}]}
+        }
+    }
+```
+
+### Mock API Fixture
+
+```python
+@pytest.fixture
+def mock_api():
+    """Create mock API client."""
+    api = NotionAPI(auth="secret_test")
+    api._request = AsyncMock()
+    return api
+```
+
+## Test Patterns
+
+### Test Error Handling
+
+```python
+from better_notion._api.errors import NotFoundError
+
+@pytest.mark.asyncio
+async def test_not_found_error():
+    """Test NotFoundError handling."""
+    api = NotionAPI(auth="secret_test")
+    api._request = AsyncMock(side_effect=NotFoundError("Not found"))
+
+    with pytest.raises(NotFoundError):
+        await api.pages.get("page_id")
+```
+
+### Test with Mocks
+
+```python
+from unittest.mock import patch
+
+@pytest.mark.asyncio
+async def test_with_patch():
+    """Test with mocked API."""
+    with patch('better_notion.NotionAPI') as mock_api:
+        api = mock_api.return_value
+        api.pages.get = AsyncMock(return_value=Page(...))
+
+        page = await api.pages.get("page_id")
+
+        assert page.id is not None
+```
+
+## Running Tests
+
+### Run All Tests
+
+```bash
+pytest tests/
+```
+
+### Run Unit Tests Only
+
+```bash
+pytest tests/unit/ -m "not integration"
+```
+
+### Run Integration Tests
+
+```bash
+pytest tests/integration/ -m integration
+```
+
+### With Coverage
+
+```bash
+pytest --cov=better_notion --cov-report=html
+```
+
+## Best Practices
+
+1. **Mock API calls** - Don't hit real API in unit tests
+2. **Use fixtures** - Reusable test data
+3. **Test errors** - Verify error handling
+4. **Async tests** - Use pytest-asyncio
+5. **Integration tests** - Mark with @integration
+
+## Complete Example
+
+```python
+import pytest
+from unittest.mock import AsyncMock
+from better_notion import NotionAPI
+from better_notion._api.properties import Select
+
+@pytest.mark.asyncio
+async def test_page_update_workflow():
+    """Test complete update workflow."""
+    # Setup
+    api = NotionAPI(auth="secret_test")
+    api._request = AsyncMock(return_value={})
+
+    # Create page
+    page = Page(api, {
+        "id": "page_id",
+        "properties": {}
+    })
+
+    # Update
+    await page.update(**Select("Status", "Done").build())
+
+    # Verify state
+    assert page._modified is True
+
+    # Save
+    await page.save()
+
+    # Verify API called
+    api._request.assert_called_once_with(
+        "PATCH",
+        "/pages/page_id",
+        json={"properties": {"Status": {"select": {"name": "Done"}}}}
+    )
+
+    # Verify state reset
+    assert page._modified is False
+```
+
+## See Also
+
+- [Error Handling](../guides/error-handling)
+- [Working with Pages](../guides/working-with-pages)
+- [pytest Documentation](https://docs.pytest.org/)

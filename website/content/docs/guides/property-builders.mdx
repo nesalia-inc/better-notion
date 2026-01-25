@@ -1,0 +1,521 @@
+---
+title: Property Builders
+description: Master type-safe property builders for all Notion property types
+---
+
+import { Type, Shield, CheckCircle } from 'lucide-react';
+
+This guide covers property builders, which provide type-safe construction of Notion properties.
+
+## Overview
+
+<Shield /> **Property Builders** are Python classes that help you build Notion properties correctly. Instead of crafting raw JSON, you use builder objects that ensure valid data.
+
+## Why Use Property Builders?
+
+### Without Builders (Error-Prone)
+
+```python
+# Easy to make mistakes
+properties = {
+    "Name": {
+        "title": [
+            {"text": {"content": "My Page"}}  # Wrong format!
+        ]
+    }
+}
+```
+
+### With Builders (Type-Safe)
+
+```python
+# Correct and type-safe
+from better_notion._api.properties import Title
+
+properties = Title("My Page").build()
+```
+
+**Benefits**:
+- **Type Safety**: Catch errors at development time
+- **Less Code**: Concise, readable syntax
+- **Validation**: Builders enforce valid structures
+- **IDE Support**: Autocomplete and type hints
+
+## Available Builders
+
+### Title
+
+Page titles (single title property per page/database).
+
+```python
+from better_notion._api.properties import Title
+
+# Build title property
+properties = Title("My Page Title").build()
+
+# With custom property name
+properties = Title("My Title", name="CustomName").build()
+```
+
+**Result**:
+```python
+{
+    "CustomName": {
+        "title": [
+            {"type": "text", "text": {"content": "My Title"}}
+        ]
+    }
+}
+```
+
+### Text / RichText
+
+Text properties for rich text content.
+
+```python
+from better_notion._api.properties import Text
+
+# Simple text
+properties = Text("Notes", "Some notes").build()
+
+# Multi-line text
+properties = Text("Description", "Line 1\nLine 2").build()
+```
+
+**Result**:
+```python
+{
+    "Notes": {
+        "rich_text": [
+            {"type": "text", "text": {"content": "Some notes"}}
+        ]
+    }
+}
+```
+
+### Select
+
+Single select from predefined options.
+
+```python
+from better_notion._api.properties import Select
+
+# Select option
+properties = Select("Status", "In Progress").build()
+```
+
+<Callout type="warning">
+  **Options Must Exist**: The select option must already exist in your database schema.
+</Callout>
+
+**Common Select Values**:
+- "To Do", "In Progress", "Done"
+- "Low", "Medium", "High"
+- "Not Started", "Started", "Completed"
+
+### MultiSelect
+
+Multiple select options.
+
+```python
+from better_notion._api.properties import MultiSelect
+
+# Multiple options
+properties = MultiSelect("Tags", ["Python", "API", "SDK"]).build()
+```
+
+**Result**:
+```python
+{
+    "Tags": {
+        "multi_select": [
+            {"name": "Python"},
+            {"name": "API"},
+            {"name": "SDK"}
+        ]
+    }
+}
+```
+
+### Date
+
+Dates and date ranges.
+
+```python
+from better_notion._api.properties import Date
+
+# Date only
+properties = Date("Due Date", "2025-01-30").build()
+
+# Date with time
+properties = Date("Deadline", "2025-01-30T14:30:00").build()
+
+# Date range
+properties = Date(
+    "Sprint",
+    start="2025-01-01",
+    end="2025-01-31"
+).build()
+```
+
+**Supported Formats**:
+- `YYYY-MM-DD` - Date only
+- `YYYY-MM-DDTHH:MM:SS` - Date with time
+- `YYYY-MM-DDTHH:MM:SS.000Z` - With timezone
+
+### Checkbox
+
+Boolean checkbox values.
+
+```python
+from better_notion._api.properties import Checkbox
+
+# Checked
+properties = Checkbox("Done", True).build()
+
+# Unchecked
+properties = Checkbox("Done", False).build()
+```
+
+### Number
+
+Numeric values (integers or floats).
+
+```python
+from better_notion._api.properties import Number
+
+# Integer
+properties = Number("Count", 42).build()
+
+# Float
+properties = Number("Price", 19.99).build()
+
+# Negative
+properties = Number("Balance", -150.50).build()
+```
+
+### URL
+
+Web URLs.
+
+```python
+from better_notion._api.properties import URL
+
+properties = URL("Website", "https://example.com").build()
+```
+
+### Email
+
+Email addresses.
+
+```python
+from better_notion._api.properties import Email
+
+properties = Email("Contact", "user@example.com").build()
+```
+
+### Phone
+
+Phone numbers.
+
+```python
+from better_notion._api.properties import Phone
+
+properties = Phone("Mobile", "+1-555-0123").build()
+```
+
+## Combining Builders
+
+Build multiple properties at once:
+
+```python
+from better_notion._api.properties import (
+    Title, Select, Date, Checkbox, Number
+)
+
+async def create_task():
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties={
+                **Title("Task Name").build(),
+                **Select("Status", "To Do").build(),
+                **Date("Due Date", "2025-01-30").build(),
+                **Checkbox("Urgent", True).build(),
+                **Number("Priority", 1).build()
+            }
+        )
+        return page
+```
+
+## Using with Page Entities
+
+### Create Page with Builders
+
+```python
+from better_notion._api.properties import Title, Select
+
+page = await api.pages.create(
+    parent={"database_id": "database_id"},
+    properties={
+        **Title("New Page").build(),
+        **Select("Status", "To Do").build()
+    }
+)
+```
+
+### Update Page with Builders
+
+```python
+page = await api.pages.get("page_id")
+
+# Update with builder
+await page.update(
+    **Select("Status", "Done").build(),
+    **Date("Completed", "2025-01-25").build()
+)
+
+# Save to Notion
+await page.save()
+```
+
+<Callout type="tip">
+  **Unpack with ****: Always unpack builder results with `**` when passing to `create()` or `update()`.
+</Callout>
+
+## Advanced Usage
+
+### Custom Property Names
+
+```python
+# Default property name "Name"
+Title("My Title").build()
+# Result: {"Name": {...}}
+
+# Custom property name
+Title("My Title", name="TaskName").build()
+# Result: {"TaskName": {...}}
+```
+
+### Conditional Properties
+
+```python
+properties = {**Title("Task").build()}
+
+# Add date only if provided
+if due_date:
+    properties.update(**Date("Due Date", due_date).build())
+
+# Add checkbox only if urgent
+if is_urgent:
+    properties.update(**Checkbox("Urgent", True).build())
+
+# Create page
+page = await api.pages.create(
+    parent={"database_id": "database_id"},
+    properties=properties
+)
+```
+
+### Dynamic Select Options
+
+```python
+status_map = {
+    "todo": "To Do",
+    "in_progress": "In Progress",
+    "done": "Done"
+}
+
+status = status_map[user_input]
+properties = **Select("Status", status).build()
+```
+
+## Builder Reference
+
+### Importing
+
+```python
+# Individual imports
+from better_notion._api.properties import Title, Select, Date
+
+# Or import all
+from better_notion._api.properties import *
+```
+
+### Builder Methods
+
+All builders follow this pattern:
+
+```python
+Builder(value, name=None, **kwargs).build()
+```
+
+**Parameters**:
+- `value` - The property value
+- `name` - Optional property name (defaults to standard name)
+- `**kwargs` - Builder-specific options
+
+**Returns**: `dict` that can be unpacked with `**`
+
+### Standard Property Names
+
+| Builder | Default Name |
+|---------|--------------|
+| `Title` | `"Name"` |
+| `Text` | Custom (required) |
+| `Select` | Custom (required) |
+| `Date` | Custom (required) |
+| `Checkbox` | Custom (required) |
+| `Number` | Custom (required) |
+| `URL` | `"URL"` |
+| `Email` | `"Email"` |
+| `Phone` | `"Phone"` |
+
+## Common Patterns
+
+### Reusable Property Functions
+
+```python
+from better_notion._api.properties import Title, Select, Date
+
+def task_properties(title, status="To Do", due_date=None):
+    """Build standard task properties."""
+    props = {
+        **Title(title).build(),
+        **Select("Status", status).build()
+    }
+
+    if due_date:
+        props.update(**Date("Due Date", due_date).build())
+
+    return props
+
+# Use it
+page = await api.pages.create(
+    parent={"database_id": "db_id"},
+    properties=task_properties(
+        "Review PR",
+        status="In Progress",
+        due_date="2025-01-30"
+    )
+)
+```
+
+### Property Validation
+
+```python
+def validate_status(status: str) -> str:
+    """Validate and normalize status."""
+    valid_statuses = ["To Do", "In Progress", "Done"]
+
+    if status not in valid_statuses:
+        raise ValueError(f"Invalid status: {status}")
+
+    return status
+
+# Use validated value
+status = validate_status(user_input)
+properties = **Select("Status", status).build()
+```
+
+## Troubleshooting
+
+### Validation Error: Property not found
+
+**Problem**: `ValidationError: Property not found`
+
+**Solutions**:
+- Verify property name matches database schema exactly
+- Check case sensitivity
+- Ensure property exists in database
+
+### Validation Error: Select option not found
+
+**Problem**: Select option doesn't exist in database
+
+**Solutions**:
+- Add option to database schema first
+- Check for typos in option name
+- Verify option spelling matches exactly
+
+### Type Errors
+
+**Problem**: `TypeError: unsupported type`
+
+**Solutions**:
+- Ensure Date values are strings (not datetime objects)
+- Convert numbers to proper types (int/float)
+- Check Select values are strings
+
+## Best Practices
+
+<CheckCircle /> **Follow these practices**:
+
+1. **Always use builders** - Avoid raw JSON construction
+2. **Validate select options** - Ensure options exist in database
+3. **Use custom names** - Be explicit about property names
+4. **Combine properties** - Build multiple properties at once
+5. **Handle validation** - Wrap in try/except for validation errors
+
+### Do's and Don'ts
+
+```python
+# DO - Use builders
+properties = **Select("Status", "Done").build()
+
+# DON'T - Raw JSON
+properties = {"Status": {"select": {"name": "Done"}}}
+
+# DO - Validate inputs
+if status in valid_statuses:
+    properties = **Select("Status", status).build()
+
+# DON'T - Assume valid input
+properties = **Select("Status", user_input).build()  # May fail!
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import (
+    Title, Select, Date, Checkbox, Number
+)
+
+async def create_complete_task():
+    """Create a task with multiple properties."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Build all properties
+        properties = {
+            **Title("Complete Documentation").build(),
+            **Select("Status", "In Progress").build(),
+            **Select("Priority", "High").build(),
+            **Date("Due Date", "2025-01-30").build(),
+            **Checkbox("Urgent", True).build(),
+            **Number("Hours Estimated", 8).build()
+        }
+
+        # Create page
+        page = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties=properties
+        )
+
+        print(f"Created task: {page.id}")
+        return page
+
+asyncio.run(create_complete_task())
+```
+
+## Next Steps
+
+- [Working with Pages](working-with-pages) - Use builders in page operations
+- [Querying Databases](querying-databases) - Filter and sort
+- [Error Handling](error-handling) - Handle validation errors
+
+## See Also
+
+- [API Reference - Properties](../api/properties)
+- [Working with Pages](working-with-pages)
+- [Examples - Task Manager](../examples/task-manager)

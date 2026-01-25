@@ -1,0 +1,378 @@
+---
+title: Working with Blocks
+description: Manipulate content blocks in Notion pages
+---
+
+import { Box, Plus, Trash2 } from 'lucide-react';
+
+This guide covers working with content blocks in Notion pages.
+
+## Overview
+
+<Box /> **Blocks** are the content units within pages. Each block represents a piece of content like paragraphs, headings, lists, etc.
+
+## Block Structure
+
+Every block has:
+- `id` - Unique block identifier
+- `type` - Block type (paragraph, heading, etc.)
+- `content` - Block content (type-specific)
+
+## Retrieving Blocks
+
+### Get a Single Block
+
+```python
+block = await api.blocks.get("block_id")
+print(f"Block type: {block.type}")
+```
+
+### Get Page Children
+
+```python
+page = await api.pages.get("page_id")
+children = await page.blocks.children()
+
+for block in children:
+    print(f"{block.type}: {block.content}")
+```
+
+### List All Children
+
+```python
+blocks = await api.blocks.children("block_id")
+```
+
+## Creating Blocks
+
+### Add Paragraph Block
+
+```python
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Hello, world!"}}
+            ]
+        }
+    }
+])
+```
+
+### Add Heading Block
+
+```python
+# Level 1 heading
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "heading_1",
+        "heading_1": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Title"}}
+            ]
+        }
+    }
+])
+```
+
+Supported heading types:
+- `heading_1` - H1
+- `heading_2` - H2
+- `heading_3` - H3
+
+### Add List Blocks
+
+```python
+# Bullet list
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "bulleted_list_item",
+        "bulleted_list_item": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Item 1"}}
+            ]
+        }
+    }
+])
+
+# Numbered list
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "numbered_list_item",
+        "numbered_list_item": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Item 1"}}
+            ]
+        }
+    }
+])
+```
+
+### Add Code Block
+
+```python
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "code",
+        "code": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "print('Hello')"}}
+            ],
+            "language": "python"
+        }
+    }
+])
+```
+
+## Updating Blocks
+
+### Update Block Content
+
+```python
+block = await api.blocks.get("block_id")
+
+# Update content
+block.content = {
+    "rich_text": [
+        {"type": "text", "text": {"content": "Updated content"}}
+    ]
+}
+
+# Save
+await block.save()
+```
+
+### Update Paragraph
+
+```python
+block = await api.blocks.get("block_id")
+
+# Update paragraph text
+new_content = {
+    "rich_text": [
+        {"type": "text", "text": {"content": "New text"}}
+    ]
+}
+
+# Set content and save
+block.content = new_content
+await block.save()
+```
+
+## Deleting Blocks
+
+<Trash2 /> **Delete removes blocks permanently**:
+
+```python
+block = await api.blocks.get("block_id")
+await block.delete()
+```
+
+Or use children collection:
+
+```python
+# Note: This requires getting block first
+block = await api.blocks.get("block_id")
+await block.delete()
+```
+
+## Block Types Reference
+
+### Common Block Types
+
+| Type | String Value | Description |
+|------|--------------|-------------|
+| Paragraph | `paragraph` | Text paragraph |
+| Heading 1-3 | `heading_1/2/3` | Headings |
+| Bullet List | `bulleted_list_item` | Bullet list item |
+| Numbered List | `numbered_list_item` | Numbered list item |
+| Quote | `quote` | Quote block |
+| Code | `code` | Code block |
+| Divider | `divider` | Horizontal rule |
+| Callout | `callout` | Callout box |
+
+### Check Block Type
+
+```python
+block = await api.blocks.get("block_id")
+
+if block.type == "paragraph":
+    print("This is a paragraph")
+elif block.type == "heading_1":
+    print("This is a heading")
+```
+
+## Rich Text Formatting
+
+### Bold, Italic, Code
+
+```python
+{
+    "rich_text": [
+        {
+            "type": "text",
+            "text": {"content": "Bold "},
+            "annotations": {"bold": True}
+        },
+        {
+            "type": "text",
+            "text": {"content": "italic "},
+            "annotations": {"italic": True}
+        },
+        {
+            "type": "text",
+            "text": {"content": "code"},
+            "annotations": {"code": True}
+        }
+    ]
+}
+```
+
+### Links
+
+```python
+{
+    "rich_text": [
+        {
+            "type": "text",
+            "text": {
+                "content": "Click here",
+                "link": {"url": "https://example.com"}
+            }
+        }
+    ]
+}
+```
+
+## Common Patterns
+
+### Add Multiple Blocks
+
+```python
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "heading_1",
+        "heading_1": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Title"}}
+            ]
+        }
+    },
+    {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "Content here"}}
+            ]
+        }
+    }
+])
+```
+
+### Build Document Structure
+
+```python
+async def create_document():
+    """Create a page with structured content."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Create page
+        page = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties={**Title("My Document").build()}
+        )
+
+        # Add content
+        await page.blocks.append(children=[
+            # Title
+            {
+                "object": "block",
+                "type": "heading_1",
+                "heading_1": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": "Introduction"}}
+                    ]
+                }
+            },
+            # Paragraph
+            {
+                "object": "block",
+                "type": "paragraph",
+                "paragraph": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": "This is the introduction."}}
+                    ]
+                }
+            },
+            # Section heading
+            {
+                "object": "block",
+                "type": "heading_2",
+                "heading_2": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": "Section 1"}}
+                    ]
+                }
+            },
+            # List items
+            {
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": "Point 1"}}
+                    ]
+                }
+            },
+            {
+                "object": "block",
+                "type": "bulleted_list_item",
+                "bulleted_list_item": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": "Point 2"}}
+                    ]
+                }
+            }
+        ])
+
+        print(f"Created document: {page.id}")
+
+asyncio.run(create_document())
+```
+
+## Troubleshooting
+
+### Children Not Appearing
+
+**Problem**: Added blocks don't show in page
+
+**Solutions**:
+- Verify `rich_text` structure is correct
+- Check `append()` completed successfully
+- Ensure parent page/block is accessible
+
+### Invalid Block Type
+
+**Problem**: `ValidationError: Invalid block type`
+
+**Solutions**:
+- Verify block type string is correct
+- Check block type is supported by Notion
+- Ensure type matches content structure
+
+<Callout type="info">
+  **For More Info**: See [Notion API - Block Object](https://developers.notion.com/reference/block) for complete block type reference.
+</Callout>
+
+## Next Steps
+
+- [Working with Pages](working-with-pages) - Page operations
+- [API Reference - Block](../api/entities/block) - Block entity
+- [Examples](../examples) - Real-world usage

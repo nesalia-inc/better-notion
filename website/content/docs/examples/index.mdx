@@ -1,0 +1,181 @@
+---
+title: Examples
+description: Real-world projects built with Better Notion
+---
+
+import { Code, FolderOpen, Rocket } from 'lucide-react';
+
+Welcome to the Examples section! Here you'll find complete, runnable projects built with the Better Notion SDK.
+
+## Overview
+
+<Code /> Each example is a complete application that demonstrates:
+
+- Real-world use cases
+- Complete code (copy-paste ready)
+- Best practices and patterns
+- Error handling and edge cases
+
+## Available Examples
+
+<Cards>
+  <Card
+    title="Task Manager"
+    href="task-manager"
+    icon={<Rocket />}
+  >
+    Build a CLI task manager with create, list, update, and complete operations.
+  </Card>
+  <Card
+    title="Knowledge Base"
+    href="knowledge-base"
+  >
+    Create a knowledge base with pages, blocks, and search capabilities.
+  </Card>
+  <Card
+    title="Automation Scripts"
+    href="automation"
+  >
+    Automate repetitive Notion workflows with scheduled scripts.
+  </Card>
+  <Card
+    title="Data Migration"
+    href="migration"
+  >
+    Migrate data from another system into Notion databases.
+  </Card>
+</Cards>
+
+## Prerequisites
+
+Before running examples, ensure you have:
+
+- Completed [Quick Start](../quickstart)
+- Set up authentication ([Authentication](../getting-started/authentication))
+- Understand [Basic Concepts](../getting-started/basic-concepts)
+- Created a Notion integration with database access
+
+## Running Examples
+
+### 1. Clone or Copy
+
+Copy the example code into a file (e.g., `task_manager.py`).
+
+### 2. Configure Environment
+
+Create `.env`:
+```bash
+NOTION_TOKEN=secret_your_token_here
+DATABASE_ID=your_database_id
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install better-notion python-dotenv
+```
+
+### 4. Run
+
+```bash
+python task_manager.py
+```
+
+## Example Structure
+
+Each example follows this structure:
+
+```python
+import asyncio
+import os
+from better_notion import NotionAPI
+from dotenv import load_dotenv
+
+# Load environment
+load_dotenv()
+
+async def main():
+    """Main application."""
+    async with NotionAPI(auth=os.getenv("NOTION_TOKEN")) as api:
+        # Application logic here
+        pass
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Learning Path
+
+We recommend following examples in order:
+
+1. **Task Manager** - Learn CRUD operations
+2. **Knowledge Base** - Learn content manipulation
+3. **Automation** - Learn workflows
+4. **Migration** - Learn bulk operations
+
+## Common Patterns
+
+### Error Handling
+
+All examples include proper error handling:
+
+```python
+from better_notion._api.errors import NotFoundError
+
+try:
+    page = await api.pages.get(page_id)
+except NotFoundError:
+    print("Page not found")
+```
+
+### Async Context Manager
+
+Resources are cleaned up automatically:
+
+```python
+async with NotionAPI(auth=token) as api:
+    # API calls
+    pass
+# Connection closed automatically
+```
+
+### Property Builders
+
+Type-safe property construction:
+
+```python
+from better_notion._api.properties import Title, Select
+
+properties = {
+    **Title("Task Name").build(),
+    **Select("Status", "To Do").build()
+}
+```
+
+## Adapting Examples
+
+Each example can be adapted to your needs:
+
+- **Change properties** - Modify property builders
+- **Add features** - Extend with additional operations
+- **Integrate** - Add to existing applications
+- **Scale** - Handle larger datasets
+
+## Next Steps
+
+- [Task Manager Example](task-manager) - Complete CLI application
+- [Knowledge Base Example](knowledge-base) - Content management
+- [Automation Scripts Example](automation) - Workflow automation
+- [Migration Example](migration) - Data migration
+
+## Need Help?
+
+- **[Guides](../guides)** - Task-based tutorials
+- **[API Reference](../api)** - Complete documentation
+- **[GitHub Issues](https://github.com/nesalia-inc/better-notion/issues)** - Report problems
+
+## See Also
+
+- [Project Setup](../../getting-started/project-setup)
+- [Error Handling](../../guides/error-handling)
+- [Working with Pages](../../guides/working-with-pages)

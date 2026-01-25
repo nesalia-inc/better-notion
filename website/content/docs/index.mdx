@@ -1,0 +1,172 @@
+---
+title: Better Notion SDK
+description: A pythonic, object-oriented SDK for the Notion API with async support and type-safe property builders
+icon: BookOpen
+---
+
+import { BookOpen, Zap, Shield, Code } from 'lucide-react';
+
+Welcome to the **Better Notion SDK** documentation - a Python library that makes working with the Notion API simple, type-safe, and enjoyable.
+
+<Callout type="success">
+  **Version 0.2.0 (Beta)** is now available! See the [changelog](meta/changelog) for what's new.
+</Callout>
+
+## What is Better Notion?
+
+Better Notion is a high-level Python SDK that provides:
+
+- **Object-Oriented**: Work with entities (Pages, Blocks, Databases) not raw JSON
+- **Type-Safe**: Property builders for compile-time safety
+- **Paginated**: Automatic cursor-based pagination over large datasets
+- **Async-First**: Built with `asyncio` and `httpx` for performance
+- **Powerful**: Full access to Notion's search, queries, and operations
+
+## Quick Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Title, Select
+
+async def main():
+    async with NotionAPI(auth="secret_...") as api:
+        # Get a page
+        page = await api.pages.get("page_id")
+
+        # Update properties
+        await page.update(
+            **Select("Status", "Done").build()
+        )
+
+        # Save to Notion
+        await page.save()
+
+asyncio.run(main())
+```
+
+## Key Features
+
+<Cards>
+  <Card
+    title="Entity-Based API"
+    icon={<BookOpen />}
+    href="getting-started/basic-concepts"
+  >
+    Work with Pages, Blocks, and Databases as Python objects with methods like <code>save()</code>, <code>update()</code>, and <code>delete()</code>.
+  </Card>
+  <Card
+    title="Type-Safe Builders"
+    icon={<Shield />}
+    href="guides/property-builders"
+  >
+    Use property builders like <code>Title()</code>, <code>Select()</code>, and <code>Date()</code> to avoid typos and invalid data.
+  </Card>
+  <Card
+    title="Async & Fast"
+    icon={<Zap />}
+    href="advanced/async-patterns"
+  >
+    Built on <code>asyncio</code> and <code>httpx</code> for high-performance concurrent operations.
+  </Card>
+  <Card
+    title="Full Notion API"
+    icon={<Code />}
+    href="api/client"
+  >
+    Complete access to Notion's API: pages, blocks, databases, users, and search.
+  </Card>
+</Cards>
+
+## Get Started in 5 Minutes
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### Install the SDK
+
+```bash
+pip install better-notion
+```
+
+### Create an Integration
+
+Visit [notion.so/my-integrations](https://notion.so/my-integrations) to create a new integration and get your API token.
+
+### Write Your First Script
+
+```python
+import asyncio
+from better_notion import NotionAPI
+
+async def main():
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.get("page_id")
+        print(page.properties)
+
+asyncio.run(main())
+```
+
+</div>
+
+<Callout type="info">
+  **New to Notion API?** Start with the [Quick Start Guide](quickstart) for a complete walkthrough.
+</Callout>
+
+## What Can You Build?
+
+- **Task Managers**: Track tasks with custom statuses, priorities, and due dates
+- **Knowledge Bases**: Organize documentation with pages, blocks, and databases
+- **Automation Scripts**: Automate repetitive Notion workflows
+- **Data Migrations**: Migrate data from other systems into Notion
+- **Custom Integrations**: Connect Notion with your tools and services
+
+## Documentation Overview
+
+<Cards>
+  <Card
+    title="Quick Start"
+    href="quickstart"
+  >
+    Get up and running in 5 minutes with your first API call.
+  </Card>
+  <Card
+    title="Getting Started"
+    href="getting-started/installation"
+  >
+    Installation, authentication, and basic concepts.
+  </Card>
+  <Card
+    title="Guides"
+    href="guides"
+  >
+    Task-based tutorials for common operations.
+  </Card>
+  <Card
+    title="API Reference"
+    href="api"
+  >
+    Complete API documentation for all entities and methods.
+  </Card>
+  <Card
+    title="Examples"
+    href="examples"
+  >
+    Real-world projects built with Better Notion.
+  </Card>
+  <Card
+    title="Advanced"
+    href="advanced"
+  >
+    Deep dives into pagination, async patterns, and testing.
+  </Card>
+</Cards>
+
+## Support
+
+- **GitHub Issues**: [Report bugs](https://github.com/nesalia-inc/better-notion/issues)
+- **Discussions**: [Ask questions](https://github.com/nesalia-inc/better-notion/discussions)
+- **Changelog**: See [what's new](meta/changelog) in each version
+
+<Callout type="info">
+  **Internal Package?** This SDK is designed for internal use. Contact your team for integration access and workspace setup.
+</Callout>

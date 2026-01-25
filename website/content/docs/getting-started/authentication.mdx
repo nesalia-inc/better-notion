@@ -1,0 +1,292 @@
+---
+title: Authentication
+description: Set up Notion integration and configure API access
+---
+
+import { Key, Shield, AlertTriangle } from 'lucide-react';
+
+This guide covers setting up authentication with the Notion API.
+
+## Overview
+
+Better Notion uses integration tokens for authentication. You'll need to:
+
+1. Create a Notion integration
+2. Get your API token
+3. Share content with your integration
+4. Configure the SDK with your token
+
+## Step 1: Create a Notion Integration
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### Navigate to Integrations
+
+Visit [notion.so/my-integrations](https://notion.so/my-integrations)
+
+### Create New Integration
+
+1. Click the **"+ New integration"** button
+2. Fill in the integration details:
+   - **Name**: Choose a descriptive name (e.g., "My Notion App")
+   - **Associated workspace**: Select your workspace
+   - **Type**: Choose "Internal" for internal tools
+   - **Capabilities**: Select read/write permissions needed
+
+3. Click **"Submit"**
+
+### Copy Your Token
+
+After creating the integration, you'll see an **Internal Integration Token**.
+
+**Example**: `secret_abcdefghijklmnopqrstuvwxyz1234567890`
+
+<Callout type="warning">
+  **Security Warning**: Treat your token like a password. Never commit it to version control or share it publicly.
+</Callout>
+
+</div>
+
+## Step 2: Store Your Token Securely
+
+### Option 1: Environment Variables (Recommended)
+
+Create a `.env` file in your project root:
+
+```bash
+# .env
+NOTION_TOKEN=secret_your_token_here
+```
+
+Add to `.gitignore`:
+```
+.env
+```
+
+Use in your code:
+
+```python
+import os
+from dotenv import load_dotenv
+from better_notion import NotionAPI
+
+# Load environment variables
+load_dotenv()
+
+token = os.getenv("NOTION_TOKEN")
+api = NotionAPI(auth=token)
+```
+
+### Option 2: System Environment Variables
+
+Set the variable in your shell:
+
+```bash
+# Linux/macOS
+export NOTION_TOKEN="secret_your_token_here"
+
+# Windows (PowerShell)
+$env:NOTION_TOKEN="secret_your_token_here"
+
+# Windows (Command Prompt)
+set NOTION_TOKEN=secret_your_token_here
+```
+
+### Option 3: Configuration File
+
+Create `config.py`:
+
+```python
+# config.py
+NOTION_TOKEN = "secret_your_token_here"
+```
+
+<Callout type="warning">
+  **Not Recommended**: Hardcoding tokens in source code is a security risk. Use environment variables instead.
+</Callout>
+
+## Step 3: Share Content with Your Integration
+
+By default, integrations have no access to your Notion workspace. You must explicitly share content.
+
+### Share a Page
+
+1. Open the page you want to access
+2. Click **"..."** (more options) in the top-right
+3. Scroll to **"Connections"**
+4. Click **"Add integrations"**
+5. Select your integration
+
+### Share a Database
+
+Same process as pages:
+
+1. Open the database
+2. Click **"..."** → **"Add integrations"**
+3. Select your integration
+
+<Callout type="info">
+  **Parent Access**: To create pages in a database, the integration needs access to the parent database/page.
+</Callout>
+
+### Bulk Share with Parent Page
+
+If you have multiple pages/databases in a workspace:
+
+1. Share the parent page with your integration
+2. All children become accessible
+
+## Step 4: Initialize the SDK
+
+### Basic Usage
+
+```python
+from better_notion import NotionAPI
+
+# Initialize with token
+api = NotionAPI(auth="secret_your_token_here")
+
+# Use the client
+page = await api.pages.get("page_id")
+
+# Close when done
+await api.close()
+```
+
+### Using Context Manager (Recommended)
+
+```python
+from better_notion import NotionAPI
+
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+    # Automatically closed when exiting context
+```
+
+### With Environment Variables
+
+```python
+import os
+from better_notion import NotionAPI
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async with NotionAPI(auth=os.getenv("NOTION_TOKEN")) as api:
+    page = await api.pages.get("page_id")
+```
+
+## Token Format
+
+Valid tokens start with `secret_` and are 50+ characters long.
+
+**Valid**:
+- `secret_abc123...`
+- `secret_nnt_...` (new format)
+
+**Invalid**:
+- `internal_abc...` (old format, deprecated)
+- `abc_123...` (wrong prefix)
+
+<Callout type="tip">
+  **New Token Format**: Notion now uses `ntn_` prefix for tokens. The SDK supports both `secret_` and `ntn_` formats.
+</Callout>
+
+## Troubleshooting
+
+### Unauthorized Error
+
+**Problem**: `UnauthorizedError: Invalid token`
+
+**Solutions**:
+- Verify token starts with `secret_` or `ntn_`
+- Check for typos in the token
+- Ensure the integration hasn't been deleted
+- Regenerate the token if needed
+
+### Not Found Error
+
+**Problem**: `NotFoundError: Page not found`
+
+**Solutions**:
+- Verify the page ID is correct
+- Check that you've shared the page with your integration
+- Ensure the integration has access to the parent workspace
+
+### No Access to Database
+
+**Problem**: Can't access database pages
+
+**Solutions**:
+- Share the database with your integration
+- Check the database is in a shared workspace
+- Verify the integration has correct permissions
+
+## Security Best Practices
+
+<Shield /> **Follow these security practices**:
+
+1. **Never commit tokens** to version control
+2. **Use environment variables** for token storage
+3. **Rotate tokens regularly** (every 90 days)
+4. **Use minimal permissions** - only grant what's needed
+5. **Monitor usage** - check integration activity
+6. **Revoke unused tokens** - delete old tokens
+
+### Token Rotation
+
+To rotate your token:
+
+1. Go to [notion.so/my-integrations](https://notion.so/my-integrations)
+2. Select your integration
+3. Click **"Duplicate token"** to create a new one
+4. Update your application with the new token
+5. Revoke the old token after verifying the new one works
+
+## Testing Your Setup
+
+Verify everything works:
+
+```python
+import asyncio
+import os
+from better_notion import NotionAPI
+from dotenv import load_dotenv
+
+async def test_connection():
+    load_dotenv()
+
+    token = os.getenv("NOTION_TOKEN")
+
+    try:
+        async with NotionAPI(auth=token) as api:
+            # Try to get a page
+            page = await api.pages.get("page_id")
+            print(f"Success! Page: {page.id}")
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+asyncio.run(test_connection())
+```
+
+## Next Steps
+
+<AlertTriangle /> **Before continuing**, ensure you have:
+
+1. Created a Notion integration
+2. Stored your token securely
+3. Shared content with your integration
+4. Tested the connection
+
+Then continue to:
+
+- [Basic Concepts](basic-concepts) - Learn the SDK structure
+- [Project Setup](project-setup) - Configure your project
+- [Quick Start](../quickstart) - Make your first API call
+
+## See Also
+
+- [Notion API - Authentication](https://developers.notion.com/reference/authorization)
+- [Notion Integration Guide](https://developers.notion.com/docs/create-a-notion-integration)
+- [python-dotenv Documentation](https://github.com/theskumar/python-dotenv)

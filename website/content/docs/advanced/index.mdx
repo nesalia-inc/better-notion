@@ -1,0 +1,96 @@
+---
+title: Advanced Topics
+description: Deep dives into advanced SDK features
+---
+
+## Overview
+
+Advanced topics cover complex usage patterns and optimization techniques.
+
+Available topics:
+
+- [Async Patterns](async-patterns) - Async/await best practices
+- [Pagination](pagination) - Handle large datasets
+- [Rate Limits](rate-limits) - Manage API rate limiting
+- [Testing](testing) - Test SDK code
+
+## Quick Reference
+
+| Topic | Description | Difficulty |
+|-------|-------------|------------|
+| [Async Patterns](async-patterns) | Concurrent operations | Intermediate |
+| [Pagination](pagination) | Large dataset handling | Intermediate |
+| [Rate Limits](rate-limits) | Rate limiting strategies | Advanced |
+| [Testing](testing) | Testing with mocks | Intermediate |
+
+## Prerequisites
+
+Before diving into advanced topics:
+
+- Complete [Getting Started](../getting-started)
+- Review [Guides](../guides)
+- Understand [Basic Concepts](../getting-started/basic-concepts)
+
+## Learning Path
+
+Recommended order:
+
+1. **Async Patterns** - Understand async/await
+2. **Pagination** - Handle large datasets
+3. **Rate Limits** - Manage rate limiting
+4. **Testing** - Write tests for your code
+
+## Common Patterns
+
+### Concurrent Operations
+
+```python
+import asyncio
+
+pages = await asyncio.gather(
+    api.pages.get("id1"),
+    api.pages.get("id2"),
+    api.pages.get("id3")
+)
+```
+
+### Batch Processing
+
+```python
+async for page in api.pages.iterate("database_id"):
+    # Process page
+    await process_page(page)
+```
+
+### Error Recovery
+
+```python
+from better_notion._api.errors import RateLimitedError
+import asyncio
+
+async def robust_call(func):
+    """Retry on rate limit."""
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            return await func()
+
+        except RateLimitedError as e:
+            if attempt == max_retries - 1:
+                raise
+            await asyncio.sleep(e.retry_after or 1)
+```
+
+## Next Steps
+
+- [Async Patterns](async-patterns) - Async/await deep dive
+- [Pagination](pagination) - Large datasets
+- [Rate Limits](rate-limits) - Rate limiting
+- [Testing](testing) - Testing strategies
+
+## See Also
+
+- [Getting Started - Basic Concepts](../getting-started/basic-concepts)
+- [Guides](../guides)
+- [API Reference](../api)

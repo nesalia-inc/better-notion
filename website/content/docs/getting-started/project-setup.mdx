@@ -1,0 +1,452 @@
+---
+title: Project Setup
+description: Best practices for structuring your Better Notion project
+---
+
+import { FileCode, FolderTree, Settings } from 'lucide-react';
+
+This guide covers best practices for structuring projects that use the Better Notion SDK.
+
+## Project Structure
+
+### Recommended Structure
+
+```
+my-notion-app/
+├── .env                    # Environment variables (gitignored)
+├── .gitignore              # Git ignore file
+├── pyproject.toml          # Project config
+├── requirements.txt        # Dependencies
+├── src/
+│   ├── __init__.py
+│   ├── main.py            # Entry point
+│   ├── config.py          # Configuration
+│   ├── models/            # Data models
+│   └── services/          # Business logic
+└── tests/
+    ├── __init__.py
+    └── test_main.py
+```
+
+## Configuration
+
+### Environment Variables
+
+Create `.env`:
+
+```bash
+# Notion Configuration
+NOTION_TOKEN=secret_your_token_here
+NOTION_DATABASE_ID=your_database_id
+NOTION_PAGE_ID=your_page_id
+
+# Optional: Logging
+LOG_LEVEL=INFO
+```
+
+Add to `.gitignore`:
+```
+.env
+.venv/
+__pycache__/
+*.pyc
+```
+
+### Configuration Module
+
+Create `src/config.py`:
+
+```python
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+class Config:
+    """Application configuration."""
+
+    # Notion
+    NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+    NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
+
+    # Logging
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+
+    @classmethod
+    def validate(cls):
+        """Validate required configuration."""
+        if not cls.NOTION_TOKEN:
+            raise ValueError("NOTION_TOKEN is required")
+        return True
+```
+
+### Type Hints Configuration
+
+Create `src/types.py`:
+
+```python
+from typing import Any
+from better_notion._api.entities import Page, Block
+
+# Custom types
+PageId = str
+DatabaseId = str
+PropertyDict = dict[str, Any]
+```
+
+## Main Application
+
+### Entry Point
+
+Create `src/main.py`:
+
+```python
+import asyncio
+import logging
+from better_notion import NotionAPI
+from src.config import Config
+
+# Configure logging
+logging.basicConfig(
+    level=Config.LOG_LEVEL,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+async def main():
+    """Main application entry point."""
+    # Validate configuration
+    Config.validate()
+
+    # Initialize API client
+    async with NotionAPI(auth=Config.NOTION_TOKEN) as api:
+        logger.info("Connected to Notion")
+
+        # Your application logic here
+        page = await api.pages.get(Config.NOTION_PAGE_ID)
+        logger.info(f"Retrieved page: {page.id}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Service Layer
+
+Create `src/services/notion_service.py`:
+
+```python
+from typing import Optional
+from better_notion import NotionAPI
+from better_notion._api.entities import Page
+from better_notion._api.properties import Select, Title
+
+class NotionService:
+    """Service for Notion operations."""
+
+    def __init__(self, api: NotionAPI):
+        self.api = api
+
+    async def get_page(self, page_id: str) -> Optional[Page]:
+        """Get a page by ID."""
+        try:
+            return await self.api.pages.get(page_id)
+        except Exception as e:
+            logger.error(f"Failed to get page {page_id}: {e}")
+            return None
+
+    async def update_status(
+        self,
+        page_id: str,
+        status: str
+    ) -> bool:
+        """Update page status."""
+        try:
+            page = await self.api.pages.get(page_id)
+            await page.update(**Select("Status", status).build())
+            await page.save()
+            return True
+        except Exception as e:
+            logger.error(f"Failed to update status: {e}")
+            return False
+
+    async def create_task(
+        self,
+        database_id: str,
+        title: str,
+        status: str = "To Do"
+    ) -> Optional[Page]:
+        """Create a new task."""
+        try:
+            return await self.api.pages.create(
+                parent={"database_id": database_id},
+                properties={
+                    **Title(title).build(),
+                    **Select("Status", status).build()
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to create task: {e}")
+            return None
+```
+
+### Usage Example
+
+```python
+from src.services.notion_service import NotionService
+
+async def main():
+    async with NotionAPI(auth=Config.NOTION_TOKEN) as api:
+        service = NotionService(api)
+
+        # Get a page
+        page = await service.get_page("page_id")
+
+        # Update status
+        success = await service.update_status("page_id", "Done")
+
+        # Create a task
+        task = await service.create_task(
+            "database_id",
+            "New Task",
+            "To Do"
+        )
+```
+
+## Dependency Management
+
+### Using pyproject.toml (Recommended)
+
+```bash
+[project]
+name = "my-notion-app"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "better-notion>=0.2.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+```
+
+Install:
+```bash
+pip install -e ".[dev]"
+```
+
+### Using requirements.txt
+
+```
+better-notion==0.2.0
+python-dotenv==1.0.0
+```
+
+Install:
+```bash
+pip install -r requirements.txt
+```
+
+## Testing
+
+### Test Configuration
+
+Create `tests/conftest.py`:
+
+```python
+import pytest
+import os
+from better_notion import NotionAPI
+
+@pytest.fixture
+async def api():
+    """Create API client for testing."""
+    token = os.getenv("NOTION_TEST_TOKEN")
+    if not token:
+        pytest.skip("NOTION_TEST_TOKEN not set")
+
+    async with NotionAPI(auth=token) as api:
+        yield api
+```
+
+### Test Example
+
+Create `tests/test_services.py`:
+
+```python
+import pytest
+from src.services.notion_service import NotionService
+
+@pytest.mark.asyncio
+async def test_get_page(api):
+    """Test getting a page."""
+    service = NotionService(api)
+    page = await service.get_page("page_id")
+    assert page is not None
+    assert page.id == "page_id"
+```
+
+Run tests:
+```bash
+pytest tests/
+```
+
+## Logging
+
+### Configure Logging
+
+```python
+import logging
+
+# Create logger
+logger = logging.getLogger("my-notion-app")
+
+# Configure
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+
+# Use in code
+logger.info("Application started")
+logger.error("An error occurred", exc_info=True)
+```
+
+## Error Handling
+
+### Global Error Handler
+
+```python
+import sys
+from better_notion._api.errors import NotionAPIError
+
+def handle_error(error: Exception):
+    """Global error handler."""
+    if isinstance(error, NotionAPIError):
+        logger.error(f"Notion API Error: {error}")
+    else:
+        logger.error(f"Unexpected error: {error}")
+        raise
+
+async def main():
+    try:
+        # Application logic
+        pass
+    except Exception as e:
+        handle_error(e)
+        sys.exit(1)
+```
+
+## Best Practices
+
+### 1. Use Context Managers
+
+<Settings /> **Always use `async with`**:
+
+```python
+# Good
+async with NotionAPI(auth=token) as api:
+    page = await api.pages.get("page_id")
+
+# Bad
+api = NotionAPI(auth=token)
+page = await api.pages.get("page_id")
+# Connection not closed!
+```
+
+### 2. Validate Configuration
+
+```python
+# Validate early
+if not Config.NOTION_TOKEN:
+    raise ValueError("NOTION_TOKEN required")
+```
+
+### 3. Use Type Hints
+
+```python
+from typing import Optional
+
+async def get_page(page_id: str) -> Optional[Page]:
+    """Get a page by ID."""
+    try:
+        return await api.pages.get(page_id)
+    except Exception:
+        return None
+```
+
+### 4. Handle Errors Gracefully
+
+```python
+# Good
+try:
+    page = await api.pages.get(page_id)
+except NotFoundError:
+    logger.error(f"Page {page_id} not found")
+    return None
+```
+
+### 5. Use Logging
+
+```python
+logger.info("Creating page...")
+logger.debug(f"Page data: {data}")
+logger.error("Failed to create page")
+```
+
+## Deployment
+
+### Environment Variables
+
+Set in production environment:
+
+```bash
+# Linux/macOS
+export NOTION_TOKEN="production_token"
+
+# Docker
+ENV NOTION_TOKEN="production_token"
+```
+
+### Docker Setup
+
+Create `Dockerfile`:
+
+```dockerfile
+FROM python:3.10-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python", "-m", "src.main"]
+```
+
+## Next Steps
+
+With your project set up:
+
+- [Working with Pages](../guides/working-with-pages) - Learn page operations
+- [Property Builders](../guides/property-builders) - Type-safe properties
+- [Examples](../examples) - Complete projects
+
+## See Also
+
+- [Installation](installation) - SDK installation
+- [Authentication](authentication) - Set up access
+- [Basic Concepts](basic-concepts) - Core SDK concepts

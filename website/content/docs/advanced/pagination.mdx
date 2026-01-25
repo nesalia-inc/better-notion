@@ -1,0 +1,149 @@
+---
+title: Pagination
+description: Handle pagination for large datasets efficiently
+---
+
+## Overview
+
+Notion uses cursor-based pagination. Results are returned in pages with a maximum number of items per page.
+
+## Page Size
+
+Maximum items per page varies by endpoint:
+- **Pages/Blocks**: 100 items per page
+- **Databases**: Varies
+
+## Iterate Method
+
+**Recommended** - Use `iterate()` for automatic pagination:
+
+```python
+async for page in api.pages.iterate("database_id"):
+    print(page.id)
+```
+
+This handles pagination automatically and is memory-efficient.
+
+## Manual Pagination
+
+### Basic Pagination
+
+```python
+async def get_all_pages(database_id):
+    """Get all pages with manual pagination."""
+    all_pages = []
+    start_cursor = None
+
+    async with NotionAPI(auth="secret_...") as api:
+        while True:
+            result = await api.databases.query(
+                database_id,
+                start_cursor=start_cursor
+            )
+
+            all_pages.extend(result["results"])
+
+            if not result.get("has_more"):
+                break
+
+            start_cursor = result.get("next_cursor")
+
+    return all_pages
+```
+
+### With Limit
+
+```python
+async def get_pages_with_limit(database_id, limit=50):
+    """Get pages with a limit."""
+    pages = []
+    start_cursor = None
+
+    async with NotionAPI(auth="secret_...") as api:
+        while len(pages) < limit:
+            result = await api.databases.query(
+                database_id,
+                start_cursor=start_cursor
+            )
+
+            pages.extend(result["results"])
+
+            if not result.get("has_more"):
+                break
+
+            start_cursor = result.get("next_cursor")
+
+    return pages[:limit]
+```
+
+## Search Pagination
+
+### Iterate Search Results
+
+```python
+async def search_all(keyword):
+    """Search with automatic pagination."""
+    results = []
+
+    async for result in api.search_iterate(keyword):
+        results.append(result)
+
+    return results
+```
+
+### Limit Search Results
+
+```python
+async def search_limited(keyword, max_results=10):
+    """Search with result limit."""
+    count = 0
+    results = []
+
+    async for result in api.search_iterate(keyword):
+        results.append(result)
+        count += 1
+
+        if count >= max_results:
+            break
+
+    return results
+```
+
+## Best Practices
+
+1. **Use iterate()** - Automatic pagination is simpler
+2. **Check has_more** - When manually paginating
+3. **Handle empty results** - Check if results array is empty
+4. **Use cursors** - Don't modify next_cursor values
+5. **Set limits** - Avoid fetching too much data
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+
+async def export_database(database_id):
+    """Export all pages from a database."""
+    all_pages = []
+    count = 0
+
+    async with NotionAPI(auth="secret_...") as api:
+        async for page in api.pages.iterate(database_id):
+            all_pages.append(page)
+            count += 1
+
+            if count % 100 == 0:
+                print(f"Fetched {count} pages...")
+
+    print(f"Total: {count} pages")
+    return all_pages
+
+asyncio.run(export_database("database_id"))
+```
+
+## See Also
+
+- [Querying Databases](../guides/querying-databases)
+- [Search](../guides/search)
+- [Async Patterns](async-patterns)

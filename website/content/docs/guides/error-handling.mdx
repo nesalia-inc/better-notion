@@ -1,0 +1,442 @@
+---
+title: Error Handling
+description: Handle exceptions and errors gracefully in your applications
+---
+
+import { AlertTriangle, Bug, RefreshCw } from 'lucide-react';
+
+This guide covers error handling patterns and best practices for working with the Better Notion SDK.
+
+## Overview
+
+The SDK provides specific exception types for different error scenarios. Proper error handling ensures your application is robust and user-friendly.
+
+## Exception Hierarchy
+
+```
+NotionAPIError (base exception)
+├── HTTPError (HTTP-related errors)
+│   ├── BadRequestError (400)
+│   ├── UnauthorizedError (401)
+│   ├── ForbiddenError (403)
+│   ├── NotFoundError (404)
+│   ├── ConflictError (409)
+│   └── RateLimitedError (429)
+├── ValidationError (Invalid data)
+└── ConfigurationError (SDK misconfiguration)
+```
+
+## Common Exceptions
+
+### NotFoundError
+
+Resource doesn't exist or integration lacks access.
+
+```python
+from better_notion._api.errors import NotFoundError
+
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found or access denied")
+```
+
+**When it occurs**:
+- Invalid page/database/block ID
+- Integration doesn't have access
+- Resource was deleted
+
+### UnauthorizedError
+
+Invalid or missing authentication token.
+
+```python
+from better_notion._api.errors import UnauthorizedError
+
+try:
+    page = await api.pages.get("page_id")
+except UnauthorizedError:
+    print("Invalid token - check NOTION_TOKEN")
+```
+
+**When it occurs**:
+- Token is invalid or expired
+- Token format is wrong
+- Integration was deleted
+
+### RateLimitedError
+
+Too many requests (Notion rate limit: ~3 requests/second).
+
+```python
+from better_notion._api.errors import RateLimitedError
+
+try:
+    # API call
+    pass
+except RateLimitedError as e:
+    print(f"Rate limited. Retry after: {e.retry_after} seconds")
+```
+
+**When it occurs**:
+- Sending too many requests quickly
+- Exceeding API rate limits
+
+### ValidationError
+
+Invalid data or property format.
+
+```python
+from better_notion._api.errors import ValidationError
+
+try:
+    await page.update(**Select("Status", "Invalid").build())
+    await page.save()
+except ValidationError as e:
+    print(f"Validation error: {e}")
+```
+
+**When it occurs**:
+- Select option doesn't exist
+- Invalid date format
+- Property name doesn't match database schema
+
+### BadRequestError
+
+Malformed request or invalid parameters.
+
+```python
+from better_notion._api.errors import BadRequestError
+
+try:
+    await api.pages.create(...)
+except BadRequestError as e:
+    print(f"Bad request: {e}")
+```
+
+**When it occurs**:
+- Invalid request structure
+- Missing required fields
+- Malformed data
+
+## Error Handling Patterns
+
+### Basic Try/Except
+
+```python
+from better_notion._api.errors import NotFoundError
+
+try:
+    page = await api.pages.get("page_id")
+    print(f"Got page: {page.id}")
+except NotFoundError:
+    print("Page not found")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+### Multiple Exceptions
+
+```python
+from better_notion._api.errors import (
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+    RateLimitedError
+)
+
+try:
+    page = await api.pages.get("page_id")
+    await page.update(**Select("Status", "Done").build())
+    await page.save()
+
+except UnauthorizedError:
+    print("Authentication failed - check token")
+
+except NotFoundError:
+    print("Page not found or access denied")
+
+except ValidationError as e:
+    print(f"Invalid data: {e}")
+
+except RateLimitedError:
+    print("Too many requests - wait and retry")
+
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+### With Retry Logic
+
+```python
+import asyncio
+from better_notion._api.errors import RateLimitedError
+
+async def retry_on_rate_limit(func, max_retries=3):
+    """Retry function on rate limit errors."""
+    for attempt in range(max_retries):
+        try:
+            return await func()
+
+        except RateLimitedError as e:
+            if attempt == max_retries - 1:
+                raise
+
+            wait_time = e.retry_after or 1
+            print(f"Rate limited. Waiting {wait_time}s...")
+            await asyncio.sleep(wait_time)
+
+# Usage
+await retry_on_rate_limit(lambda: api.pages.get("page_id"))
+```
+
+### Resource Cleanup
+
+```python
+from better_notion._api.errors import NotionAPIError
+
+async def safe_api_call():
+    async with NotionAPI(auth=token) as api:
+        try:
+            page = await api.pages.get("page_id")
+            return page
+
+        except NotionAPIError as e:
+            print(f"API error: {e}")
+            return None
+
+        finally:
+            # Connection closed automatically by async with
+            print("API call completed")
+```
+
+## Logging Errors
+
+### Configure Logging
+
+```python
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+```
+
+### Log with Context
+
+```python
+from better_notion._api.errors import NotFoundError
+
+async def get_page_with_logging(page_id):
+    logger.info(f"Fetching page: {page_id}")
+
+    try:
+        page = await api.pages.get(page_id)
+        logger.info(f"Successfully got page: {page.id}")
+        return page
+
+    except NotFoundError:
+        logger.error(f"Page not found: {page_id}")
+        return None
+
+    except Exception as e:
+        logger.error(f"Error fetching page {page_id}: {e}", exc_info=True)
+        raise
+```
+
+## Custom Error Handlers
+
+### Generic Handler
+
+```python
+from better_notion._api.errors import NotionAPIError
+
+def handle_notion_error(error: Exception) -> str:
+    """Convert Notion errors to user-friendly messages."""
+    if isinstance(error, NotFoundError):
+        return "Resource not found or access denied"
+
+    elif isinstance(error, UnauthorizedError):
+        return "Authentication failed - check your token"
+
+    elif isinstance(error, RateLimitedError):
+        return "Too many requests - please wait"
+
+    elif isinstance(error, ValidationError):
+        return f"Invalid data: {error}"
+
+    elif isinstance(error, NotionAPIError):
+        return f"Notion API error: {error}"
+
+    else:
+        return f"Unexpected error: {error}"
+```
+
+### Usage
+
+```python
+try:
+    page = await api.pages.get("page_id")
+except Exception as e:
+    message = handle_notion_error(e)
+    print(message)
+```
+
+## Graceful Degradation
+
+### Provide Defaults
+
+```python
+async def get_page_or_default(page_id, default_title="Untitled"):
+    """Get page or return default object."""
+    try:
+        return await api.pages.get(page_id)
+    except NotFoundError:
+        # Return mock object
+        return type('Page', (), {
+            'id': None,
+            'properties': {'Name': {'title': [{'plain_text': default_title}]}}
+        })()
+```
+
+### Batch Operations
+
+```python
+async def update_multiple_pages(page_ids, status):
+    """Update multiple pages, continuing on errors."""
+    results = {"success": [], "failed": []}
+
+    for page_id in page_ids:
+        try:
+            page = await api.pages.get(page_id)
+            await page.update(**Select("Status", status).build())
+            await page.save()
+            results["success"].append(page_id)
+
+        except Exception as e:
+            logger.error(f"Failed to update {page_id}: {e}")
+            results["failed"].append((page_id, str(e)))
+
+    return results
+```
+
+## Prevention
+
+### Validate Input
+
+```python
+def validate_page_id(page_id: str) -> bool:
+    """Validate page ID format."""
+    return len(page_id) == 32 and page_id.isalnum()
+
+if not validate_page_id(page_id):
+    raise ValueError("Invalid page ID format")
+```
+
+### Check Permissions First
+
+```python
+async def check_page_access(page_id):
+    """Verify page is accessible before operation."""
+    try:
+        await api.pages.get(page_id)
+        return True
+    except NotFoundError:
+        return False
+```
+
+### Use Validated Builders
+
+```python
+VALID_STATUSES = ["To Do", "In Progress", "Done"]
+
+def safe_status_select(status):
+    """Create select with validation."""
+    if status not in VALID_STATUSES:
+        raise ValueError(f"Invalid status: {status}")
+    return Select("Status", status).build()
+```
+
+## Best Practices
+
+<AlertTriangle /> **Follow these practices**:
+
+1. **Always handle NotionAPIError** - Catch SDK-specific exceptions
+2. **Log errors with context** - Include page IDs, request details
+3. **Provide user-friendly messages** - Convert technical errors
+4. **Use retry logic** - Handle rate limits gracefully
+5. **Clean up resources** - Use async with for automatic cleanup
+6. **Validate input** - Check data before sending to API
+7. **Fail gracefully** - Provide defaults or fallbacks
+
+## Complete Example
+
+```python
+import asyncio
+import logging
+from better_notion import NotionAPI
+from better_notion._api.errors import (
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+    RateLimitedError
+)
+from better_notion._api.properties import Select
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def robust_page_update(page_id, status):
+    """Update page with comprehensive error handling."""
+    async with NotionAPI(auth="secret_...") as api:
+        try:
+            # Get page
+            logger.info(f"Fetching page: {page_id}")
+            page = await api.pages.get(page_id)
+
+            # Update
+            logger.info(f"Updating status to: {status}")
+            await page.update(**Select("Status", status).build())
+            await page.save()
+
+            logger.info(f"Successfully updated: {page_id}")
+            return True
+
+        except UnauthorizedError:
+            logger.error("Authentication failed")
+            return False
+
+        except NotFoundError:
+            logger.error(f"Page not found: {page_id}")
+            return False
+
+        except ValidationError as e:
+            logger.error(f"Validation failed: {e}")
+            return False
+
+        except RateLimitedError as e:
+            logger.warning(f"Rate limited, retry after {e.retry_after}s")
+            # Could implement retry here
+            return False
+
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+            return False
+
+asyncio.run(robust_page_update("page_id", "Done"))
+```
+
+## Next Steps
+
+- [Working with Pages](working-with-pages) - Page operations
+- [Advanced - Rate Limits](../advanced/rate-limits) - Handle rate limiting
+- [Examples](../examples) - Real-world projects
+
+## See Also
+
+- [API Reference - Errors](../api/exceptions)
+- [Advanced - Async Patterns](../advanced/async-patterns)
+- [Working with Pages](working-with-pages)

@@ -1,0 +1,218 @@
+---
+title: Rate Limits
+description: Manage and handle Notion API rate limits
+---
+
+## Overview
+
+Notion enforces rate limits to ensure fair usage. The SDK handles these automatically, but understanding them helps optimize your application.
+
+## Rate Limit Details
+
+### Limits
+
+- **Requests per second**: ~3 requests/second
+- **Burst limit**: Short bursts allowed
+- **Daily quota**: Varies by integration
+
+### When Limited
+
+You'll receive `RateLimitedError`:
+
+```python
+from better_notion._api.errors import RateLimitedError
+
+try:
+    page = await api.pages.get("page_id")
+except RateLimitedError as e:
+    print(f"Rate limited. Retry after: {e.retry_after}s")
+```
+
+## Handling Rate Limits
+
+### Automatic Retry
+
+```python
+import asyncio
+from better_notion._api.errors import RateLimitedError
+
+async def call_with_retry(func, max_retries=3):
+    """Retry function on rate limit."""
+    for attempt in range(max_retries):
+        try:
+            return await func()
+
+        except RateLimitedError as e:
+            if attempt == max_retries - 1:
+                raise
+
+            wait = e.retry_after or 1
+            await asyncio.sleep(wait)
+
+    return await func()
+```
+
+### Exponential Backoff
+
+```python
+async def call_with_backoff(func, max_retries=5):
+    """Retry with exponential backoff."""
+    import time
+
+    for attempt in range(max_retries):
+        try:
+            return await func()
+
+        except RateLimitedError:
+            if attempt == max_retries - 1:
+                raise
+
+            wait_time = (2 ** attempt)  # 1s, 2s, 4s, 8s...
+            await asyncio.sleep(wait_time)
+
+    return await func()
+```
+
+## Reducing Rate Limit Impact
+
+### Batch Operations
+
+Group operations to reduce requests:
+
+```python
+# Bad - Multiple requests
+for page_id in page_ids:
+    await api.pages.get(page_id)
+
+# Good - Batch with iterate
+async for page in api.pages.iterate(database_id):
+    process(page)
+```
+
+### Concurrency Limits
+
+Limit concurrent requests:
+
+```python
+import asyncio
+
+async def safe_concurrent(pages):
+    """Process pages with limited concurrency."""
+    semaphore = asyncio.Semaphore(3)  # Max 3 concurrent
+
+    async def process_with_limit(page_id):
+        async with semaphore:
+            return await api.pages.get(page_id)
+
+    return await asyncio.gather(*[
+        process_with_limit(pid) for pid in pages
+    ])
+```
+
+### Caching
+
+Cache frequently accessed data:
+
+```python
+from functools import lru_cache
+from datetime import datetime, timedelta
+
+cache = {}
+
+async def cached_get_page(page_id):
+    """Get page with cache."""
+    if page_id in cache:
+        cached, timestamp = cache[page_id]
+
+        if datetime.now() - timestamp < timedelta(minutes=5):
+            return cached
+
+    # Fetch fresh
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.get(page_id)
+        cache[page_id] = (page, datetime.now())
+        return page
+```
+
+## Best Practices
+
+1. **Use iterate()** - More efficient than list()
+2. **Limit concurrency** - Don't send too many requests at once
+3. **Implement retry** - Handle RateLimitedError gracefully
+4. **Cache data** - Reduce redundant requests
+5. **Monitor usage** - Track rate limit hits
+
+## Monitoring
+
+### Log Rate Limits
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def monitored_call(func):
+    """Log API calls and rate limits."""
+    try:
+        return await func()
+
+    except RateLimitedError as e:
+        logger.warning(f"Rate limited: wait {e.retry_after}s")
+        raise
+```
+
+### Track Request Count
+
+```python
+class RateLimitTracker:
+    def __init__(self):
+        self.count = 0
+        self.limit_hits = 0
+
+    async def call(self, func):
+        self.count += 1
+        try:
+            return await func()
+        except RateLimitedError:
+            self.limit_hits += 1
+            raise
+
+tracker = RateLimitTracker()
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.errors import RateLimitedError
+
+async def batch_update_with_limits(page_ids, status):
+    """Update pages with rate limit handling."""
+    async with NotionAPI(auth="secret_...") as api:
+        for page_id in page_ids:
+            success = False
+            retries = 0
+
+            while not success and retries < 3:
+                try:
+                    page = await api.pages.get(page_id)
+                    await page.update(**Select("Status", status).build())
+                    await page.save()
+                    success = True
+
+                except RateLimitedError as e:
+                    retries += 1
+                    if retries < 3:
+                        await asyncio.sleep(e.retry_after or 1)
+                    else:
+                        raise
+
+asyncio.run(batch_update_with_limits(page_ids, "Done"))
+```
+
+## See Also
+
+- [Async Patterns](async-patterns)
+- [Error Handling](../guides/error-handling)
+- [Pagination](pagination)

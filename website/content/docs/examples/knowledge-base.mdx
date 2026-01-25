@@ -1,0 +1,587 @@
+---
+title: Knowledge Base Website
+description: Build a documentation website with Notion as CMS
+---
+
+## Overview
+
+Build a documentation website using Notion as a headless CMS. This example shows how to create a static site generator that pulls content from Notion databases.
+
+## Use Case
+
+- Company documentation
+- Product manuals
+- Knowledge base
+- Help center
+- Technical wiki
+
+## Architecture
+
+```
+Notion Database → Python Script → Static HTML → Deployment
+    (Pages)          (SDK)        (Generator)     (Hosting)
+```
+
+## Database Setup
+
+### Create Documentation Database
+
+1. Create new database in Notion
+2. Add these properties:
+   - **Title** (title) - Page title
+   - **Category** (select) - Section (e.g., "Getting Started", "API")
+   - **Content** (rich text) - Page content
+   - **Published** (checkbox) - Whether to publish
+   - **Order** (number) - Sort order
+
+### Sample Data
+
+Create pages with:
+- Title: "Installation Guide"
+- Category: "Getting Started"
+- Content: Full documentation text
+- Published: ✅
+- Order: 1
+
+## Implementation
+
+### Data Model
+
+```python
+from dataclasses import dataclass
+from typing import Optional
+
+@dataclass
+class DocPage:
+    """Documentation page."""
+    id: str
+    title: str
+    category: str
+    content: str
+    order: int
+    last_edited: str
+
+    @property
+    def slug(self) -> str:
+        """Generate URL slug."""
+        return self.title.lower().replace(" ", "-")
+
+    @property
+    def url(self) -> str:
+        """Generate page URL."""
+        return f"/{self.category.lower()}/{self.slug}"
+```
+
+### Content Fetcher
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Checkbox
+from better_notion._helpers import extract_content
+
+class KnowledgeBase:
+    """Knowledge base content manager."""
+
+    def __init__(self, auth: str, database_id: str):
+        self.auth = auth
+        self.database_id = database_id
+
+    async def fetch_pages(self) -> list[DocPage]:
+        """Fetch all published pages."""
+        pages = []
+
+        async with NotionAPI(auth=self.auth) as api:
+            # Query for published pages only
+            async for page in api.databases.query(
+                database_id=self.database_id,
+                filter={
+                    "property": "Published",
+                    "checkbox": {"equals": True}
+                },
+                sort=[{
+                    "property": "Order",
+                    "direction": "ascending"
+                }]
+            ):
+                # Extract properties
+                title = page.properties.get("Title", {}).get("title", [])
+                category = page.properties.get("Category", {}).get("select", {}).get("name", "Uncategorized")
+                order = page.properties.get("Order", {}).get("number", 0)
+                content = await self._get_page_content(page)
+
+                doc_page = DocPage(
+                    id=page.id,
+                    title=title[0]["text"]["content"] if title else "Untitled",
+                    category=category,
+                    content=content,
+                    order=order,
+                    last_edited=page.last_edited_time
+                )
+
+                pages.append(doc_page)
+
+        return pages
+
+    async def _get_page_content(self, page) -> str:
+        """Extract content from page blocks."""
+        content_parts = []
+
+        async for block in page.blocks():
+            content_parts.append(extract_content(block))
+
+        return "\n\n".join(content_parts)
+
+    async def get_page_by_id(self, page_id: str) -> Optional[DocPage]:
+        """Get specific page by ID."""
+        async with NotionAPI(auth=self.auth) as api:
+            page = await api.pages.get(page_id)
+            content = await self._get_page_content(page)
+
+            title = page.properties.get("Title", {}).get("title", [])
+            category = page.properties.get("Category", {}).get("select", {}).get("name", "Uncategorized")
+            order = page.properties.get("Order", {}).get("number", 0)
+
+            return DocPage(
+                id=page.id,
+                title=title[0]["text"]["content"] if title else "Untitled",
+                category=category,
+                content=content,
+                order=order,
+                last_edited=page.last_edited_time
+            )
+```
+
+### HTML Generator
+
+```python
+from pathlib import Path
+from typing import Dict, List
+
+class SiteGenerator:
+    """Generate static HTML site."""
+
+    def __init__(self, output_dir: str = "dist"):
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(exist_ok=True)
+
+    def generate(self, pages: List[DocPage]):
+        """Generate complete site."""
+        # Create category index
+        categories = self._group_by_category(pages)
+
+        # Generate category pages
+        for category, category_pages in categories.items():
+            self._generate_category_page(category, category_pages)
+
+        # Generate individual pages
+        for page in pages:
+            self._generate_page(page)
+
+        # Generate home page
+        self._generate_home_page(categories)
+
+    def _group_by_category(self, pages: List[DocPage]) -> Dict[str, List[DocPage]]:
+        """Group pages by category."""
+        categories = {}
+        for page in pages:
+            if page.category not in categories:
+                categories[page.category] = []
+            categories[page.category].append(page)
+        return categories
+
+    def _generate_category_page(self, category: str, pages: List[DocPage]):
+        """Generate category index page."""
+        category_slug = category.lower().replace(" ", "-")
+        output_path = self.output_dir / category_slug / "index.html"
+
+        output_path.parent.mkdir(exist_ok=True)
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{category} - Documentation</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <h1>{category}</h1>
+        <nav><a href="/">Home</a></nav>
+    </header>
+    <main>
+        <ul>
+            {self._generate_page_links(pages)}
+        </ul>
+    </main>
+</body>
+</html>"""
+
+        output_path.write_text(html)
+
+    def _generate_page(self, page: DocPage):
+        """Generate individual page."""
+        category_slug = page.category.lower().replace(" ", "-")
+        output_path = self.output_dir / category_slug / f"{page.slug}.html"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>{page.title} - Documentation</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <h1>{page.title}</h1>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/{category_slug}/">Back to {page.category}</a>
+        </nav>
+    </header>
+    <main>
+        <article>
+            {self._markdown_to_html(page.content)}
+        </article>
+        <footer>
+            <p>Last updated: {page.last_edited}</p>
+        </footer>
+    </main>
+</body>
+</html>"""
+
+        output_path.write_text(html)
+
+    def _generate_home_page(self, categories: Dict[str, List[DocPage]]):
+        """Generate home page."""
+        output_path = self.output_dir / "index.html"
+
+        html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Documentation</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Documentation</h1>
+    </header>
+    <main>
+        {self._generate_category_links(categories)}
+    </main>
+</body>
+</html>"""
+
+        output_path.write_text(html)
+
+    def _generate_page_links(self, pages: List[DocPage]) -> str:
+        """Generate page links HTML."""
+        links = []
+        for page in pages:
+            links.append(f'<li><a href="{page.slug}.html">{page.title}</a></li>')
+        return "\n".join(links)
+
+    def _generate_category_links(self, categories: Dict[str, List[DocPage]]) -> str:
+        """Generate category links HTML."""
+        sections = []
+        for category, pages in categories.items():
+            category_slug = category.lower().replace(" ", "-")
+            page_links = "\n".join(
+                f'<li><a href="{category_slug}/{page.slug}.html">{page.title}</a></li>'
+                for page in pages
+            )
+            sections.append(f"""
+                <section>
+                    <h2>{category}</h2>
+                    <ul>{page_links}</ul>
+                </section>
+            """)
+        return "\n".join(sections)
+
+    def _markdown_to_html(self, markdown: str) -> str:
+        """Convert markdown to HTML (simplified)."""
+        # In production, use a proper markdown library
+        html = markdown.replace("\n\n", "</p><p>")
+        html = html.replace("**", "<strong>").replace("**", "</strong>")
+        html = html.replace("`", "<code>").replace("`", "</code>")
+        return f"<p>{html}</p>"
+```
+
+### Main Build Script
+
+```python
+import asyncio
+import os
+from dotenv import load_dotenv
+
+async def build_site():
+    """Build complete documentation site."""
+    load_dotenv()
+
+    # Configuration
+    auth = os.getenv("NOTION_TOKEN")
+    database_id = os.getenv("DOCS_DATABASE_ID")
+
+    if not auth or not database_id:
+        raise ValueError("NOTION_TOKEN and DOCS_DATABASE_ID required")
+
+    # Fetch content
+    kb = KnowledgeBase(auth, database_id)
+    print("Fetching pages from Notion...")
+    pages = await kb.fetch_pages()
+    print(f"Fetched {len(pages)} pages")
+
+    # Generate site
+    generator = SiteGenerator(output_dir="dist")
+    print("Generating HTML...")
+    generator.generate(pages)
+    print("Site generated in dist/")
+
+    return pages
+
+if __name__ == "__main__":
+    pages = asyncio.run(build_site())
+
+    # Print summary
+    categories = {}
+    for page in pages:
+        if page.category not in categories:
+            categories[page.category] = 0
+        categories[page.category] += 1
+
+    print("\nGenerated pages by category:")
+    for category, count in categories.items():
+        print(f"  {category}: {count} pages")
+```
+
+## CSS Styles
+
+`styles.css`:
+```bash
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+header {
+    background: #2c3e50;
+    color: white;
+    padding: 1rem 2rem;
+}
+
+header nav a {
+    color: white;
+    margin-left: 1rem;
+    text-decoration: none;
+}
+
+main {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+}
+
+h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+h2 {
+    margin: 2rem 0 1rem;
+    color: #2c3e50;
+}
+
+section {
+    margin-bottom: 3rem;
+}
+
+article {
+    line-height: 1.8;
+}
+
+code {
+    background: #f4f4f4;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-family: "Monaco", "Courier New", monospace;
+}
+
+footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+    color: #777;
+    font-size: 0.9rem;
+}
+
+ul {
+    list-style: none;
+}
+
+ul li {
+    padding: 0.5rem 0;
+}
+
+a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+```
+
+## Deployment
+
+### Deploy to GitHub Pages
+
+```bash
+# Build site
+python build.py
+
+# Deploy with GitHub Actions
+# .github/workflows/deploy.yml
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python build.py
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+```
+
+### Deploy to Netlify
+
+```bash
+# netlify.toml
+[build]
+  command = "python build.py"
+  publish = "dist"
+```
+
+## Advanced Features
+
+### Full Markdown Rendering
+
+```python
+import markdown
+from markdown.extensions import extra, codehilite
+
+def _markdown_to_html(self, markdown: str) -> str:
+    """Convert markdown to HTML with full features."""
+    md = markdown.Markdown(
+        extensions=[Extra(), CodeHilite(), 'toc']
+    )
+    return md.convert(markdown)
+```
+
+### Search Functionality
+
+```python
+import json
+
+class SiteGenerator:
+    def _generate_search_index(self, pages: List[DocPage]):
+        """Generate search index for client-side search."""
+        index = [
+            {
+                "title": page.title,
+                "url": page.url,
+                "category": page.category,
+                "content": page.content[:200]  # Preview
+            }
+            for page in pages
+        ]
+
+        output_path = self.output_dir / "search.json"
+        output_path.write_text(json.dumps(index))
+```
+
+### Incremental Builds
+
+```python
+from datetime import datetime
+
+class KnowledgeBase:
+    async def fetch_updated_pages(self, since: str) -> list[DocPage]:
+        """Fetch only pages updated since timestamp."""
+        pages = []
+
+        async with NotionAPI(auth=self.auth) as api:
+            async for page in api.databases.query(
+                database_id=self.database_id,
+                filter={
+                    "and": [
+                        {
+                            "property": "Published",
+                            "checkbox": {"equals": True}
+                        },
+                        {
+                            "property": "Last edited time",
+                            "last_edited_time": {"after": since}
+                        }
+                    ]
+                }
+            ):
+                # Process page...
+                pass
+
+        return pages
+```
+
+## Best Practices
+
+1. **Cache content** - Don't rebuild unchanged pages
+2. **Use filters** - Only fetch published content
+3. **Validate data** - Check required properties
+4. **Handle errors** - Graceful failure on missing pages
+5. **Optimize images** - Compress before serving
+6. **Generate sitemap** - For SEO
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._helpers import extract_content
+
+async def simple_kb_example():
+    """Simple knowledge base example."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Fetch all pages from database
+        async for page in api.databases.query("database_id"):
+            title = extract_content(page)
+            print(f"Title: {title}")
+
+            # Get page content
+            async for block in page.blocks():
+                content = extract_content(block)
+                print(f"  {content}")
+
+asyncio.run(simple_kb_example())
+```
+
+## See Also
+
+- [Working with Blocks](../guides/working-with-blocks)
+- [Querying Databases](../guides/querying-databases)
+- [Helpers Reference](../api/helpers)

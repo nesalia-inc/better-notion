@@ -1,0 +1,342 @@
+---
+title: Querying Databases
+description: Filter, sort, and paginate database queries
+---
+
+import { Database, Filter, ArrowUpDown } from 'lucide-react';
+
+This guide covers querying Notion databases with filters, sorts, and pagination.
+
+## Overview
+
+<Database /> **Database queries** allow you to retrieve filtered and sorted sets of pages from a database.
+
+## Query Methods
+
+### Simple Query (No Filter)
+
+Get all pages without filtering:
+
+```python
+result = await api.databases.query("database_id")
+
+pages = result["results"]
+for page in pages:
+    print(page.id)
+```
+
+### Query with Filters
+
+<Callout type="info">
+  **Filter Support**: The SDK supports basic filtering. For complex queries, you may need to use the API directly.
+</Callout>
+
+```python
+# Query with filter (when implemented)
+result = await api.databases.query(
+    "database_id",
+    filter={
+        "property": "Status",
+        "select": {
+            "equals": "In Progress"
+        }
+    }
+)
+```
+
+### Query with Sorting
+
+```python
+# Sort by property
+result = await api.databases.query(
+    "database_id",
+    sort=[
+        {
+            "property": "Last Edited",
+            "direction": "descending"
+        }
+    ]
+)
+```
+
+## Pagination
+
+### Understanding Pagination
+
+Notion uses cursor-based pagination. Each query returns:
+- `results` - Current page of results
+- `has_more` - Whether more results exist
+- `next_cursor` - Cursor for next page
+
+### Manual Pagination
+
+```python
+async def get_all_pages(database_id):
+    """Get all pages with pagination."""
+    all_pages = []
+    start_cursor = None
+
+    while True:
+        result = await api.databases.query(
+            database_id,
+            start_cursor=start_cursor
+        )
+
+        all_pages.extend(result["results"])
+
+        if not result.get("has_more"):
+            break
+
+        start_cursor = result.get("next_cursor")
+
+    return all_pages
+```
+
+### Automatic Iteration
+
+Use `iterate()` for automatic pagination:
+
+```python
+async for page in api.pages.iterate(database_id):
+    print(page.id)
+```
+
+This is more efficient than manual pagination.
+
+## Filter Types
+
+### Text Filters
+
+```python
+filter = {
+    "property": "Name",
+    "title": {
+        "contains": "Keyword"
+    }
+}
+```
+
+### Select Filters
+
+```python
+filter = {
+    "property": "Status",
+    "select": {
+        "equals": "Done"
+    }
+}
+```
+
+### Date Filters
+
+```python
+filter = {
+    "property": "Due Date",
+    "date": {
+        "on_or_before": "2025-01-31"
+    }
+}
+```
+
+### Checkbox Filters
+
+```python
+filter = {
+    "property": "Urgent",
+    "checkbox": {
+        "equals": True
+    }
+}
+```
+
+## Compound Filters
+
+### AND Logic
+
+Both conditions must be true:
+
+```python
+filter = {
+    "and": [
+        {
+            "property": "Status",
+            "select": {"equals": "In Progress"}
+        },
+        {
+            "property": "Urgent",
+            "checkbox": {"equals": True}
+        }
+    ]
+}
+```
+
+### OR Logic
+
+At least one condition must be true:
+
+```python
+filter = {
+    "or": [
+        {
+            "property": "Status",
+            "select": {"equals": "Done"}
+        },
+        {
+            "property": "Status",
+            "select": {"equals": "In Progress"}
+        }
+    ]
+}
+```
+
+## Sort Options
+
+### Single Sort
+
+```python
+sort = [
+    {
+        "property": "Created",
+        "direction": "descending"
+    }
+]
+```
+
+### Multiple Sorts
+
+```python
+sort = [
+    {
+        "property": "Status",
+        "direction": "ascending"
+    },
+    {
+        "property": "Priority",
+        "direction": "descending"
+    }
+]
+```
+
+## Query Results Structure
+
+```python
+result = await api.databases.query("database_id")
+
+# Access results
+pages = result["results"]
+has_more = result["has_more"]
+next_cursor = result.get("next_cursor")
+
+# Results are Page entities
+for page in pages:
+    print(f"{page.id}: {page.properties}")
+```
+
+## Common Patterns
+
+### Filter by Status
+
+```python
+async def get_tasks_by_status(database_id, status):
+    """Get tasks with specific status."""
+    result = await api.databases.query(
+        database_id,
+        filter={
+            "property": "Status",
+            "select": {"equals": status}
+        }
+    )
+    return result["results"]
+```
+
+### Get Recent Items
+
+```python
+async def get_recent_items(database_id, days=7):
+    """Get items modified in last N days."""
+    from datetime import datetime, timedelta
+
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat()
+
+    result = await api.databases.query(
+        database_id,
+        filter={
+            "property": "Last Edited",
+            "last_edited_time": {
+                "on_or_after": cutoff
+            }
+        },
+        sort=[{
+            "property": "Last Edited",
+            "direction": "descending"
+        }]
+    )
+    return result["results"]
+```
+
+### Pagination with Limit
+
+```python
+async def get_pages_with_limit(database_id, limit=10):
+    """Get pages with limit."""
+    result = await api.databases.query(
+        database_id
+    )
+
+    pages = result["results"][:limit]
+    return pages
+```
+
+## Best Practices
+
+<ArrowUpDown /> **Follow these practices**:
+
+1. **Use iterate() for large datasets** - More memory efficient
+2. **Cache results** - Avoid repeated queries
+3. **Use specific filters** - Reduce data transfer
+4. **Sort in query** - Not server-side sorting
+5. **Handle empty results** - Check if results array is empty
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Select
+
+async def query_database():
+    """Query database with filters and sorting."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Query with filter and sort
+        result = await api.databases.query(
+            "database_id",
+            filter={
+                "property": "Status",
+                "select": {"equals": "In Progress"}
+            },
+            sort=[{
+                "property": "Priority",
+                "direction": "descending"
+            }]
+        )
+
+        # Process results
+        for page in result["results"]:
+            title = page.properties["Name"]["title"][0]["plain_text"]
+            status = page.properties["Status"]["select"]["name"]
+            print(f"{title} - {status}")
+
+asyncio.run(query_database())
+```
+
+## Next Steps
+
+- [Working with Pages](working-with-pages) - Use query results
+- [Search](search) - Search across workspace
+- [Advanced - Pagination](../advanced/pagination) - Deep dive on pagination
+
+## See Also
+
+- [API Reference - DatabaseCollection](../api/collections/database-collection)
+- [Working with Pages](working-with-pages)
+- [Examples](../examples)

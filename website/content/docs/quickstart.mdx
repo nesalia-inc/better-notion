@@ -1,0 +1,277 @@
+---
+title: Quick Start
+description: Get up and running with Better Notion in 5 minutes
+icon: Zap
+---
+
+import { Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+
+This guide will help you make your first API call to Notion in less than 5 minutes.
+
+<Callout type="success">
+  **Time**: ~5 minutes | **Difficulty**: Beginner
+</Callout>
+
+## What You'll Learn
+
+In this guide, you'll:
+- Install the Better Notion SDK
+- Create a Notion integration
+- Get your API token
+- Make your first API call
+- Understand basic concepts
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### Prerequisites
+
+Ensure you have:
+- **Python 3.10 or higher** installed
+- **pip** or **uv** for package installation
+- A **Notion account** with access to create integrations
+
+Check your Python version:
+```bash
+python --version
+# or
+python3 --version
+```
+
+### Install the SDK
+
+Create a new project:
+```bash
+mkdir notion-demo
+cd notion-demo
+
+# Optional: create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+```
+
+Install Better Notion:
+```bash
+pip install better-notion
+```
+
+<Callout type="tip">
+  **Recommended**: Use a virtual environment to isolate your project dependencies.
+</Callout>
+
+### Create a Notion Integration
+
+1. Visit [notion.so/my-integrations](https://notion.so/my-integrations)
+2. Click **"+ New integration"**
+3. Fill in the details:
+   - **Name**: `My Better Notion App` (or any name)
+   - **Associated workspace**: Select your workspace
+   - **Type**: Internal
+   - **Capabilities**: Read/Write for needed content
+4. Click **"Submit"**
+5. **Copy your Internal Integration Token** (starts with `secret_`)
+
+<Callout type="warning">
+  **Important**: Keep your token secure! Don't commit it to version control. Store it in environment variables or a `.env` file.
+</Callout>
+
+### Share Content with Your Integration
+
+To access pages or databases, you need to share them with your integration:
+
+1. Go to the page or database you want to access
+2. Click **"..."** (more) in the top-right
+3. Scroll to **"Connections"** and click **"Add integrations"**
+4. Select your integration from the list
+
+<Callout type="info">
+  **Parent Access**: To create pages in a database, the integration needs access to the parent database/page.
+</Callout>
+
+### Write Your First Script
+
+Create a file `main.py`:
+
+```python
+import asyncio
+from better_notion import NotionAPI
+
+async def main():
+  # Replace with your actual token and page ID
+  token = "secret_your_token_here"
+  page_id = "your_page_id_here"
+
+  # Create API client
+  async with NotionAPI(auth=token) as api:
+    # Get a page
+    page = await api.pages.get(page_id)
+
+    # Print page properties
+    print(f"Page ID: {page.id}")
+    print(f"Created: {page.created_time}")
+    print(f"Properties: {page.properties}")
+
+asyncio.run(main())
+```
+
+<Callout type="tip">
+  **Finding Page IDs**: Copy the page ID from the URL: `notion.so/workspace/PAGE_ID?v=...`
+</Callout>
+
+### Run Your Script
+
+```bash
+python main.py
+```
+
+You should see output like:
+```
+Page ID: 5c6a28216bb14a7eb6e1c50111515c3d
+Created: 2025-01-24 12:00:00
+Properties: {'Name': {...}, 'Status': {...}}
+```
+
+<Callout type="success">
+  **Success!** You've made your first API call.
+</Callout>
+
+</div>
+
+## Next: Update a Page
+
+Now let's do something more interesting - update a page property:
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Select
+
+async def main():
+  token = "secret_your_token_here"
+  page_id = "your_page_id_here"
+
+  async with NotionAPI(auth=token) as api:
+    # Get the page
+    page = await api.pages.get(page_id)
+
+    # Update status locally
+    from better_notion._api.properties import Select
+    await page.update(**Select("Status", "In Progress").build())
+
+    # Save to Notion
+    await page.save()
+
+    print("Page updated!")
+
+asyncio.run(main())
+```
+
+<Callout type="info">
+  **Two-Step Process**: Updates use a two-step process:
+  1. <code>update()</code> - Change properties locally
+  2. <code>save()</code> - Persist changes to Notion
+</Callout>
+
+## Common Issues
+
+### Error: Unauthorized
+
+**Problem**: `UnauthorizedError: Invalid token`
+
+**Solutions**:
+- Verify your token starts with `secret_`
+- Check for typos in the token
+- Ensure the integration hasn't been deleted
+
+### Error: Not Found
+
+**Problem**: `NotFoundError: Page not found`
+
+**Solutions**:
+- Verify the page ID is correct
+- Check that you've shared the page with your integration
+- Ensure the integration has access to the parent workspace
+
+### ImportError: No module named 'better_notion'
+
+**Problem**: Module not found
+
+**Solutions**:
+- Ensure you installed the package: `pip install better-notion`
+- Check you're using the correct Python environment
+- Try `pip list` to verify installation
+
+## What's Next?
+
+Congratulations! You've completed the quick start. Here are recommended next steps:
+
+<Cards>
+  <Card
+    title="Basic Concepts"
+    href="getting-started/basic-concepts"
+    icon={<Clock />}
+  >
+    Learn about Pages, Blocks, Databases, and the entity model.
+  </Card>
+  <Card
+    title="Working with Pages"
+    href="guides/working-with-pages"
+  >
+    Dive deeper into CRUD operations for pages.
+  </Card>
+  <Card
+    title="Property Builders"
+    href="guides/property-builders"
+  >
+    Master type-safe property builders.
+  </Card>
+  <Card
+    title="Examples"
+    href="examples"
+  >
+    Explore real-world projects built with Better Notion.
+  </Card>
+</Cards>
+
+## Full Example Code
+
+Here's the complete example with error handling:
+
+```python
+import asyncio
+from better_notion import NotionAPI, NotFoundError
+from better_notion._api.properties import Select
+
+async def main():
+  token = "secret_your_token_here"
+  page_id = "your_page_id_here"
+
+  try:
+    async with NotionAPI(auth=token) as api:
+      # Get page
+      page = await api.pages.get(page_id)
+      print(f"Found page: {page.id}")
+
+      # Update status
+      await page.update(**Select("Status", "Done").build())
+      await page.save()
+      print("Status updated!")
+
+  except NotFoundError:
+    print("Error: Page not found or integration lacks access")
+
+  except Exception as e:
+    print(f"Error: {e}")
+
+asyncio.run(main())
+```
+
+<Callout type="tip">
+  **Best Practice**: Always use <code>async with</code> for automatic connection cleanup, and wrap API calls in try/except blocks for proper error handling.
+</Callout>
+
+## See Also
+
+- [Installation](getting-started/installation) - Detailed installation guide
+- [Authentication](getting-started/authentication) - Authentication deep dive
+- [Basic Concepts](getting-started/basic-concepts) - Core SDK concepts
+- [Error Handling](guides/error-handling) - Handle exceptions properly

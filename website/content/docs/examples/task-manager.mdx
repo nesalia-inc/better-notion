@@ -1,0 +1,409 @@
+---
+title: Build a Task Manager
+description: Complete CLI task manager with create, list, update, and complete operations
+---
+
+import { CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+
+<Callout type="success">
+  **Time**: ~30 minutes | **Difficulty**: Beginner | **Topics**: Pages, Properties, Databases
+</Callout>
+
+## What We'll Build
+
+A complete CLI task manager with:
+- Create tasks with title, status, priority, and due date
+- List all tasks
+- Update task status
+- Mark tasks as complete
+- Filter by status
+
+**Final Result:**
+
+```bash
+python task_manager.py create "Review PR #123"
+python task_manager.py list
+python task_manager.py update "page_id" "In Progress"
+python task_manager.py complete "page_id"
+```
+
+## Prerequisites
+
+- Completed [Quick Start](../quickstart)
+- Python 3.10+
+- Notion database with these properties:
+  - **Name** (Title)
+  - **Status** (Select: To Do, In Progress, Done)
+  - **Priority** (Select: Low, Medium, High)
+
+## Step 1: Project Setup
+
+Create project structure:
+
+```bash
+mkdir task_manager
+cd task_manager
+python -m venv .venv
+source .venv/bin/activate
+pip install better-notion python-dotenv
+```
+
+## Step 2: Configuration
+
+Create `.env`:
+
+```bash
+NOTION_TOKEN=secret_your_token_here
+DATABASE_ID=your_database_id_here
+```
+
+## Step 3: Implementation
+
+Create `task_manager.py`:
+
+```python
+import asyncio
+import sys
+import os
+from better_notion import NotionAPI, NotFoundError
+from better_notion._api.properties import Title, Select, Date
+from dotenv import load_dotenv
+
+load_dotenv()
+
+NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+DATABASE_ID = os.getenv("DATABASE_ID")
+
+async def create_task(title: str, priority: str = "Medium", due_date: str = None):
+    """Create a new task."""
+    async with NotionAPI(auth=NOTION_TOKEN) as api:
+        properties = {
+            **Title(title).build(),
+            **Select("Status", "To Do").build(),
+            **Select("Priority", priority).build()
+        }
+
+        if due_date:
+            properties.update(**Date("Due Date", due_date).build())
+
+        task = await api.pages.create(
+            parent={"database_id": DATABASE_ID},
+            properties=properties
+        )
+
+        print(f"Created task: {task.id}")
+        return task
+
+async def list_tasks(status: str = None):
+    """List all tasks, optionally filtered by status."""
+    async with NotionAPI(auth=NOTION_TOKEN) as api:
+        tasks = await api.pages.list(DATABASE_ID)
+
+        for task in tasks:
+            task_status = task.properties["Status"]["select"]["name"]
+            title = task.properties["Name"]["title"][0]["plain_text"]
+
+            if status is None or task_status == status:
+                priority = task.properties.get("Priority", {}).get("select", {}).get("name", "")
+                print(f"[{task_status}] {title} - {priority}")
+
+async def update_status(page_id: str, status: str):
+    """Update task status."""
+    async with NotionAPI(auth=NOTION_TOKEN) as api:
+        task = await api.pages.get(page_id)
+        await task.update(**Select("Status", status).build())
+        await task.save()
+
+        print(f"Updated task to: {status}")
+
+async def complete_task(page_id: str):
+    """Mark task as complete."""
+    await update_status(page_id, "Done")
+    print("Task completed!")
+
+async def main():
+    """Main CLI entry point."""
+    if len(sys.argv) < 2:
+        print("Usage: python task_manager.py <command> [args]")
+        print("Commands:")
+        print("  create <title> [priority] [due_date]")
+        print("  list [status]")
+        print("  update <page_id> <status>")
+        print("  complete <page_id>")
+        sys.exit(1)
+
+    command = sys.argv[1]
+
+    if command == "create":
+        if len(sys.argv) < 3:
+            print("Error: title required")
+            sys.exit(1)
+
+        title = sys.argv[2]
+        priority = sys.argv[3] if len(sys.argv) > 3 else "Medium"
+        due_date = sys.argv[4] if len(sys.argv) > 4 else None
+
+        await create_task(title, priority, due_date)
+
+    elif command == "list":
+        status = sys.argv[2] if len(sys.argv) > 2 else None
+        await list_tasks(status)
+
+    elif command == "update":
+        if len(sys.argv) < 4:
+            print("Error: page_id and status required")
+            sys.exit(1)
+
+        page_id = sys.argv[2]
+        status = sys.argv[3]
+        await update_status(page_id, status)
+
+    elif command == "complete":
+        if len(sys.argv) < 3:
+            print("Error: page_id required")
+            sys.exit(1)
+
+        page_id = sys.argv[2]
+        await complete_task(page_id)
+
+    else:
+        print(f"Unknown command: {command}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Step 4: Test It
+
+```bash
+# Create tasks
+python task_manager.py create "Fix bug" "High"
+python task_manager.py create "Write docs" "Medium" "2025-01-30"
+
+# List all tasks
+python task_manager.py list
+
+# List only To Do tasks
+python task_manager.py list "To Do"
+
+# Update status
+python task_manager.py update "page_id" "In Progress"
+
+# Complete task
+python task_manager.py complete "page_id"
+```
+
+## Extensions
+
+### Add Due Date Command
+
+```python
+async def set_due_date(page_id: str, due_date: str):
+    """Set task due date."""
+    async with NotionAPI(auth=NOTION_TOKEN) as api:
+        task = await api.pages.get(page_id)
+        await task.update(**Date("Due Date", due_date).build())
+        await task.save()
+```
+
+### Add Description
+
+```python
+from better_notion._api.properties import Text
+
+# In create_task
+properties.update(**Text("Description", "Task details...").build())
+```
+
+### Search Tasks
+
+```python
+async def search_tasks(keyword: str):
+    """Search for tasks by keyword."""
+    async with NotionAPI(auth=NOTION_TOKEN) as api:
+        result = await api.search(keyword)
+
+        for item in result["results"]:
+            if item["object"] == "page":
+                print(f"Found: {item['id']}")
+```
+
+## Complete Source
+
+<details>
+<summary>task_manager.py (complete with error handling)</summary>
+
+```python
+import asyncio
+import sys
+import os
+import logging
+from better_notion import NotionAPI
+from better_notion._api.errors import NotionAPIError, NotFoundError, ValidationError
+from better_notion._api.properties import Title, Select, Date
+from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+logger = logging.getLogger(__name__)
+
+load_dotenv()
+
+NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+DATABASE_ID = os.getenv("DATABASE_ID")
+
+async def create_task(title: str, priority: str = "Medium", due_date: str = None):
+    """Create a new task."""
+    try:
+        async with NotionAPI(auth=NOTION_TOKEN) as api:
+            properties = {
+                **Title(title).build(),
+                **Select("Status", "To Do").build(),
+                **Select("Priority", priority).build()
+            }
+
+            if due_date:
+                properties.update(**Date("Due Date", due_date).build())
+
+            task = await api.pages.create(
+                parent={"database_id": DATABASE_ID},
+                properties=properties
+            )
+
+            logger.info(f"Created: {task.id}")
+            return task
+
+    except NotionAPIError as e:
+        logger.error(f"Failed to create task: {e}")
+        return None
+
+async def list_tasks(status: str = None):
+    """List all tasks."""
+    try:
+        async with NotionAPI(auth=NOTION_TOKEN) as api:
+            tasks = await api.pages.list(DATABASE_ID)
+
+            for task in tasks:
+                task_status = task.properties["Status"]["select"]["name"]
+                if status and task_status != status:
+                    continue
+
+                title = task.properties["Name"]["title"][0]["plain_text"]
+                priority = task.properties.get("Priority", {}).get("select", {}).get("name", "")
+                print(f"[{task_status}] {title} - {priority}")
+
+    except NotionAPIError as e:
+        logger.error(f"Failed to list tasks: {e}")
+
+async def update_status(page_id: str, status: str):
+    """Update task status."""
+    try:
+        async with NotionAPI(auth=NOTION_TOKEN) as api:
+            task = await api.pages.get(page_id)
+            await task.update(**Select("Status", status).build())
+            await task.save()
+
+            logger.info(f"Updated: {page_id} -> {status}")
+            return True
+
+    except NotFoundError:
+        logger.error(f"Task not found: {page_id}")
+        return False
+    except NotionAPIError as e:
+        logger.error(f"Failed to update: {e}")
+        return False
+
+async def complete_task(page_id: str):
+    """Mark task as complete."""
+    return await update_status(page_id, "Done")
+
+async def main():
+    """Main CLI entry point."""
+    if len(sys.argv) < 2:
+        print("Usage: python task_manager.py <command> [args]")
+        print("\nCommands:")
+        print("  create <title> [priority] [due_date]")
+        print("  list [status]")
+        print("  update <page_id> <status>")
+        print("  complete <page_id>")
+        sys.exit(1)
+
+    command = sys.argv[1]
+
+    if command == "create":
+        if len(sys.argv) < 3:
+            logger.error("Error: title required")
+            sys.exit(1)
+
+        title = sys.argv[2]
+        priority = sys.argv[3] if len(sys.argv) > 3 else "Medium"
+        due_date = sys.argv[4] if len(sys.argv) > 4 else None
+
+        await create_task(title, priority, due_date)
+
+    elif command == "list":
+        status = sys.argv[2] if len(sys.argv) > 2 else None
+        await list_tasks(status)
+
+    elif command == "update":
+        if len(sys.argv) < 4:
+            logger.error("Error: page_id and status required")
+            sys.exit(1)
+
+        page_id = sys.argv[2]
+        status = sys.argv[3]
+        await update_status(page_id, status)
+
+    elif command == "complete":
+        if len(sys.argv) < 3:
+            logger.error("Error: page_id required")
+            sys.exit(1)
+
+        page_id = sys.argv[2]
+        await complete_task(page_id)
+
+    else:
+        logger.error(f"Unknown command: {command}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+</details>
+
+## Troubleshooting
+
+### ImportError: No module named 'dotenv'
+
+```bash
+pip install python-dotenv
+```
+
+### Tasks not appearing
+
+Check:
+- Database ID is correct
+- Integration has database access
+- Property names match schema
+
+### Update fails
+
+Verify:
+- Page ID is correct
+- Status option exists in database
+- Integration has page access
+
+## What's Next
+
+- Add task deletion command
+- Implement task filtering by priority
+- Add task descriptions with Text property
+- Build a web UI with FastAPI
+
+## See Also
+
+- [Working with Pages](../../guides/working-with-pages)
+- [Property Builders](../../guides/property-builders)
+- [Error Handling](../../guides/error-handling)
+- [Knowledge Base Example](knowledge-base)

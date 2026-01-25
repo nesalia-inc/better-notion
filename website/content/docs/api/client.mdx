@@ -1,0 +1,218 @@
+---
+title: NotionAPI Client
+description: Main API client for Better Notion SDK
+---
+
+## Overview
+
+The `NotionAPI` client is the main entry point for all Notion API operations.
+
+## Constructor
+
+### Initialize Client
+
+```python
+from better_notion import NotionAPI
+
+api = NotionAPI(auth="secret_...")
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `auth` | `str` | Yes | Notion API token (starts with `secret_`) |
+
+**Example:**
+
+```python
+import os
+from better_notion import NotionAPI
+
+token = os.getenv("NOTION_TOKEN")
+api = NotionAPI(auth=token)
+```
+
+## Collections
+
+### pages
+
+Type: `PageCollection`
+
+Access page operations:
+
+```python
+page = await api.pages.get("page_id")
+pages = await api.pages.list("database_id")
+```
+
+See: [PageCollection](../collections/page-collection)
+
+### blocks
+
+Type: `BlockCollection`
+
+Access block operations:
+
+```python
+block = await api.blocks.get("block_id")
+children = await api.blocks.children("block_id")
+```
+
+See: [BlockCollection](../collections/block-collection)
+
+### databases
+
+Type: `DatabaseCollection`
+
+Access database operations:
+
+```python
+database = await api.databases.get("database_id")
+result = await api.databases.query("database_id")
+```
+
+See: [DatabaseCollection](../collections/database-collection)
+
+### users
+
+Type: `UserCollection`
+
+Access user operations:
+
+```python
+user = await api.users.me()
+users = await api.users.list()
+```
+
+See: [UserCollection](../collections/user-collection)
+
+## Methods
+
+### search()
+
+Search across workspace.
+
+```python
+await api.search(query, filter=None, sort=None)
+```
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | `str` | Yes | Search query |
+| `filter` | `dict` | No | Filter by object type |
+| `sort` | `dict` | No | Sort options |
+
+**Returns:** `dict` with search results
+
+**Example:**
+
+```python
+result = await api.search(
+    "integration test",
+    filter={"property": "object", "value": "page"}
+)
+```
+
+### search_iterate()
+
+Iterate over search results.
+
+```python
+async for result in api.search_iterate(query, filter=None, sort=None):
+    # Process result
+```
+
+**Example:**
+
+```python
+async for result in api.search_iterate("test"):
+    print(f"Found: {result['id']}")
+```
+
+## Context Manager
+
+### Using async with
+
+Recommended for automatic resource cleanup:
+
+```python
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+    # Connection closed automatically
+```
+
+### Manual Cleanup
+
+```python
+api = NotionAPI(auth="secret_...")
+try:
+    page = await api.pages.get("page_id")
+finally:
+    await api.close()
+```
+
+## Advanced Usage
+
+### Direct API Access
+
+Access low-level API methods:
+
+```python
+data = await api._request("GET", "/pages/page_id")
+```
+
+<Callout type="warning">
+  **Advanced Only**: Use `_request()` only when needed. Prefer entity/collection methods.
+</Callout>
+
+### Custom Session
+
+Configure HTTP client:
+
+```python
+import httpx
+
+async with NotionAPI(
+    auth="secret_...",
+    session=httpx.AsyncClient(timeout=30.0)
+) as api:
+    page = await api.pages.get("page_id")
+```
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Title
+
+async def main():
+    """Example usage of NotionAPI client."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Get a page
+        page = await api.pages.get("page_id")
+
+        # List database pages
+        pages = await api.pages.list("database_id")
+
+        # Create a page
+        new_page = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties={**Title("New Page").build()}
+        )
+
+        # Search
+        results = await api.search("keyword")
+
+asyncio.run(main())
+```
+
+## See Also
+
+- [PageCollection](../collections/page-collection)
+- [BlockCollection](../collections/block-collection)
+- [DatabaseCollection](../collections/database-collection)
+- [UserCollection](../collections/user-collection)

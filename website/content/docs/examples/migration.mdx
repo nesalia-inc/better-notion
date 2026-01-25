@@ -1,0 +1,549 @@
+---
+title: Migration from Official SDK
+description: Migrate code from the official Notion SDK
+---
+
+## Overview
+
+Migrate existing code from the official `notion-client` Python SDK to Better Notion SDK. This guide shows common patterns and differences.
+
+## Key Differences
+
+### Architecture
+
+**Official SDK**:
+```python
+# Low-level, request-based
+from notion_client import Client
+
+client = Client(auth="secret_...")
+response = client.pages.retrieve(page_id="page_id")
+```
+
+**Better Notion SDK**:
+```python
+# High-level, entity-based
+from better_notion import NotionAPI
+
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+```
+
+### Async vs Sync
+
+**Official SDK**: Synchronous by default
+```python
+page = client.pages.retrieve(page_id="id")
+```
+
+**Better Notion SDK**: Async-only
+```python
+page = await api.pages.get("page_id")
+```
+
+## API Client Initialization
+
+### Official SDK
+
+```python
+from notion_client import Client
+
+# Basic initialization
+client = Client(auth="secret_...")
+
+# With options
+client = Client(
+    auth="secret_...",
+    timeout_ms=5000,
+    log_level="debug"
+)
+```
+
+### Better Notion SDK
+
+```python
+from better_notion import NotionAPI
+
+# Basic initialization
+api = NotionAPI(auth="secret_...")
+
+# With context manager (recommended)
+async with NotionAPI(auth="secret_...") as api:
+    # API calls here
+    pass
+```
+
+## Page Operations
+
+### Retrieve Page
+
+**Official SDK**:
+```python
+response = client.pages.retrieve(page_id="page_id")
+title = response["properties"]["Name"]["title"][0]["text"]["content"]
+```
+
+**Better Notion SDK**:
+```python
+page = await api.pages.get("page_id")
+title = page.properties.get("Name", {}).get("title", [])
+# Or use helper:
+from better_notion._helpers import extract_title
+title = extract_title(page)
+```
+
+### Create Page
+
+**Official SDK**:
+```python
+response = client.pages.create(
+    parent={"database_id": "database_id"},
+    properties={
+        "Name": {
+            "title": [{"text": {"content": "New Page"}}]
+        },
+        "Status": {
+            "select": {"name": "Todo"}
+        }
+    }
+)
+```
+
+**Better Notion SDK**:
+```python
+from better_notion._api.properties import Title, Select
+
+page = await api.pages.create(
+    parent={"database_id": "database_id"},
+    properties={
+        **Title("New Page").build(),
+        **Select("Status", "Todo").build()
+    }
+)
+```
+
+### Update Page
+
+**Official SDK**:
+```python
+client.pages.update(
+    page_id="page_id",
+    properties={
+        "Status": {"select": {"name": "Done"}}
+    }
+)
+```
+
+**Better Notion SDK**:
+```python
+# Method 1: Direct update
+page = await api.pages.get("page_id")
+await page.update(**Select("Status", "Done").build())
+await page.save()
+
+# Method 2: Batch updates
+page = await api.pages.get("page_id")
+await page.update(
+    **Select("Status", "Done").build(),
+    **Checkbox("Archived", True).build()
+)
+await page.save()
+```
+
+## Block Operations
+
+### Retrieve Block
+
+**Official SDK**:
+```python
+block = client.blocks.retrieve(block_id="block_id")
+content = block["paragraph"]["text"][0]["text"]["content"]
+```
+
+**Better Notion SDK**:
+```python
+block = await api.blocks.get("block_id")
+content = block.content
+```
+
+### Append Block
+
+**Official SDK**:
+```python
+client.blocks.children.append(
+    block_id="parent_id",
+    children=[
+        {
+            "object": "block",
+            "type": "paragraph",
+            "paragraph": {
+                "rich_text": [{"type": "text", "text": {"content": "Text"}}]
+            }
+        }
+    ]
+)
+```
+
+**Better Notion SDK**:
+```python
+from better_notion._api.blocks import Paragraph
+
+await parent_block.append(
+    Paragraph("Text").build()
+)
+```
+
+### List Block Children
+
+**Official SDK**:
+```python
+response = client.blocks.children.list(block_id="block_id")
+blocks = response["results"]
+```
+
+**Better Notion SDK**:
+```python
+# Method 1: Get all children
+blocks = await parent_block.children()
+
+# Method 2: Iterate (for large sets)
+async for block in parent_block.children():
+    process(block)
+```
+
+## Database Operations
+
+### Query Database
+
+**Official SDK**:
+```python
+response = client.databases.query(
+    database_id="database_id",
+    filter={
+        "property": "Status",
+        "select": {"equals": "Done"}
+    }
+)
+pages = response["results"]
+```
+
+**Better Notion SDK**:
+```python
+# Method 1: Query first page
+pages = await api.databases.query(
+    database_id="database_id",
+    filter={
+        "property": "Status",
+        "select": {"equals": "Done"}
+    }
+)
+
+# Method 2: Iterate all results
+async for page in api.databases.iterate(
+    database_id="database_id",
+    filter={
+        "property": "Status",
+        "select": {"equals": "Done"}
+    }
+):
+    process(page)
+```
+
+### Create Database Page
+
+**Official SDK**:
+```python
+client.pages.create(
+    parent={"database_id": "database_id"},
+    properties={...}
+)
+```
+
+**Better Notion SDK**:
+```python
+# Method 1: Via API
+await api.pages.create(
+    parent={"database_id": "database_id"},
+    properties={...}
+)
+
+# Method 2: Via Database entity
+database = await api.databases.get("database_id")
+page = await database.create_page(properties={...})
+```
+
+## Property Operations
+
+### Property Format
+
+**Official SDK** - Manual construction:
+```python
+properties = {
+    "Name": {
+        "title": [{"text": {"content": "My Page"}}]
+    },
+    "Tags": {
+        "multi_select": [
+            {"name": "Tag1"},
+            {"name": "Tag2"}
+        ]
+    },
+    "Date": {
+        "date": {"start": "2025-01-24"}
+    }
+}
+```
+
+**Better Notion SDK** - Type-safe builders:
+```python
+from better_notion._api.properties import Title, MultiSelect, Date
+
+properties = {
+    **Title("My Page").build(),
+    **MultiSelect("Tags", ["Tag1", "Tag2"]).build(),
+    **Date("Date", "2025-01-24").build()
+}
+```
+
+### Property Parsing
+
+**Official SDK** - Manual extraction:
+```python
+def get_title(page):
+    title_prop = page["properties"]["Name"]
+    if title_prop.get("title"):
+        return title_prop["title"][0]["text"]["content"]
+    return None
+```
+
+**Better Notion SDK** - Helpers:
+```python
+from better_notion._helpers import extract_title
+
+title = extract_title(page)
+```
+
+## Error Handling
+
+### Official SDK
+
+```python
+from notion_client import APIResponseError
+
+try:
+    page = client.pages.retrieve(page_id="page_id")
+except APIResponseError as error:
+    if error.code == "object_not_found":
+        print("Page not found")
+    elif error.code == "unauthorized":
+        print("Unauthorized")
+    else:
+        print(f"Error: {error}")
+```
+
+### Better Notion SDK
+
+```python
+from better_notion._api.errors import NotFoundError, UnauthorizedError
+
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found")
+except UnauthorizedError:
+    print("Unauthorized")
+except APIError as e:
+    print(f"Error: {e}")
+```
+
+## Pagination
+
+### Official SDK
+
+```python
+def get_all_pages(client, database_id):
+    """Manual pagination."""
+    all_pages = []
+    has_more = True
+    start_cursor = None
+
+    while has_more:
+        response = client.databases.query(
+            database_id=database_id,
+            start_cursor=start_cursor
+        )
+
+        all_pages.extend(response["results"])
+        has_more = response["has_more"]
+        start_cursor = response["next_cursor"]
+
+    return all_pages
+```
+
+### Better Notion SDK
+
+```python
+# Automatic pagination with iterate()
+async for page in api.databases.iterate(database_id):
+    process(page)
+```
+
+## Common Migration Patterns
+
+### Sync to Async
+
+```python
+# Before (official SDK)
+def get_pages():
+    pages = []
+    for page_id in page_ids:
+        page = client.pages.retrieve(page_id=page_id)
+        pages.append(page)
+    return pages
+
+# After (Better Notion SDK)
+async def get_pages():
+    pages = []
+    for page_id in page_ids:
+        page = await api.pages.get(page_id)
+        pages.append(page)
+    return pages
+```
+
+### Batch Operations
+
+```python
+# Before (official SDK)
+def update_pages(page_ids, status):
+    for page_id in page_ids:
+        client.pages.update(
+            page_id=page_id,
+            properties={"Status": {"select": {"name": status}}}
+        )
+
+# After (Better Notion SDK)
+async def update_pages(page_ids, status):
+    tasks = []
+    for page_id in page_ids:
+        page = await api.pages.get(page_id)
+        await page.update(**Select("Status", status).build())
+        tasks.append(page.save())
+
+    await asyncio.gather(*tasks)
+```
+
+### Search
+
+```python
+# Before (official SDK)
+response = client.search(
+    query="term",
+    filter={"property": "object", "value": "page"}
+)
+results = response["results"]
+
+# After (Better Notion SDK)
+results = await api.search(query="term", filter={"value": "page"})
+
+# Or iterate all results
+async for result in api.search_iterate(query="term"):
+    process(result)
+```
+
+## Complete Migration Example
+
+### Before (Official SDK)
+
+```python
+from notion_client import Client
+
+def process_tasks():
+    """Process tasks with official SDK."""
+    client = Client(auth="secret_...")
+
+    # Query incomplete tasks
+    response = client.databases.query(
+        database_id="database_id",
+        filter={
+            "property": "Status",
+            "select": {"does_not_equal": "Done"}
+        }
+    )
+
+    for task in response["results"]:
+        # Extract title
+        title_prop = task["properties"]["Name"]["title"]
+        title = title_prop[0]["text"]["content"] if title_prop else "Untitled"
+
+        # Update status
+        client.pages.update(
+            page_id=task["id"],
+            properties={
+                "Status": {"select": {"name": "Done"}}
+            }
+        )
+
+        print(f"Completed: {title}")
+
+if __name__ == "__main__":
+    process_tasks()
+```
+
+### After (Better Notion SDK)
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Select
+from better_notion._helpers import extract_title
+
+async def process_tasks():
+    """Process tasks with Better Notion SDK."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Query incomplete tasks
+        async for task in api.databases.iterate(
+            database_id="database_id",
+            filter={
+                "property": "Status",
+                "select": {"does_not_equal": "Done"}
+            }
+        ):
+            # Extract title
+            title = extract_title(task)
+
+            # Update status
+            await task.update(**Select("Status", "Done").build())
+            await task.save()
+
+            print(f"Completed: {title}")
+
+if __name__ == "__main__":
+    asyncio.run(process_tasks())
+```
+
+## Migration Checklist
+
+- [ ] Change sync to async (add `async`/`await`)
+- [ ] Replace manual property construction with builders
+- [ ] Replace manual property extraction with helpers
+- [ ] Replace manual pagination with `iterate()`
+- [ ] Update error handling to use specific exceptions
+- [ ] Replace context manager usage for API client
+- [ ] Update import statements
+- [ ] Test with staging data first
+
+## Benefits of Migration
+
+1. **Type Safety** - Property builders prevent typos
+2. **Convenience** - Helper functions simplify common tasks
+3. **Architecture** - Entity-based design is more intuitive
+4. **Async** - Better performance for concurrent operations
+5. **Pagination** - Automatic handling of large datasets
+6. **Error Handling** - Specific exception types
+
+## See Also
+
+- [Property Builders](../guides/property-builders)
+- [Async Patterns](../advanced/async-patterns)
+- [Error Handling](../guides/error-handling)
+- [Pagination](../advanced/pagination)

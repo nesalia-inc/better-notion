@@ -1,0 +1,242 @@
+---
+title: Page Entity
+description: Complete API reference for the Page entity
+---
+
+## Overview
+
+The `Page` entity represents a Notion page with full CRUD operations.
+
+## Class Definition
+
+```python
+class Page:
+    def __init__(self, api: NotionAPI, data: dict[str, Any]) -> None:
+        """Initialize a Page entity."""
+```
+
+## Constructor
+
+### `Page(api, data)`
+
+Create a Page instance from API response data.
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `api` | `NotionAPI` | Yes | The API client instance |
+| `data` | `dict[str, Any]` | Yes | Raw page data from Notion API |
+
+**Example:**
+
+```python
+from better_notion._api.entities import Page
+
+raw_data = await api._request("GET", "/pages/page_id")
+page = Page(api, raw_data)
+```
+
+## Properties
+
+### id
+
+Type: `str`
+
+Unique page identifier.
+
+```python
+page_id = page.id
+```
+
+### created_time
+
+Type: `datetime`
+
+Creation timestamp.
+
+```python
+from datetime import datetime
+
+created: datetime = page.created_time
+```
+
+### last_edited_time
+
+Type: `datetime`
+
+Last edit timestamp.
+
+```python
+edited: datetime = page.last_edited_time
+```
+
+### archived
+
+Type: `bool`
+
+Whether the page is archived.
+
+```python
+is_archived = page.archived
+```
+
+### parent
+
+Type: `dict[str, Any]`
+
+Parent object (database or page).
+
+```python
+parent = page.parent
+# {'type': 'database_id', 'database_id': '...'}
+```
+
+### properties
+
+Type: `dict[str, Any]`
+
+Page properties dict.
+
+```python
+props = page.properties
+title = props["Name"]["title"][0]["plain_text"]
+```
+
+### blocks
+
+Type: `BlockCollection`
+
+Children blocks collection.
+
+```python
+blocks = page.blocks
+children = await blocks.children()
+```
+
+## Methods
+
+### update()
+
+Update page properties locally (not persisted).
+
+```python
+async def update(**kwargs: Any) -> None
+```
+
+**Parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `**kwargs` | `Any` | Property updates |
+
+**Raises:**
+- `ValidationError`: If properties are invalid
+
+**Example:**
+
+```python
+from better_notion._api.properties import Select
+
+await page.update(
+    **Select("Status", "In Progress").build()
+)
+```
+
+### save()
+
+Save modified properties to Notion.
+
+```python
+async def save() -> None
+```
+
+**Raises:**
+- `NotFoundError`: If page no longer exists
+- `ValidationError`: If properties are invalid
+
+**Example:**
+
+```python
+await page.update(**Select("Status", "Done").build())
+await page.save()
+```
+
+<Callout type="info">
+  Only modified properties are sent to Notion.
+</Callout>
+
+### delete()
+
+Archive the page.
+
+```python
+async def delete() -> None
+```
+
+**Raises:**
+- `NotFoundError`: If page no longer exists
+
+**Example:**
+
+```python
+await page.delete()
+```
+
+### reload()
+
+Reload page data from Notion.
+
+```python
+async def reload() -> None
+```
+
+**Raises:**
+- `NotFoundError`: If page no longer exists
+
+**Example:**
+
+```python
+await page.reload()
+```
+
+## Usage Examples
+
+### Complete CRUD
+
+```python
+async with NotionAPI(auth="secret_...") as api:
+    # Create
+    page = await api.pages.create(
+        parent={"database_id": "db_id"},
+        properties={**Title("New Page").build()}
+    )
+
+    # Read
+    page = await api.pages.get(page.id)
+
+    # Update
+    await page.update(**Select("Status", "Done").build())
+    await page.save()
+
+    # Delete
+    await page.delete()
+```
+
+### Block Navigation
+
+```python
+page = await api.pages.get("page_id")
+
+# Get children blocks
+children = await page.blocks.children()
+
+# Add blocks
+await page.blocks.append(children=[...])
+```
+
+## See Also
+
+- [Working with Pages](../../guides/working-with-pages)
+- [PageCollection](../collections/page-collection)
+- [Block Entity](block)

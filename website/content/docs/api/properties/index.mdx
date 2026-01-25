@@ -1,0 +1,108 @@
+---
+title: Properties
+description: Property builders - Title, Select, Date, Checkbox, Number
+---
+
+## Overview
+
+**Property Builders** provide type-safe construction of Notion properties.
+
+Available builders:
+- `Title` - Page titles
+- `Text` / `RichText` - Text content
+- `Select` / `MultiSelect` - Select options
+- `Date` - Dates and date ranges
+- `Checkbox` - Boolean values
+- `Number` - Numeric values
+- `URL` / `Email` / `Phone` - Contact info
+
+## Importing
+
+```python
+from better_notion._api.properties import (
+    Title,
+    Text,
+    Select,
+    MultiSelect,
+    Date,
+    Checkbox,
+    Number,
+    URL,
+    Email,
+    Phone
+)
+```
+
+## Using Builders
+
+### Basic Usage
+
+```python
+# Build property
+properties = Title("My Title").build()
+
+# Unpack when using
+page = await api.pages.create(
+    parent={"database_id": "db_id"},
+    properties={**Title("My Title").build()}
+)
+```
+
+### Multiple Properties
+
+```python
+properties = {
+    **Title("Task").build(),
+    **Select("Status", "To Do").build(),
+    **Date("Due", "2025-01-30").build()
+}
+```
+
+## Builder Reference
+
+All builders follow this pattern:
+
+```python
+Builder(value, name=None).build()
+```
+
+**Returns**: `dict` that can be unpacked with `**`
+
+### Title
+
+```python
+Title("My Page").build()
+Title("My Title", name="CustomName").build()
+```
+
+### Select
+
+```python
+Select("Status", "Done").build()
+```
+
+### Date
+
+```python
+Date("Due Date", "2025-01-30").build()
+Date("Sprint", start="2025-01-01", end="2025-01-31").build()
+```
+
+### Checkbox
+
+```python
+Checkbox("Done", True).build()
+Checkbox("Done", False).build()
+```
+
+### Number
+
+```python
+Number("Count", 42).build()
+Number("Price", 19.99).build()
+```
+
+## See Also
+
+- [Property Builders Guide](../../guides/property-builders)
+- [Working with Pages](../../guides/working-with-pages)

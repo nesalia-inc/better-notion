@@ -1,0 +1,438 @@
+---
+title: Working with Pages
+description: Learn how to create, read, update, and delete Notion pages
+---
+
+import { FileText, Edit3, Trash2, RotateCw } from 'lucide-react';
+
+This guide covers complete CRUD (Create, Read, Update, Delete) operations for Notion pages.
+
+## Overview
+
+The `Page` entity represents a Notion page with methods for all common operations:
+- Create new pages
+- Retrieve existing pages
+- Update page properties
+- Delete (archive) pages
+- Reload page data
+
+<Callout type="info">
+  **Notion doesn't support permanent deletion**. The `delete()` method archives pages instead.
+</Callout>
+
+## Retrieving Pages
+
+### Get a Single Page
+
+Retrieve a page by its ID:
+
+```python
+from better_notion import NotionAPI
+
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+
+    print(f"Page ID: {page.id}")
+    print(f"Created: {page.created_time}")
+    print(f"Archived: {page.archived}")
+```
+
+**Returns**: `Page` entity
+
+**Raises**: `NotFoundError` if page doesn't exist or integration lacks access
+
+### List Pages in a Database
+
+Get the first page of results:
+
+```python
+pages = await api.pages.list("database_id")
+
+for page in pages:
+    print(f"{page.id}: {page.properties}")
+```
+
+<Callout type="warning">
+  **Limited Results**: `list()` only returns the first page. Use `iterate()` for complete results.
+</Callout>
+
+### Iterate Over All Pages
+
+Memory-efficient iteration for large databases:
+
+```python
+async for page in api.pages.iterate("database_id"):
+    print(f"Page: {page.id}")
+```
+
+This fetches pages lazily, using only the memory needed for the current page.
+
+## Creating Pages
+
+### Create in a Database
+
+```python
+from better_notion._api.properties import Title
+
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.create(
+        parent={"database_id": "database_id"},
+        properties={
+            **Title("My New Page").build()
+        }
+    )
+
+    print(f"Created page: {page.id}")
+```
+
+### Create with Multiple Properties
+
+```python
+from better_notion._api.properties import Title, Select, Date
+
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.create(
+        parent={"database_id": "database_id"},
+        properties={
+            **Title("Task Name").build(),
+            **Select("Status", "To Do").build(),
+            **Date("Due Date", "2025-01-30").build()
+        }
+    )
+```
+
+### Create as a Child Page
+
+```python
+page = await api.pages.create(
+    parent={"page_id": "parent_page_id"},
+    properties={**Title("Child Page").build()}
+)
+```
+
+## Updating Pages
+
+Updates use a two-step process:
+
+<div className="fd-steps [&_h3]:fd-step">
+
+### Retrieve the Page
+
+```python
+page = await api.pages.get("page_id")
+```
+
+### Update Properties Locally
+
+```python
+from better_notion._api.properties import Select
+
+await page.update(**Select("Status", "In Progress").build())
+```
+
+### Save to Notion
+
+```python
+await page.save()
+```
+
+</div>
+
+<Callout type="warning">
+  **Changes Not Persisted**: Until you call `save()`, changes are only in memory.
+</Callout>
+
+### Complete Update Example
+
+```python
+from better_notion._api.properties import Select, Date
+
+async with NotionAPI(auth="secret_...") as api:
+    # Get page
+    page = await api.pages.get("page_id")
+
+    # Update multiple properties
+    await page.update(
+        **Select("Status", "Done").build(),
+        **Date("Completed Date", "2025-01-25").build()
+    )
+
+    # Save to Notion
+    await page.save()
+
+    print("Page updated!")
+```
+
+### Update Archived Status
+
+```python
+# Archive a page
+await page.update(archived=True)
+await page.save()
+
+# Unarchive a page
+await page.update(archived=False)
+await page.save()
+```
+
+## Deleting Pages
+
+### Archive a Page
+
+<Trash2 /> **Delete archives the page** (permanent deletion requires Notion UI):
+
+```python
+async with NotionAPI(auth="secret_...") as api:
+    page = await api.pages.get("page_id")
+
+    # Archive the page
+    await page.delete()
+
+    print("Page archived")
+```
+
+This is equivalent to setting `archived=True` in Notion.
+
+### Verify Archive Status
+
+```python
+await page.delete()
+print(page.archived)  # True
+
+# Or reload to get fresh data
+await page.reload()
+print(page.archived)  # True
+```
+
+## Reloading Pages
+
+<RotateCw /> **Reload** discards local changes and fetches fresh data from Notion:
+
+```python
+page = await api.pages.get("page_id")
+
+# Make local changes (not saved)
+await page.update(**Select("Status", "Done").build())
+
+# Reload - discards unsaved changes
+await page.reload()
+
+# _modified_properties is now empty
+print(page._modified)  # False
+```
+
+**When to use**:
+- Get the latest state from Notion
+- Discard unsaved local changes
+- Refresh after external modifications
+
+## Page Properties
+
+### Access Properties
+
+```python
+page = await api.pages.get("page_id")
+
+# Access properties dict
+properties = page.properties
+
+# Get specific property
+title_prop = properties["Name"]
+title_text = title_prop["title"][0]["plain_text"]
+```
+
+### Common Properties
+
+```python
+# Basic properties
+page.id              # Page ID (str)
+page.created_time    # Creation datetime
+page.last_edited_time # Last edit datetime
+page.archived        # Archived status (bool)
+page.parent          # Parent object (dict)
+page.properties      # All properties (dict)
+```
+
+## Working with Blocks
+
+### Access Child Blocks
+
+```python
+page = await api.pages.get("page_id")
+
+# Get blocks collection
+blocks = page.blocks
+
+# Get children
+children = await blocks.children()
+
+for block in children:
+    print(f"Block: {block.type}")
+```
+
+### Add Blocks to a Page
+
+```python
+# Add a paragraph block
+await page.blocks.append(children=[
+    {
+        "object": "block",
+        "type": "paragraph",
+        "paragraph": {
+            "rich_text": [
+                {"type": "text", "text": {"content": "New content"}}
+            ]
+        }
+    }
+])
+```
+
+<Callout type="info">
+  **For More Block Operations**: See [Working with Blocks](working-with-blocks) for complete block manipulation.
+</Callout>
+
+## Common Patterns
+
+### Batch Update Pages
+
+```python
+async def update_multiple_pages(page_ids, status):
+    """Update multiple pages to the same status."""
+    async with NotionAPI(auth="secret_...") as api:
+        for page_id in page_ids:
+            page = await api.pages.get(page_id)
+            await page.update(**Select("Status", status).build())
+            await page.save()
+
+asyncio.run(update_multiple_pages(
+    ["id1", "id2", "id3"],
+    "Done"
+))
+```
+
+### Conditional Update
+
+```python
+page = await api.pages.get("page_id")
+
+# Only update if status is "To Do"
+current_status = page.properties["Status"]["select"]["name"]
+
+if current_status == "To Do":
+    await page.update(**Select("Status", "In Progress").build())
+    await page.save()
+```
+
+### Update with Error Handling
+
+```python
+from better_notion._api.errors import NotFoundError, ValidationError
+
+async def safe_update(page_id, status):
+    """Update page with error handling."""
+    try:
+        page = await api.pages.get(page_id)
+        await page.update(**Select("Status", status).build())
+        await page.save()
+        return True
+
+    except NotFoundError:
+        print(f"Page {page_id} not found")
+        return False
+
+    except ValidationError as e:
+        print(f"Validation error: {e}")
+        return False
+```
+
+## Troubleshooting
+
+### Changes Not Appearing in Notion
+
+**Problem**: Updated properties don't show in Notion
+
+**Solutions**:
+- Ensure you called `await page.save()`
+- Check for validation errors
+- Verify property names match database schema
+
+### Page Not Found
+
+**Problem**: `NotFoundError: Page not found`
+
+**Solutions**:
+- Verify the page ID is correct
+- Check integration has access to the page
+- Ensure page is not in a restricted workspace
+
+### Update Validation Error
+
+**Problem**: `ValidationError: Invalid property`
+
+**Solutions**:
+- Check property names match exactly (case-sensitive)
+- Verify select options exist in database
+- Ensure date format is correct (YYYY-MM-DD)
+
+## Complete Examples
+
+### Task Management Workflow
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Title, Select
+
+async def task_workflow():
+    """Complete task management workflow."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Create a task
+        task = await api.pages.create(
+            parent={"database_id": "database_id"},
+            properties={**Title("Review PR").build()}
+        )
+
+        # Update status to "In Progress"
+        await task.update(**Select("Status", "In Progress").build())
+        await task.save()
+
+        # Work on task...
+
+        # Mark as done
+        await task.update(**Select("Status", "Done").build())
+        await task.save()
+
+        print(f"Task {task.id} completed!")
+
+asyncio.run(task_workflow())
+```
+
+### Page Cleanup
+
+```python
+async def archive_old_pages(database_id, days=30):
+    """Archive pages older than specified days."""
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.now() - timedelta(days=days)
+
+    async with NotionAPI(auth="secret_...") as api:
+        async for page in api.pages.iterate(database_id):
+            if page.created_time < cutoff:
+                await page.delete()
+                print(f"Archived {page.id}")
+
+asyncio.run(archive_old_pages("database_id", days=30))
+```
+
+## Next Steps
+
+- [Working with Blocks](working-with-blocks) - Manipulate content
+- [Property Builders](property-builders) - Type-safe properties
+- [Error Handling](error-handling) - Handle exceptions
+
+## See Also
+
+- [API Reference - Page Entity](../api/entities/page)
+- [API Reference - PageCollection](../api/collections/page-collection)
+- [Querying Databases](querying-databases)

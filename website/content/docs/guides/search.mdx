@@ -1,0 +1,224 @@
+---
+title: Search
+description: Search across your entire Notion workspace
+---
+
+import { Search } from 'lucide-react';
+
+This guide covers searching for content across your entire Notion workspace.
+
+## Overview
+
+<Search /> **Search** allows you to find pages and blocks across all your Notion content, not just within a single database.
+
+## Basic Search
+
+### Simple Text Search
+
+Search for pages and blocks containing text:
+
+```python
+result = await api.search("query text")
+
+for item in result["results"]:
+    print(f"{item['object']}: {item['id']}")
+```
+
+**Returns**: Dict with `results` array
+
+### Empty Search
+
+Search all content:
+
+```python
+result = await api.search("")
+```
+
+## Search Options
+
+### Filter by Object Type
+
+Search only pages:
+
+```python
+result = await api.search(
+    "query",
+    filter={
+        "property": "object",
+        "value": "page"
+    }
+)
+```
+
+Search only blocks:
+
+```python
+result = await api.search(
+    "query",
+    filter={
+        "property": "object",
+        "value": "block"
+    }
+)
+```
+
+### Filter with Sort
+
+Sort search results:
+
+```python
+result = await api.search(
+    "query",
+    sort={
+        "direction": "ascending",
+        "timestamp": "last_edited_time"
+    }
+)
+```
+
+## Search Iterate
+
+Iterate over all search results:
+
+```python
+async for result in api.search_iterate("query"):
+    print(f"Found: {result['id']}")
+```
+
+This handles pagination automatically.
+
+## Search Response Structure
+
+```python
+result = await api.search("query")
+
+# Results array
+items = result["results"]
+
+# Each item has:
+for item in items:
+    object_type = item["object"]  # "page" or "block"
+    item_id = item["id"]
+    # ... other properties
+```
+
+## Common Patterns
+
+### Find Pages by Title
+
+```python
+async def find_pages_by_title(title_query):
+    """Search for pages with title containing text."""
+    result = await api.search(
+        title_query,
+        filter={"property": "object", "value": "page"}
+    )
+
+    pages = [item for item in result["results"]]
+    return pages
+```
+
+### Search in Content
+
+```python
+async def search_content(keyword):
+    """Search for keyword in page and block content."""
+    result = await api.search(keyword)
+
+    for item in result["results"]:
+        if item["object"] == "page":
+            print(f"Page: {item['id']}")
+        elif item["object"] == "block":
+            print(f"Block: {item['id']}")
+```
+
+### Paginated Search
+
+```python
+async def search_all(keyword, max_results=100):
+    """Search with limit."""
+    count = 0
+    async for result in api.search_iterate(keyword):
+        print(f"Found: {result['id']}")
+        count += 1
+
+        if count >= max_results:
+            break
+```
+
+## Search vs Database Query
+
+| Feature | Search | Database Query |
+|---------|--------|----------------|
+| Scope | Entire workspace | Single database |
+| Filters | Limited | Advanced filters |
+| Performance | Slower for large workspaces | Faster, indexed |
+| Use Case | Find content anywhere | Query structured data |
+
+**When to use Search**:
+- Find content across multiple databases
+- Locate pages by title
+- Full-text content search
+- Discover related content
+
+**When to use Database Query**:
+- Query structured data
+- Filter by specific properties
+- Sort results
+- Better performance
+
+## Limitations
+
+<Callout type="warning">
+  **Search Limitations**: Notion's search API has limited filtering capabilities compared to database queries.
+</Callout>
+
+**Limitations**:
+- Limited filter options
+- Slower than database queries
+- May not find recent content immediately
+- Results ranked by relevance
+
+## Best Practices
+
+1. **Be Specific** - Use detailed search terms
+2. **Filter by Type** - Reduce noise by filtering pages/blocks
+3. **Use Iterate** - Handle pagination automatically
+4. **Cache Results** - Avoid repeated searches
+5. **Combine with Filters** - Narrow down results
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+
+async def search_example():
+    """Search across workspace."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Search for pages
+        result = await api.search(
+            "integration test",
+            filter={"property": "object", "value": "page"}
+        )
+
+        print(f"Found {len(result['results'])} pages")
+
+        for item in result["results"]:
+            if "properties" in item:
+                title = item["properties"]["Name"]["title"][0]["plain_text"]
+                print(f"- {title}")
+
+asyncio.run(search_example())
+```
+
+## Next Steps
+
+- [Querying Databases](querying-databases) - Database-specific queries
+- [Working with Pages](working-with-pages) - Use search results
+- [Examples](../examples) - Real-world usage
+
+## See Also
+
+- [API Reference - Client](../api/client) - search() methods
+- [Notion API - Search](https://developers.notion.com/reference/post-search)

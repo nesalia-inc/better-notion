@@ -1,0 +1,540 @@
+---
+title: Workflow Automation
+description: Automate tasks and workflows with the SDK
+---
+
+## Overview
+
+Automate repetitive tasks and build workflow integrations using the Better Notion SDK. This example shows how to create powerful automation scripts.
+
+## Use Cases
+
+- Task scheduling and reminders
+- Content publishing workflows
+- Data synchronization
+- Automated reporting
+- Status tracking
+
+## Basic Automation Patterns
+
+### Scheduled Tasks
+
+```python
+import asyncio
+from datetime import datetime, timedelta
+from better_notion import NotionAPI
+from better_notion._api.properties import Select, Date
+
+async def update_overdue_tasks():
+    """Mark overdue tasks as 'Urgent'."""
+    async with NotionAPI(auth="secret_...") as api:
+        today = datetime.now().date()
+
+        # Find all incomplete tasks
+        async for page in api.databases.query(
+            database_id="database_id",
+            filter={
+                "and": [
+                    {
+                        "property": "Status",
+                        "select": {"does_not_equal": "Done"}
+                    },
+                    {
+                        "property": "Due Date",
+                        "date": {"on_or_before": today.isoformat()}
+                    }
+                ]
+            }
+        ):
+            # Mark as urgent
+            await page.update(**Select("Priority", "Urgent").build())
+            await page.save()
+
+            print(f"Updated: {page.properties.get('Name', {})}")
+
+asyncio.run(update_overdue_tasks())
+```
+
+### Repeating Tasks
+
+```python
+async def create_recurring_tasks():
+    """Create recurring tasks based on template."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Get templates
+        async for template in api.databases.query(
+            database_id="template_db_id",
+            filter={"property": "Recurring", "checkbox": {"equals": True}}
+        ):
+            # Get recurrence settings
+            frequency = template.properties.get("Frequency", {}).get("select", {}).get("name")
+            last_created = template.properties.get("Last Created", {}).get("date", {}).get("start")
+
+            # Check if should create new instance
+            if should_create_task(frequency, last_created):
+                # Create new task
+                name = extract_title(template)
+                await api.pages.create(
+                    parent={"database_id": "tasks_db_id"},
+                    properties={
+                        **Title(name).build(),
+                        **Select("Status", "Todo").build(),
+                        **DateProperty("Due Date", calculate_due_date(frequency)).build()
+                    }
+                )
+
+                # Update last created
+                await template.update(
+                    **DateProperty("Last Created", datetime.now().date()).build()
+                )
+                await template.save()
+
+def should_create_task(frequency: str, last_created: str) -> bool:
+    """Check if task should be created."""
+    if not last_created:
+        return True
+
+    # Implementation depends on frequency
+    # Daily, weekly, monthly, etc.
+    return True
+
+asyncio.run(create_recurring_tasks())
+```
+
+## Data Synchronization
+
+### Sync with External API
+
+```python
+import httpx
+from better_notion import NotionAPI
+from better_notion._api.properties import Title, Number, URL
+
+async def sync_github_issues():
+    """Sync GitHub issues to Notion database."""
+    GITHUB_TOKEN = "github_token"
+    NOTION_DATABASE_ID = "database_id"
+
+    async with httpx.AsyncClient() as client:
+        # Fetch issues from GitHub
+        response = await client.get(
+            "https://api.github.com/repos/owner/repo/issues",
+            headers={"Authorization": f"token {GITHUB_TOKEN}"}
+        )
+        issues = response.json()
+
+    async with NotionAPI(auth="secret_...") as api:
+        for issue in issues:
+            # Check if already exists
+            existing = await find_page_by_github_id(api, issue["id"])
+
+            if existing:
+                # Update existing
+                await existing.update(
+                    **Title(issue["title"]).build(),
+                    **Number("Number", issue["number"]).build()
+                )
+                await existing.save()
+            else:
+                # Create new
+                await api.pages.create(
+                    parent={"database_id": NOTION_DATABASE_ID},
+                    properties={
+                        **Title(issue["title"]).build(),
+                        **Number("Number", issue["number"]).build(),
+                        **URL("URL", issue["html_url"]).build(),
+                        **Select("Status", "Open").build()
+                    }
+                )
+
+async def find_page_by_github_id(api: NotionAPI, github_id: int):
+    """Find page by GitHub issue ID."""
+    async for page in api.databases.query("database_id"):
+        if page.properties.get("GitHub ID") == github_id:
+            return page
+    return None
+
+asyncio.run(sync_github_issues())
+```
+
+### Two-Way Sync
+
+```python
+async def bidirectional_sync():
+    """Sync data between Notion and external system."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Fetch from Notion
+        notion_pages = {}
+        async for page in api.databases.query("database_id"):
+            sync_id = page.properties.get("Sync ID", {}).get("number")
+            if sync_id:
+                notion_pages[sync_id] = page
+
+        # Fetch from external system
+        external_items = fetch_external_items()
+
+        # Sync: External -> Notion
+        for item in external_items:
+            if item["id"] not in notion_pages:
+                # Create new
+                await api.pages.create(
+                    parent={"database_id": "database_id"},
+                    properties=create_properties_from_item(item)
+                )
+            elif has_changes(notion_pages[item["id"]], item):
+                # Update existing
+                await notion_pages[item["id"]].update(
+                    **create_properties_from_item(item)
+                )
+                await notion_pages[item["id"]].save()
+
+        # Sync: Notion -> External
+        for page in api.databases.query("database_id"):
+            if should_sync_to_external(page):
+                await push_to_external(page)
+
+asyncio.run(bidirectional_sync())
+```
+
+## Automated Reporting
+
+### Daily Status Report
+
+```python
+from datetime import datetime, timedelta
+from better_notion import NotionAPI
+
+async def generate_daily_report():
+    """Generate daily status report page."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Gather data
+        today = datetime.now().date()
+        yesterday = today - timedelta(days=1)
+
+        # Count tasks by status
+        stats = await gather_task_stats(api, yesterday, today)
+
+        # Create report page
+        report_content = format_report(stats)
+
+        await api.pages.create(
+            parent={"page_id": "reports_page_id"},
+            properties={
+                **Title(f"Daily Report - {today}").build(),
+                **Select("Type", "Daily").build()
+            },
+            children=[
+                Paragraph(report_content).build()
+            ]
+        )
+
+async def gather_task_stats(api: NotionAPI, start: datetime.date, end: datetime.date) -> dict:
+    """Gather task statistics."""
+    stats = {
+        "completed": 0,
+        "created": 0,
+        "in_progress": 0
+    }
+
+    async for page in api.databases.query("database_id"):
+        # Count by status and date range
+        # Implementation depends on your setup
+        pass
+
+    return stats
+
+def format_report(stats: dict) -> str:
+    """Format statistics into report."""
+    return f"""
+    # Daily Status Report
+
+    **Completed Tasks**: {stats['completed']}
+    **New Tasks**: {stats['created']}
+    **In Progress**: {stats['in_progress']}
+    """
+
+asyncio.run(generate_daily_report())
+```
+
+### Weekly Summary
+
+```python
+async def send_weekly_summary():
+    """Generate and send weekly summary."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Get this week's activity
+        start_of_week = datetime.now().date() - timedelta(days=datetime.now().weekday())
+
+        activity = []
+
+        async for page in api.databases.query(
+            database_id="database_id",
+            filter={
+                "property": "Last edited time",
+                "date": {"after": start_of_week.isoformat()}
+            }
+        ):
+            title = extract_title(page)
+            status = page.properties.get("Status", {}).get("select", {}).get("name")
+            activity.append(f"- {title}: {status}")
+
+        # Format summary
+        summary = "## Weekly Activity\n\n" + "\n".join(activity)
+
+        # Post to Slack or send email
+        await send_to_slack(summary)
+
+asyncio.run(send_weekly_summary())
+```
+
+## Workflow Automation
+
+### Approval Workflow
+
+```python
+async def process_approval_requests():
+    """Process pending approval requests."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Find pending requests
+        async for request in api.databases.query(
+            database_id="approvals_db_id",
+            filter={"property": "Status", "select": {"equals": "Pending"}}
+        ):
+            # Get approval details
+            requester = request.properties.get("Requester", {})
+            approvers = request.properties.get("Approvers", {}).get("multi_select", [])
+
+            # Check if all approved
+            approvals_needed = len(approvers)
+            approvals_received = count_approvals(request)
+
+            if approvals_received >= approvals_needed:
+                # Auto-approve
+                await request.update(**Select("Status", "Approved").build())
+                await request.save()
+
+                # Notify requester
+                await notify_approval(request)
+
+            # Check for rejection
+            elif has_rejection(request):
+                await request.update(**Select("Status", "Rejected").build())
+                await request.save()
+
+asyncio.run(process_approval_requests())
+```
+
+### Task Assignment
+
+```python
+async def auto_assign_tasks():
+    """Automatically assign tasks based on workload."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Get unassigned tasks
+        async for task in api.databases.query(
+            database_id="tasks_db_id",
+            filter={
+                "and": [
+                    {"property": "Status", "select": {"equals": "Todo"}},
+                    {"property": "Assignee", "people": {"is_empty": True}}
+                ]
+            }
+        ):
+            # Find team member with least tasks
+            assignee = await find_least_loaded_member(api)
+
+            # Assign task
+            await task.update(
+                **People("Assignee", [assignee]).build()
+            )
+            await task.save()
+
+async def find_least_loaded_member(api: NotionAPI) -> dict:
+    """Find team member with fewest active tasks."""
+    workloads = {}
+
+    # Count tasks per person
+    async for task in api.databases.query("tasks_db_id"):
+        assignees = task.properties.get("Assignee", {}).get("people", [])
+        for assignee in assignees:
+            user_id = assignee["id"]
+            workloads[user_id] = workloads.get(user_id, 0) + 1
+
+    # Return person with minimum workload
+    if workloads:
+        return min(workloads, key=workloads.get)
+    return None
+
+asyncio.run(auto_assign_tasks())
+```
+
+## Scheduling
+
+### Using APScheduler
+
+```python
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from better_notion import NotionAPI
+
+scheduler = AsyncIOScheduler()
+
+async def scheduled_task():
+    """Task to run periodically."""
+    async with NotionAPI(auth="secret_...") as api:
+        # Your automation logic
+        pass
+
+# Schedule jobs
+scheduler.add_job(scheduled_task, 'interval', hours=1)
+scheduler.add_job(scheduled_task, 'cron', day_of_week='mon-fri', hour=9)
+scheduler.start()
+
+try:
+    asyncio.get_event_loop().run_forever()
+except KeyboardInterrupt:
+    scheduler.shutdown()
+```
+
+### Using Cron
+
+`crontab -e`:
+```bash
+# Run every hour
+0 * * * * cd /path/to/project && python automation.py
+
+# Run every weekday at 9am
+0 9 * * 1-5 cd /path/to/project && python automation.py
+```
+
+## Error Handling
+
+### Robust Automation
+
+```python
+import asyncio
+import logging
+from better_notion import NotionAPI
+from better_notion._api.errors import APIError, RateLimitedError
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+async def safe_automation():
+    """Automation with error handling."""
+    max_retries = 3
+
+    for attempt in range(max_retries):
+        try:
+            async with NotionAPI(auth="secret_...") as api:
+                async for page in api.databases.query("database_id"):
+                    try:
+                        # Process page
+                        await process_page(page)
+
+                    except RateLimitedError as e:
+                        logger.warning(f"Rate limited: {e}")
+                        await asyncio.sleep(e.retry_after or 1)
+
+                    except APIError as e:
+                        logger.error(f"API error: {e}")
+                        continue
+
+            # Success
+            break
+
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} failed: {e}")
+
+            if attempt < max_retries - 1:
+                await asyncio.sleep(60)  # Wait before retry
+            else:
+                logger.critical("All retries failed")
+                raise
+
+asyncio.run(safe_automation())
+```
+
+## Best Practices
+
+1. **Idempotency** - Make operations safe to retry
+2. **Error handling** - Handle rate limits gracefully
+3. **Logging** - Log all automation actions
+4. **Testing** - Test with staging data first
+5. **Monitoring** - Track automation success/failure
+6. **Time zones** - Handle time zones correctly
+7. **Batching** - Process items in batches for efficiency
+
+## Complete Example
+
+```python
+import asyncio
+from datetime import datetime, timedelta
+from better_notion import NotionAPI
+from better_notion._api.properties import Select, Date
+from better_notion._helpers import extract_title
+
+async def task_automation_workflow():
+    """Complete task automation workflow."""
+    async with NotionAPI(auth="secret_...") as api:
+        today = datetime.now().date()
+
+        # 1. Mark overdue tasks as urgent
+        print("Checking for overdue tasks...")
+        async for task in api.databases.query(
+            database_id="tasks_db_id",
+            filter={
+                "and": [
+                    {"property": "Status", "select": {"does_not_equal": "Done"}},
+                    {"property": "Due Date", "date": {"on_or_before": today.isoformat()}}
+                ]
+            }
+        ):
+            await task.update(**Select("Priority", "Urgent").build())
+            await task.save()
+            print(f"  Marked urgent: {extract_title(task)}")
+
+        # 2. Auto-assign unassigned tasks
+        print("Assigning unassigned tasks...")
+        unassigned_tasks = []
+        async for task in api.databases.query(
+            database_id="tasks_db_id",
+            filter={
+                "and": [
+                    {"property": "Status", "select": {"equals": "Todo"}},
+                    {"property": "Assignee", "people": {"is_empty": True}}
+                ]
+            }
+        ):
+            unassigned_tasks.append(task)
+
+        # Simple round-robin assignment
+        team_members = ["user_id_1", "user_id_2", "user_id_3"]
+        for i, task in enumerate(unassigned_tasks):
+            assignee = team_members[i % len(team_members)]
+            await task.update(
+                **People("Assignee", [{"id": assignee}]).build()
+            )
+            await task.save()
+            print(f"  Assigned: {extract_title(task)}")
+
+        # 3. Create daily summary
+        print("Creating daily summary...")
+        summary_count = 0
+        async for task in api.databases.query("tasks_db_id"):
+            if task.properties.get("Status", {}).get("select", {}).get("name") == "Done":
+                summary_count += 1
+
+        print(f"  Tasks completed today: {summary_count}")
+
+    print("Automation complete!")
+
+if __name__ == "__main__":
+    asyncio.run(task_automation_workflow())
+```
+
+## See Also
+
+- [Rate Limits](../advanced/rate-limits)
+- [Async Patterns](../advanced/async-patterns)
+- [Querying Databases](../guides/querying-databases)
+- [Error Handling](../guides/error-handling)

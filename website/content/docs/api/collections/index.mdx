@@ -1,0 +1,65 @@
+---
+title: Collections
+description: Collection managers - PageCollection, BlockCollection, DatabaseCollection, UserCollection
+---
+
+## Overview
+
+**Collections** provide methods for working with groups of Notion entities.
+
+Available collections:
+- `PageCollection` - Manage pages
+- `BlockCollection` - Manage blocks
+- `DatabaseCollection` - Manage databases
+- `UserCollection` - Manage users
+
+## Accessing Collections
+
+Collections are accessed via the `NotionAPI` client:
+
+```python
+async with NotionAPI(auth="secret_...") as api:
+    # Access collections
+    api.pages      # PageCollection
+    api.blocks     # BlockCollection
+    api.databases  # DatabaseCollection
+    api.users      # UserCollection
+```
+
+## Collection Reference
+
+- [PageCollection](page-collection) - Page operations
+- [BlockCollection](block-collection) - Block operations
+- [DatabaseCollection](database-collection) - Database operations
+- [UserCollection](user-collection) - User operations
+
+## Common Patterns
+
+### Get Single Item
+
+```python
+page = await api.pages.get("page_id")
+block = await api.blocks.get("block_id")
+database = await api.databases.get("database_id")
+user = await api.users.me()
+```
+
+### List Items
+
+```python
+pages = await api.pages.list("database_id")
+users = await api.users.list()
+```
+
+### Iterate Items
+
+```python
+async for page in api.pages.iterate("database_id"):
+    print(page.id)
+```
+
+## See Also
+
+- [NotionAPI Client](../client)
+- [Entities](../entities)
+- [Working with Pages](../../guides/working-with-pages)

@@ -1,0 +1,159 @@
+---
+title: API Reference
+description: Complete API reference for Better Notion SDK
+---
+
+Welcome to the API Reference section. This contains complete technical documentation for all SDK components.
+
+## Overview
+
+The Better Notion SDK is organized into:
+
+- **Client** - Main API client (`NotionAPI`)
+- **Entities** - Page, Block, Database, User objects
+- **Collections** - Managers for groups of entities
+- **Properties** - Type-safe property builders
+- **Exceptions** - Error types and handling
+
+## Quick Links
+
+<Cards>
+  <Card
+    title="NotionAPI Client"
+    href="client"
+  >
+    The main client for API operations and configuration.
+  </Card>
+  <Card
+    title="Entities"
+    href="entities"
+  >
+    Page, Block, Database, and User entity classes.
+  </Card>
+  <Card
+    title="Collections"
+    href="collections"
+  >
+    PageCollection, BlockCollection, DatabaseCollection, UserCollection.
+  </Card>
+  <Card
+    title="Properties"
+    href="properties"
+  >
+    Title, Select, Date, Checkbox, and other builders.
+  </Card>
+  <Card
+    title="Exceptions"
+    href="exceptions"
+  >
+    Exception hierarchy and error types.
+  </Card>
+</Cards>
+
+## Hierarchy
+
+```
+NotionAPI (client)
+├── pages: PageCollection
+├── blocks: BlockCollection
+├── databases: DatabaseCollection
+└── users: UserCollection
+
+Entities:
+├── Page
+├── Block
+├── Database
+└── User
+
+Properties:
+├── Title
+├── Text / RichText
+├── Select / MultiSelect
+├── Date
+├── Checkbox
+├── Number
+└── URL / Email / Phone
+
+Exceptions:
+└── NotionAPIError (base)
+    ├── HTTPError
+    ├── ValidationError
+    └── ConfigurationError
+```
+
+## Common Patterns
+
+### Initialize Client
+
+```python
+from better_notion import NotionAPI
+
+api = NotionAPI(auth="secret_...")
+```
+
+### Access Collections
+
+```python
+# Page operations
+page = await api.pages.get("page_id")
+
+# Block operations
+blocks = await api.blocks.children("block_id")
+
+# Database queries
+result = await api.databases.query("database_id")
+
+# User operations
+user = await api.users.me()
+```
+
+### Use Entities
+
+```python
+# Get page entity
+page = await api.pages.get("page_id")
+
+# Update entity
+await page.update(**Select("Status", "Done").build())
+
+# Save changes
+await page.save()
+```
+
+### Handle Errors
+
+```python
+from better_notion._api.errors import NotFoundError
+
+try:
+    page = await api.pages.get("page_id")
+except NotFoundError:
+    print("Page not found")
+```
+
+## Type Hints
+
+All methods use Python type hints:
+
+```python
+async def get(self, page_id: str) -> Page:
+    """Get a page by ID."""
+    ...
+
+async def update(self, **kwargs: Any) -> None:
+    """Update properties."""
+    ...
+```
+
+## Next Steps
+
+- [Client Reference](client) - NotionAPI client
+- [Entities Reference](entities) - Entity classes
+- [Collections Reference](collections) - Collection managers
+- [Properties Reference](properties) - Property builders
+- [Exceptions Reference](exceptions) - Error types
+
+## See Also
+
+- [Getting Started - Basic Concepts](../getting-started/basic-concepts)
+- [Guides](../guides) - Task-based tutorials

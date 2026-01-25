@@ -1,0 +1,169 @@
+---
+title: Async Patterns
+description: Best practices for async/await in Better Notion SDK
+---
+
+## Overview
+
+The Better Notion SDK is built on `asyncio` and requires async/await for all I/O operations.
+
+## Basic Async Pattern
+
+### Define Async Functions
+
+```python
+async def get_page(page_id: str):
+    async with NotionAPI(auth="secret_...") as api:
+        page = await api.pages.get(page_id)
+        return page
+```
+
+### Run Async Code
+
+```python
+import asyncio
+
+asyncio.run(get_page("page_id"))
+```
+
+## Common Patterns
+
+### Sequential Operations
+
+Operations run one after another:
+
+```python
+async def sequential():
+    async with NotionAPI(auth="secret_...") as api:
+        # Runs first
+        page1 = await api.pages.get("id1")
+
+        # Runs after page1 completes
+        page2 = await api.pages.get("id2")
+```
+
+### Concurrent Operations
+
+Run multiple operations concurrently:
+
+```python
+import asyncio
+
+async def concurrent():
+    async with NotionAPI(auth="secret_...") as api:
+        # Run both concurrently
+        page1, page2 = await asyncio.gather(
+            api.pages.get("id1"),
+            api.pages.get("id2")
+        )
+```
+
+### Batch Operations
+
+Process multiple items efficiently:
+
+```python
+async def batch_update(page_ids, status):
+    """Update multiple pages concurrently."""
+    async with NotionAPI(auth="secret_...") as api:
+        tasks = []
+
+        for page_id in page_ids:
+            async def update():
+                page = await api.pages.get(page_id)
+                await page.update(**Select("Status", status).build())
+                await page.save()
+
+            tasks.append(update())
+
+        # Run all concurrently
+        await asyncio.gather(*tasks)
+```
+
+## Context Managers
+
+### Recommended Pattern
+
+Use `async with` for automatic cleanup:
+
+```python
+async def main():
+    async with NotionAPI(auth="secret_...") as api:
+        # API calls
+        pass
+    # Connection closed automatically
+```
+
+### Manual Cleanup
+
+```python
+api = NotionAPI(auth="secret_...")
+try:
+    # API calls
+    pass
+finally:
+    await api.close()
+```
+
+## Error Handling
+
+### Try/Except in Async
+
+```python
+async def safe_get_page(page_id):
+    try:
+        async with NotionAPI(auth="secret_...") as api:
+            return await api.pages.get(page_id)
+    except NotFoundError:
+        logger.error(f"Page not found: {page_id}")
+        return None
+```
+
+### Error Propagation
+
+```python
+async def parent_function():
+    try:
+        await child_function()
+    except Exception as e:
+        logger.error(f"Failed: {e}")
+        raise
+```
+
+## Best Practices
+
+1. **Always use asyncio.run()** in scripts
+2. **Use async with** for automatic cleanup
+3. **Handle exceptions** in async functions
+4. **Use asyncio.gather()** for concurrent operations
+5. **Avoid blocking calls** in async functions
+
+## Complete Example
+
+```python
+import asyncio
+from better_notion import NotionAPI
+from better_notion._api.properties import Select
+
+async def process_pages(page_ids):
+    """Process multiple pages concurrently."""
+    async with NotionAPI(auth="secret_...") as api:
+        async def update_page(page_id):
+            page = await api.pages.get(page_id)
+            await page.update(**Select("Status", "Done").build())
+            await page.save()
+            print(f"Processed: {page_id}")
+
+        # Run all updates concurrently
+        await asyncio.gather(*[
+            update_page(pid) for pid in page_ids
+        ])
+
+asyncio.run(process_pages(["id1", "id2", "id3"]))
+```
+
+## See Also
+
+- [Python asyncio Documentation](https://docs.python.org/3/library/asyncio.html)
+- [Working with Pages](../guides/working-with-pages)
+- [Error Handling](../guides/error-handling)

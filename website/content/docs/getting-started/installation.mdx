@@ -1,0 +1,206 @@
+---
+title: Installation
+description: Install and configure Better Notion SDK in your project
+---
+
+import { Download, AlertTriangle } from 'lucide-react';
+
+This guide covers installing the Better Notion SDK in your Python project.
+
+## Requirements
+
+- Python 3.10 or higher
+- pip or uv package manager
+- Virtual environment (recommended)
+
+## Check Your Python Version
+
+Verify you have Python 3.10+:
+
+```bash
+python --version
+# or
+python3 --version
+```
+
+Expected output:
+```
+Python 3.10.0 or higher
+```
+
+<Callout type="warning">
+  **Python Version Required**: The SDK requires Python 3.10 or higher. Older versions are not supported.
+</Callout>
+
+## Installation Methods
+
+### Using pip (Recommended)
+
+Install the latest version:
+
+```bash
+pip install better-notion
+```
+
+Install a specific version:
+
+```bash
+pip install better-notion==0.2.0
+```
+
+### Using uv (Faster)
+
+```bash
+uv pip install better-notion
+```
+
+## Project Setup
+
+### Option 1: Virtual Environment (Recommended)
+
+Create a new project with virtual environment:
+
+```bash
+# Create project directory
+mkdir my-notion-app
+cd my-notion-app
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
+
+# Install SDK
+pip install better-notion
+```
+
+### Option 2: Using pyproject.toml
+
+For better dependency management, use `pyproject.toml`:
+
+```bash
+[project]
+name = "my-notion-app"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "better-notion>=0.2.0",
+]
+```
+
+Then install:
+```bash
+pip install -e .
+```
+
+### Option 3: Using requirements.txt
+
+Create `requirements.txt`:
+```
+better-notion==0.2.0
+```
+
+Install:
+```bash
+pip install -r requirements.txt
+```
+
+## Verify Installation
+
+Test your installation:
+
+```python
+# test_install.py
+import better_notion
+
+print(f"Better Notion version: {better_notion.__version__}")
+```
+
+Run it:
+```bash
+python test_install.py
+```
+
+Expected output:
+```
+Better Notion version: 0.2.0
+```
+
+<Callout type="success">
+  **Installation Verified!** You're ready to start using the SDK.
+</Callout>
+
+## Development Dependencies
+
+For development, install additional packages:
+
+```bash
+# Development dependencies
+pip install better-notion[dev]
+
+# Or manually:
+pip install pytest pytest-asyncio python-dotenv
+```
+
+## Troubleshooting
+
+### Permission Denied Error
+
+**Problem**: `Permission denied` when installing
+
+**Solutions**:
+- Use a virtual environment (recommended)
+- Add `--user` flag: `pip install --user better-notion`
+- Use `sudo` (Linux/macOS): `sudo pip install better-notion`
+
+### Python Version Too Old
+
+**Problem**: `Python version requires 3.10 or higher`
+
+**Solutions**:
+- Install Python 3.10+ from [python.org](https://www.python.org/downloads/)
+- Use pyenv to manage multiple Python versions
+- Use conda: `conda create -n notion python=3.10`
+
+### Module Not Found
+
+**Problem**: `No module named 'better_notion'`
+
+**Solutions**:
+- Verify installation: `pip list | grep better-notion`
+- Check you're using the correct Python environment
+- Reinstall the package: `pip install --force-reinstall better-notion`
+
+## Upgrading
+
+Upgrade to the latest version:
+
+```bash
+pip install --upgrade better-notion
+```
+
+Check for breaking changes in the [changelog](../meta/changelog).
+
+## Next Steps
+
+<AlertTriangle /> **Before continuing**, ensure you have:
+
+1. Installed the SDK successfully
+2. Verified your Python version (3.10+)
+3. Activated your virtual environment (if using one)
+
+Then continue to:
+
+- [Authentication](authentication) - Set up Notion integration
+- [Basic Concepts](basic-concepts) - Learn the SDK structure
+- [Project Setup](project-setup) - Configure your project
+
+## See Also
+
+- [Python Installation Guide](https://www.python.org/downloads/)
+- [pip Documentation](https://pip.pypa.io/)
+- [uv - Fast Python Package Installer](https://github.com/astral-sh/uv)

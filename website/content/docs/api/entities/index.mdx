@@ -1,0 +1,93 @@
+---
+title: Entities
+description: Entity classes - Page, Block, Database, User
+---
+
+## Overview
+
+**Entities** represent Notion objects with both data and behavior.
+
+Available entities:
+- `Page` - Notion pages
+- `Block` - Content blocks
+- `Database` - Notion databases
+- `User` - Notion users
+
+## Common Entity Features
+
+All entities share these characteristics:
+
+### Properties
+
+Each entity has properties accessible via attributes:
+
+```python
+page.id              # Unique identifier
+page.created_time    # Creation timestamp
+page.last_edited_time # Last edit timestamp
+page.archived        # Archived status
+```
+
+### Methods
+
+Common methods across entities:
+
+```python
+await entity.save()    # Save changes to Notion
+await entity.reload()  # Reload from Notion
+await entity.delete()  # Delete/archive entity
+```
+
+## Entity References
+
+- [Page](page) - Complete Page entity reference
+- [Block](block) - Complete Block entity reference
+- [Database](database) - Complete Database entity reference
+- [User](user) - Complete User entity reference
+
+## Usage Examples
+
+### Create Entity from API Response
+
+```python
+from better_notion._api.entities import Page
+
+data = await api._request("GET", "/pages/page_id")
+page = Page(api, data)
+```
+
+### Work with Entity Methods
+
+```python
+# Get entity from collection
+page = await api.pages.get("page_id")
+
+# Use entity methods
+await page.update(**Select("Status", "Done").build())
+await page.save()
+```
+
+## Entity Lifecycle
+
+```python
+# 1. Retrieve
+page = await api.pages.get("page_id")
+
+# 2. Modify
+await page.update(properties={...})
+
+# 3. Persist
+await page.save()
+
+# 4. Refresh
+await page.reload()
+
+# 5. Delete
+await page.delete()
+```
+
+## See Also
+
+- [Getting Started - Basic Concepts](../../getting-started/basic-concepts)
+- [Working with Pages](../../guides/working-with-pages)
+- [API Reference - Client](../client)
