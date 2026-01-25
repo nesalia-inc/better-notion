@@ -223,6 +223,34 @@ class Page(BaseEntity):
 
         return None
 
+    @staticmethod
+    def format_icon(emoji: str | None = None, external_url: str | None = None) -> dict[str, Any] | None:
+        """Format icon for API requests.
+
+        Args:
+            emoji: Emoji icon (e.g., "🚀")
+            external_url: External image URL
+
+        Returns:
+            Icon dict for API or None if neither provided
+
+        Raises:
+            ValueError: If both emoji and external_url provided
+
+        Example:
+            >>> icon_dict = Page.format_icon(emoji="🚀")
+            >>> icon_dict = Page.format_icon(external_url="https://example.com/image.png")
+        """
+        if emoji is None and external_url is None:
+            return None
+        if emoji is not None and external_url is not None:
+            raise ValueError("Only one of emoji or external_url can be provided")
+
+        if emoji is not None:
+            return {"type": "emoji", "emoji": emoji}
+        else:
+            return {"type": "external", "external": {"url": external_url}}
+
     @property
     def cover(self) -> str | None:
         """Get page cover image URL.
@@ -246,6 +274,24 @@ class Page(BaseEntity):
             return cover_data.get("file", {}).get("url")
 
         return None
+
+    @staticmethod
+    def format_cover(external_url: str | None = None) -> dict[str, Any] | None:
+        """Format cover for API requests.
+
+        Args:
+            external_url: External image URL
+
+        Returns:
+            Cover dict for API or None if not provided
+
+        Example:
+            >>> cover_dict = Page.format_cover(external_url="https://example.com/image.png")
+        """
+        if external_url is None:
+            return None
+
+        return {"type": "external", "external": {"url": external_url}}
 
     @property
     def archived(self) -> bool:
