@@ -57,6 +57,25 @@ class BlockManager:
 
         return await Block.get(block_id, client=self._client)
 
+    async def update(self, block: "Block", **kwargs) -> "Block":
+        """Update a block.
+
+        Args:
+            block: Block object to update
+            **kwargs: Block properties to update
+
+        Returns:
+            Updated block object
+
+        Example:
+            >>> block = await client.blocks.get(block_id)
+            >>> updated = await client.blocks.update(
+            ...     block,
+            ...     paragraph={"rich_text": [...]}
+            ... )
+        """
+        return await block.update(**kwargs)
+
     async def delete(self, block: "Block") -> None:
         """Delete a block.
 
@@ -67,7 +86,7 @@ class BlockManager:
             >>> block = await client.blocks.get(block_id)
             >>> await client.blocks.delete(block)
         """
-        await block.delete(client=self._client)
+        await block.delete()
 
     # ===== CODE BLOCKS =====
 

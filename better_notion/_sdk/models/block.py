@@ -416,6 +416,42 @@ class Block(BaseEntity):
 
     # ===== CRUD OPERATIONS =====
 
+    async def update(self, **kwargs: Any) -> "Block":
+        """Update this block.
+
+        Args:
+            **kwargs: Block properties to update (varies by block type).
+                For text blocks: paragraph, heading_1, heading_2, heading_3, etc.
+                For code blocks: code (with language and rich_text)
+                For todo blocks: to_do (with checked and rich_text)
+                etc.
+
+        Returns:
+            Updated block object
+
+        Example:
+            >>> # Update paragraph text
+            >>> await block.update(
+            ...     paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
+            ... )
+            >>>
+            >>> # Update todo checked state
+            >>> await block.update(to_do={"checked": True, "rich_text": [...]})
+        """
+        from better_notion._api.properties import RichText
+
+        # Call low-level API
+        data = await self._client.api.blocks.update(block_id=self.id, **kwargs)
+
+        # Update local data
+        self._data = data
+
+        # Clear cache
+        self._cache_clear()
+
+        # Return specialized instance
+        return Block.from_data(self._client, data)
+
     async def delete(self) -> None:
         """Delete this block.
 

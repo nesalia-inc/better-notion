@@ -30,6 +30,28 @@ class Paragraph(Block):
         """
         super().__init__(client, data)
 
+    async def set_text(self, text: str) -> "Paragraph":
+        """Set the paragraph text.
+
+        Args:
+            text: New text content
+
+        Returns:
+            Updated Paragraph block
+
+        Example:
+            >>> para = await Paragraph.create(parent=page, client=client, text="Old")
+            >>> await para.set_text("New text")
+        """
+        from better_notion._api.properties import RichText
+
+        # Update via API
+        updated = await self.update(paragraph={
+            "rich_text": [RichText[text]]
+        })
+
+        return updated
+
     @classmethod
     async def create(
         cls,

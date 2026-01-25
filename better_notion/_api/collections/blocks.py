@@ -41,6 +41,34 @@ class BlockCollection:
         data = await self._api._request("GET", f"/blocks/{block_id}")
         return Block(self._api, data)
 
+    async def update(self, block_id: str, **kwargs: Any) -> Block:
+        """Update a block.
+
+        Args:
+            block_id: The block ID.
+            **kwargs: Block properties to update (varies by block type).
+                For text blocks: paragraph, heading_1, heading_2, heading_3, etc.
+                For code blocks: code (with language and rich_text)
+                For todo blocks: to_do (with checked and rich_text)
+                etc.
+
+        Returns:
+            The updated Block entity.
+
+        Raises:
+            ValidationError: If the request is invalid.
+            NotFoundError: If the block does not exist.
+
+        Example:
+            >>> # Update a paragraph
+            >>> block = await api.blocks.update(
+            ...     block_id="block-123",
+            ...     paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
+            ... )
+        """
+        data = await self._api._request("PATCH", f"/blocks/{block_id}", json=kwargs)
+        return Block(self._api, data)
+
     async def children(self) -> list[Block]:
         """Get children blocks.
 

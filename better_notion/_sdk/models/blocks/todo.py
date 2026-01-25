@@ -43,6 +43,33 @@ class Todo(Block):
             return todo_data.get("checked", False)
         return False
 
+    async def set_checked(self, checked: bool) -> "Todo":
+        """Set the checked state.
+
+        Args:
+            checked: New checked state
+
+        Returns:
+            Updated Todo block
+
+        Example:
+            >>> todo = await Todo.create(parent=page, client=client, text="Task")
+            >>> await todo.set_checked(True)
+        """
+        from better_notion._api.properties import RichText
+
+        # Get current rich text
+        todo_data = self._data.get("to_do", {})
+        rich_text = todo_data.get("rich_text", [])
+
+        # Update via API
+        updated = await self.update(to_do={
+            "checked": checked,
+            "rich_text": rich_text
+        })
+
+        return updated
+
     @classmethod
     async def create(
         cls,
