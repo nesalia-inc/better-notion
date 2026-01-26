@@ -58,32 +58,58 @@ def get(page_id: str) -> None:
 
 @app.command()
 def create(
-    parent: str = typer.Option(..., "--parent", "-p", help="Parent database or page ID"),
+    root: bool = typer.Option(False, "--root", "-r", help="Create page at workspace root"),
+    parent: str = typer.Option(None, "--parent", "-p", help="Parent database or page ID"),
     title: str = typer.Option(..., "--title", "-t", help="Page title"),
-    properties: str = typer.Option(None, "--properties", "-p", help="JSON string of additional properties"),
+    properties: str = typer.Option(None, "--properties", help="JSON string of additional properties"),
 ) -> None:
     """
     Create a new page.
 
-    Creates a new page under a parent database or page with the specified title.
+    Creates a new page under a parent database/page or at workspace root.
+
+    Note: Workspace parent (--root) may require specific integration permissions.
     """
     async def _create() -> str:
         client = get_client()
         props = json.loads(properties) if properties else {}
 
-        # Get parent
-        try:
-            parent_obj = await client.databases.get(parent)
-        except Exception:
-            parent_obj = await client.pages.get(parent)
+        # Validate mutual exclusivity
+        if root and parent:
+            return format_error(
+                "INVALID_ARGUMENT",
+                "Cannot specify both --root and --parent",
+                retry=False
+            )
+
+        # Handle workspace parent
+        if root:
+            from better_notion._sdk.parents import WorkspaceParent
+            parent_obj = WorkspaceParent()
+        else:
+            # Existing parent resolution logic
+            try:
+                parent_obj = await client.databases.get(parent)
+            except Exception:
+                parent_obj = await client.pages.get(parent)
 
         page = await client.pages.create(parent=parent_obj, title=title, **props)
+
+        # Get parent info safely
+        parent_id = None
+        parent_type = None
+        if root:
+            parent_type = "workspace"
+        elif page.parent:
+            parent_id = getattr(page.parent, 'id', None)
+            parent_type = getattr(page.parent, 'object', None)
 
         return format_success({
             "id": page.id,
             "title": page.title,
             "url": page.url,
-            "parent_id": page.parent.id if page.parent else None,
+            "parent_id": parent_id,
+            "parent_type": parent_type,
         })
 
     result = asyncio.run(_create())

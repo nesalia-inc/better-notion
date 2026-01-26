@@ -2,15 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any, AsyncIterator, Union
 
 from better_notion._sdk.base.entity import BaseEntity
+from better_notion._sdk.parents import Parent, WorkspaceParent, PageParent, DatabaseParent
 from better_notion._sdk.properties.parsers import PropertyParser
 
 if TYPE_CHECKING:
     from better_notion._sdk.client import NotionClient
-    from better_notion._sdk.models.database import Database
     from better_notion._sdk.models.block import Block
+
+
+# Import Database at runtime for isinstance checks
+from better_notion._sdk.models.database import Database
 
 
 class Page(BaseEntity):
@@ -98,7 +102,7 @@ class Page(BaseEntity):
     @classmethod
     async def create(
         cls,
-        parent: "Database | Page",
+        parent: Union["Database", "Page", Parent],
         *,
         client: "NotionClient",
         title: str = "",
@@ -108,7 +112,7 @@ class Page(BaseEntity):
         """Create a new page.
 
         Args:
-            parent: Parent Database or Page
+            parent: Parent Database, Page, or Parent object (WorkspaceParent, PageParent, DatabaseParent)
             client: NotionClient instance
             title: Page title (optional)
             properties: Additional properties (optional)
@@ -118,21 +122,50 @@ class Page(BaseEntity):
             Newly created Page object
 
         Example:
+            >>> # With database object
             >>> page = await Page.create(
             ...     parent=database,
             ...     client=client,
             ...     title="My Page",
             ...     status="In Progress"
             ... )
+            >>>
+            >>> # With workspace parent (root level)
+            >>> from better_notion._sdk.parents import WorkspaceParent
+            >>> page = await Page.create(
+            ...     parent=WorkspaceParent(),
+            ...     client=client,
+            ...     title="Root Page"
+            ... )
         """
         from better_notion._api.properties import Title
 
         # Prepare parent reference
-        if hasattr(parent, 'id'):
+        if isinstance(parent, (Database, Page)):
+            # Existing object-based path (real Database or Page instances)
             parent_id = parent.id
             parent_type = "database_id" if parent.object == "database" else "page_id"
+            parent_ref = {parent_type: parent_id}
+            title_search_parent = parent
+        elif isinstance(parent, WorkspaceParent):
+            # New workspace parent path (root level)
+            parent_ref = {"type": "workspace", "workspace": True}
+            title_search_parent = None
+        elif isinstance(parent, (PageParent, DatabaseParent)):
+            # New explicit parent classes
+            parent_ref = {
+                "type": parent.type,
+                f"{parent.type}": parent.page_id if isinstance(parent, PageParent) else parent.database_id
+            }
+            title_search_parent = None
+        elif hasattr(parent, 'id') and hasattr(parent, 'object'):
+            # Duck-typing for mocks and other compatible objects
+            parent_id = parent.id
+            parent_type = "database_id" if parent.object == "database" else "page_id"
+            parent_ref = {parent_type: parent_id}
+            title_search_parent = parent
         else:
-            raise ValueError("Parent must be a Database or Page object")
+            raise ValueError(f"Invalid parent type: {type(parent)}")
 
         # Build properties dict
         props = properties or {}
@@ -140,13 +173,13 @@ class Page(BaseEntity):
         # Add title if provided
         if title:
             # Find title property name
-            title_prop = cls._find_title_property_in_schema(parent, client)
+            title_prop = cls._find_title_property_in_schema(title_search_parent, client)
             if title_prop:
                 props[title_prop] = Title(name=title_prop, content=title).to_dict()
 
         # Create page via API
         data = await client.api.pages.create(
-            parent={parent_type: parent_id},
+            parent=parent_ref,
             properties=props,
             **kwargs
         )

@@ -4,6 +4,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from better_notion._sdk.models.page import Page
+from better_notion._sdk.parents import WorkspaceParent, PageParent, DatabaseParent
 from better_notion._sdk.cache import Cache
 
 
@@ -338,6 +339,106 @@ class TestPageClassMethods:
 
         assert page.id == "new-page"
         assert page.title == "New Page"
+
+    @pytest.mark.asyncio
+    async def test_create_page_with_workspace_parent(self, mock_client):
+        """Test Page.create() with WorkspaceParent."""
+        new_page_data = {
+            "id": "new-page",
+            "object": "page",
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-01T00:00:00.000Z",
+            "archived": False,
+            "properties": {},
+            "parent": {
+                "type": "workspace",
+                "workspace": True
+            }
+        }
+
+        mock_client.api.pages.create.return_value = new_page_data
+
+        page = await Page.create(
+            parent=WorkspaceParent(),
+            client=mock_client,
+            title="Root Page"
+        )
+
+        assert page.id == "new-page"
+        # Verify the parent was sent correctly
+        mock_client.api.pages.create.assert_called_once()
+        call_args = mock_client.api.pages.create.call_args
+        assert call_args[1]["parent"] == {"type": "workspace", "workspace": True}
+
+    @pytest.mark.asyncio
+    async def test_create_page_with_page_parent_class(self, mock_client):
+        """Test Page.create() with PageParent class."""
+        new_page_data = {
+            "id": "new-page",
+            "object": "page",
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-01T00:00:00.000Z",
+            "archived": False,
+            "properties": {},
+            "parent": {
+                "type": "page_id",
+                "page_id": "page-parent-123"
+            }
+        }
+
+        mock_client.api.pages.create.return_value = new_page_data
+
+        page = await Page.create(
+            parent=PageParent(page_id="page-parent-123"),
+            client=mock_client,
+            title="Child Page"
+        )
+
+        assert page.id == "new-page"
+        # Verify the parent was sent correctly
+        mock_client.api.pages.create.assert_called_once()
+        call_args = mock_client.api.pages.create.call_args
+        assert call_args[1]["parent"] == {"type": "page_id", "page_id": "page-parent-123"}
+
+    @pytest.mark.asyncio
+    async def test_create_page_with_database_parent_class(self, mock_client):
+        """Test Page.create() with DatabaseParent class."""
+        new_page_data = {
+            "id": "new-page",
+            "object": "page",
+            "created_time": "2024-01-01T00:00:00.000Z",
+            "last_edited_time": "2024-01-01T00:00:00.000Z",
+            "archived": False,
+            "properties": {},
+            "parent": {
+                "type": "database_id",
+                "database_id": "db-parent-123"
+            }
+        }
+
+        mock_client.api.pages.create.return_value = new_page_data
+
+        page = await Page.create(
+            parent=DatabaseParent(database_id="db-parent-123"),
+            client=mock_client,
+            title="DB Child Page"
+        )
+
+        assert page.id == "new-page"
+        # Verify the parent was sent correctly
+        mock_client.api.pages.create.assert_called_once()
+        call_args = mock_client.api.pages.create.call_args
+        assert call_args[1]["parent"] == {"type": "database_id", "database_id": "db-parent-123"}
+
+    @pytest.mark.asyncio
+    async def test_create_page_with_invalid_parent(self, mock_client):
+        """Test Page.create() with invalid parent type."""
+        with pytest.raises(ValueError, match="Invalid parent type"):
+            await Page.create(
+                parent="invalid-parent",
+                client=mock_client,
+                title="Test Page"
+            )
 
 
 class TestPageNavigation:
