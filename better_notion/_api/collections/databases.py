@@ -36,9 +36,6 @@ class DatabaseCollection:
         """
         return await self._api._request("GET", f"/databases/{database_id}")
 
-    # Alias for get() for compatibility
-    retrieve = get
-
     async def query(self, database_id: str, **kwargs: Any) -> Any:
         """Query a database.
 

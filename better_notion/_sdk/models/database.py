@@ -78,8 +78,8 @@ class Database(BaseEntity):
         if database_id in client.database_cache:
             return client.database_cache[database_id]
 
-        # Fetch from API
-        data = await client.api.databases.retrieve(database_id=database_id)
+        # Fetch from API - call get() directly instead of retrieve alias
+        data = await client.api.databases.get(database_id)
         database = cls(client, data)
 
         # Cache it
