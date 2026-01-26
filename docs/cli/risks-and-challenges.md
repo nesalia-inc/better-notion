@@ -1,8 +1,17 @@
 # CLI Risks & Challenges Analysis
 
-**Document Version**: 1.0
-**Status**: Critical Analysis
+**Document Version**: 1.1
+**Status**: Risk Mitigated - Decision Made
 **Date**: 2025-01-25
+**Last Updated**: 2025-01-26
+
+**⚠️ IMPORTANT**: The critical async/sync mismatch risk (Section 1.1) has been **evaluated and resolved**. See [`async-support-decision.md`](./async-support-decision.md) for the complete technical decision and implementation plan.
+
+**Decision Summary**:
+- ✅ AsyncTyper wrapper approved
+- ✅ Based on 5 years of community discussion (Typer #1309)
+- ✅ Implementation plan created
+- ✅ Proof-of-concept scheduled for Phase 0
 
 ---
 
@@ -848,12 +857,17 @@ For this CLI to succeed, these factors are **non-negotiable**:
 
 ### 🟢 **GO** (Proceed with CLI) IF:
 
-1. ✅ Async/sync solution prototyped and working
+1. ✅ **PARTIALLY MET**: Async/sync solution decided (AsyncTyper), POC scheduled for Phase 0
+   - See [`async-support-decision.md`](./async-support-decision.md) for details
+   - Community-validated solution (5 years of Typer discussion)
+   - **Next**: Implement POC to validate performance
 2. ✅ System keyring integration feasible
 3. ✅ User demand confirmed (>20 upvotes on GitHub issue)
 4. ✅ Team commits to long-term maintenance
 5. ✅ MVP scope defined (auth + pages CRUD only)
 6. ✅ 6-month runway allocated (realistic timeline)
+
+**Status**: **PROCEED TO POC** - Phase 0 scheduled to validate AsyncTyper
 
 ### 🔴 **NO-GO** (Defer or Cancel) IF:
 

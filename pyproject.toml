@@ -56,6 +56,24 @@ dev = [
     "pre-commit>=3.0.0",
 ]
 
+cli = [
+    # CLI framework
+    "typer>=0.12.0,<0.13.0",
+
+    # Terminal formatting (for JSON syntax highlighting)
+    "rich>=13.0.0,<14.0.0",
+
+    # Async wrapper for CLI commands
+    "asyncer>=0.0.5",
+]
+
+all = [
+    "better-notion[dev,cli]",
+]
+
+[project.scripts]
+notion = "better_notion._cli.main:app"
+
 [project.urls]
 Homepage = "https://github.com/nesalia-inc/better-notion"
 Documentation = "https://github.com/nesalia-inc/better-notion#readme"
