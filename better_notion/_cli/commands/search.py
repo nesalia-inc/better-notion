@@ -35,7 +35,7 @@ def search(
             client = get_client()
             filters = json.loads(filter) if filter else {}
 
-            results = await client.search.search(query=query, filter=filters)
+            results = await client.search(query=query, filter=filters)
 
             items = []
             for result in results:
@@ -69,7 +69,7 @@ def search_pages(
             client = get_client()
             filter_obj = {"value": "page", "property": "object"}
 
-            results = await client.search.search(query=query, filter=filter_obj)
+            results = await client.search(query=query, filter=filter_obj)
 
             pages = [
                 {
@@ -102,7 +102,7 @@ def search_databases(
             client = get_client()
             filter_obj = {"value": "database", "property": "object"}
 
-            results = await client.search.search(query=query, filter=filter_obj)
+            results = await client.search(query=query, filter=filter_obj)
 
             databases = [
                 {
@@ -133,7 +133,7 @@ def search_all(
         try:
             client = get_client()
 
-            results = await client.search.search(query=query)
+            results = await client.search(query=query)
 
             items = []
             for result in results:

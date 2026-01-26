@@ -162,7 +162,9 @@ def query(
             db = await client.databases.get(database_id)
             filters = json.loads(filter)
 
-            results = await db.query(client=client, **filters)
+            # Use query builder and collect results
+            query_obj = db.query(**filters)
+            results = await query_obj.collect()
 
             return format_success({
                 "database_id": database_id,
@@ -209,7 +211,9 @@ def rows(database_id: str) -> None:
             client = get_client()
             db = await client.databases.get(database_id)
 
-            pages = await db.query(client=client)
+            # Use query builder to get all pages
+            query_obj = db.query()
+            pages = await query_obj.collect()
 
             return format_success({
                 "database_id": database_id,
