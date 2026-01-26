@@ -236,16 +236,26 @@ class NotionClient:
             ...     filter={"value": "page", "property": "object"}
             ... )
         """
+        from better_notion._sdk.models.database import Database
+        from better_notion._sdk.models.page import Page
+
         results = []
 
-        async for result in self._api.search.query(
+        async for result in self._api.search_iterate(
             query=query,
             filter=filter,
             sort=sort
         ):
             obj_type = result.get("object")
-            # Will be replaced with proper entity creation in Phase 3
-            results.append(result)
+            # Convert to proper entity objects
+            if obj_type == "database":
+                entity = Database(self, result)
+            elif obj_type == "page":
+                entity = Page(self, result)
+            else:
+                # For other types (blocks, etc.), return raw dict
+                entity = result
+            results.append(entity)
 
         return results
 
