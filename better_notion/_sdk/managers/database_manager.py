@@ -187,9 +187,7 @@ class DatabaseManager:
 
         databases = []
         for r in results:
-            if r.get("object") == "database":
-                # Convert raw dict to Database object
-                db = Database.from_data(self._client, r)
-                databases.append(db)
+            if isinstance(r, Database):
+                databases.append(r)
 
         return databases
