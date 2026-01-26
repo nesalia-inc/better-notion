@@ -7,6 +7,7 @@ handles both sync and async commands.
 from __future__ import annotations
 
 import inspect
+import typer
 from typer.testing import CliRunner
 
 from better_notion._cli.async_typer import AsyncTyper
@@ -14,6 +15,8 @@ from better_notion._cli.async_typer import AsyncTyper
 
 def test_async_typer_detects_async_functions() -> None:
     """Test that AsyncTyper correctly identifies async functions."""
+    import inspect
+
     app = AsyncTyper()
 
     @app.command()
@@ -27,7 +30,7 @@ def test_async_typer_detects_async_functions() -> None:
         return f"Hello {name}"
 
     # Check that the original functions are correctly identified
-    assert inspect.iscoroutinefunction(async_func.__wrapped__)
+    assert inspect.iscoroutinefunction(async_func)
     assert not inspect.iscoroutinefunction(sync_func)
 
 
@@ -37,9 +40,9 @@ def test_async_command_execution() -> None:
     runner = CliRunner()
 
     @app.command()
-    async def hello(name: str = "World") -> str:
+    async def hello(name: str = "World"):
         """Greet someone."""
-        return f"Hello {name}"
+        typer.echo(f"Hello {name}")
 
     result = runner.invoke(app, ["hello", "Alice"])
 
@@ -53,9 +56,9 @@ def test_sync_command_execution() -> None:
     runner = CliRunner()
 
     @app.command()
-    def greet(name: str = "World") -> str:
+    def greet(name: str = "World"):
         """Greet someone."""
-        return f"Hello {name}"
+        typer.echo(f"Hello {name}")
 
     result = runner.invoke(app, ["greet", "Bob"])
 
@@ -69,14 +72,14 @@ def test_mixed_sync_and_async_commands() -> None:
     runner = CliRunner()
 
     @app.command()
-    async def async_command() -> str:
+    async def async_command():
         """An async command."""
-        return "Async result"
+        typer.echo("Async result")
 
     @app.command()
-    def sync_command() -> str:
+    def sync_command():
         """A sync command."""
-        return "Sync result"
+        typer.echo("Sync result")
 
     # Test async command
     result_async = runner.invoke(app, ["async-command"])
@@ -95,9 +98,9 @@ def test_async_command_with_options() -> None:
     runner = CliRunner()
 
     @app.command()
-    async def greet(name: str, greeting: str = "Hello") -> str:
+    async def greet(name: str, greeting: str = "Hello"):
         """Greet someone with a custom greeting."""
-        return f"{greeting}, {name}!"
+        typer.echo(f"{greeting}, {name}!")
 
     result = runner.invoke(app, ["greet", "Charlie", "--greeting", "Hi"])
 
@@ -111,7 +114,7 @@ def test_async_command_with_exception() -> None:
     runner = CliRunner()
 
     @app.command()
-    async def failing_command() -> None:
+    async def failing_command():
         """A command that raises an exception."""
         raise ValueError("This command fails")
 
@@ -127,19 +130,19 @@ def test_multiple_async_commands() -> None:
     runner = CliRunner()
 
     @app.command()
-    async def command1() -> str:
+    async def command1():
         """First async command."""
-        return "Command 1"
+        typer.echo("Command 1")
 
     @app.command()
-    async def command2() -> str:
+    async def command2():
         """Second async command."""
-        return "Command 2"
+        typer.echo("Command 2")
 
     @app.command()
-    async def command3() -> str:
+    async def command3():
         """Third async command."""
-        return "Command 3"
+        typer.echo("Command 3")
 
     # Test all commands
     for i in range(1, 4):
@@ -154,14 +157,14 @@ def test_async_typer_with_callback() -> None:
     runner = CliRunner()
 
     @app.callback()
-    async def main_callback() -> str:
+    async def main_callback():
         """Main callback for the app."""
-        return "Callback executed"
+        pass  # Callbacks don't need to return anything
 
     @app.command()
-    async def subcommand() -> str:
+    async def subcommand():
         """A subcommand."""
-        return "Subcommand executed"
+        typer.echo("Subcommand executed")
 
     # Note: Callbacks are executed differently, so we just test it doesn't crash
     result = runner.invoke(app, ["subcommand"])

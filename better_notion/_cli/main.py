@@ -5,6 +5,8 @@ This module defines the main CLI application using AsyncTyper.
 """
 from __future__ import annotations
 
+import typer
+
 from better_notion._cli.async_typer import AsyncTyper
 from better_notion._cli.commands import auth
 from better_notion._cli.response import format_success
