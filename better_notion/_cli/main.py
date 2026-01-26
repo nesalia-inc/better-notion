@@ -43,7 +43,7 @@ def version() -> None:
 
     Displays the version information for the Better Notion CLI.
     """
-    typer.echo(format_success({"name": "Better Notion CLI", "version": "0.4.1"}))
+    typer.echo(format_success({"name": "Better Notion CLI", "version": "0.5.0"}))
 
 
 @app.callback()
