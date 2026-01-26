@@ -64,7 +64,7 @@ def format_response(
     response: dict[str, Any] = {
         "success": success,
         "meta": {
-            "version": "0.4.0",
+            "version": "0.4.1",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "rate_limit": rate_limit or {"remaining": None, "reset_at": None},
         },

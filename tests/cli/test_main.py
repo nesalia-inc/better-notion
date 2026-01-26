@@ -19,7 +19,7 @@ def test_version_command() -> None:
     assert result.exit_code == 0
     assert '"success": true' in result.stdout
     assert '"name": "Better Notion CLI"' in result.stdout
-    assert '"version": "0.4.0"' in result.stdout
+    assert '"version": "0.4.1"' in result.stdout
 
 
 def test_root_help() -> None:
