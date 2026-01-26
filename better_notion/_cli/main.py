@@ -25,8 +25,6 @@ def version() -> None:
 
     Displays the version information for the Better Notion CLI.
     """
-    import typer
-
     typer.echo(format_success({"name": "Better Notion CLI", "version": "0.4.0"}))
 
 
