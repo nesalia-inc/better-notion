@@ -168,14 +168,17 @@ class Page(BaseEntity):
             raise ValueError(f"Invalid parent type: {type(parent)}")
 
         # Build properties dict
-        props = properties or {}
-
-        # Add title if provided
-        if title:
-            # Find title property name
-            title_prop = cls._find_title_property_in_schema(title_search_parent, client)
-            if title_prop:
-                props[title_prop] = Title(name=title_prop, content=title).to_dict()
+        # Note: Workspace parent pages must have empty properties
+        if isinstance(parent, WorkspaceParent):
+            props = {}
+        else:
+            props = properties or {}
+            # Add title if provided (only for database/page parents)
+            if title:
+                # Find title property name
+                title_prop = cls._find_title_property_in_schema(title_search_parent, client)
+                if title_prop:
+                    props[title_prop] = Title(name=title_prop, content=title).to_dict()
 
         # Create page via API
         data = await client.api.pages.create(
