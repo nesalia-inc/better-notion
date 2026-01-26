@@ -46,6 +46,8 @@ asyncio.run(main())
 
 ## 📦 Installation
 
+### SDK Installation
+
 ```bash
 # With pip
 pip install better-notion
@@ -53,6 +55,95 @@ pip install better-notion
 # With uv
 uv pip install better-notion
 ```
+
+### CLI Installation
+
+```bash
+# Install with CLI support
+pip install better-notion[cli]
+
+# Or install everything
+pip install better-notion[all]
+```
+
+The CLI provides a `notion` command for interacting with Notion from the terminal, designed primarily for AI agents.
+
+**CLI Status**: ⚠️ Experimental - Under active development
+
+---
+
+## 💻 CLI Usage
+
+The Better Notion CLI provides a command-line interface for interacting with Notion.
+
+### Installation
+
+```bash
+pip install better-notion[cli]
+```
+
+### Basic Commands
+
+```bash
+# Show version
+notion --version
+
+# Check authentication status
+notion auth status
+
+# Show help
+notion --help
+```
+
+### Response Format
+
+All CLI commands return JSON for programmatic parsing:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "page_123",
+    "title": "My Page"
+  },
+  "meta": {
+    "version": "0.4.0",
+    "timestamp": "2025-01-26T10:00:00Z",
+    "rate_limit": {
+      "remaining": 48,
+      "reset_at": "2025-01-26T10:01:00Z"
+    }
+  }
+}
+```
+
+### Error Handling
+
+Errors are returned with structured codes:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Page not found",
+    "retry": false
+  },
+  "meta": {...}
+}
+```
+
+### Exit Codes
+
+- `0` - Success
+- `1` - Generic error
+- `2` - Invalid input
+- `3` - Authentication error
+- `4` - Rate limit exceeded
+- `5` - Not found
+- `6` - Conflict
+
+**Note**: The CLI is currently in experimental stage. See [CLI Documentation](docs/cli/) for more details.
 
 ---
 
