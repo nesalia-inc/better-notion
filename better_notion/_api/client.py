@@ -78,7 +78,7 @@ class NotionAPI:
         else:
             raise ValueError("Either auth or auth_handler must be provided")
 
-        self._base_url = base_url.rstrip("/")
+        self._base_url = base_url.rstrip("/") if base_url else self.DEFAULT_BASE_URL
         self._timeout = timeout
         self._version = version
 
