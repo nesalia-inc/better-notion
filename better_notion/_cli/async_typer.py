@@ -15,7 +15,7 @@ from typing import Any, Callable
 import asyncer
 from typer import Typer
 from typer.core import TyperCommand
-from typer.models import CommandFunctionType, Default
+from typer.models import CommandFunctionType
 
 
 class AsyncTyper(Typer):
@@ -52,7 +52,7 @@ class AsyncTyper(Typer):
         no_args_is_help: bool = False,
         hidden: bool = False,
         deprecated: bool = False,
-        rich_help_panel: str | None = Default(None),
+        rich_help_panel: str | None = None,
     ) -> Callable[[CommandFunctionType], CommandFunctionType]:
         """
         Override command decorator to support async functions.
