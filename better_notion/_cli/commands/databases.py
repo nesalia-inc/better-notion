@@ -36,9 +36,9 @@ def get(database_id: str) -> None:
             return format_success({
                 "id": db.id,
                 "title": db.title,
+                "url": db.url,
                 "parent_id": db.parent.id if db.parent else None,
-                "created_time": db.created_time,
-                "last_edited_time": db.last_edited_time,
+                "archived": db.archived,
                 "properties_count": len(db.schema) if db.schema else 0,
             })
         except Exception as e:
