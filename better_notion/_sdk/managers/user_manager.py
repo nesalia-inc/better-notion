@@ -90,8 +90,8 @@ class UserManager:
         self._client._user_cache.clear()
 
         # Fetch all users (handles pagination)
-        async for user_data in self._client.api.users.list():
-            user = User.from_data(self._client, user_data)
+        users = await self._client.api.users.list()
+        for user in users:
             self._client._user_cache.set(user.id, user)
 
     # ===== FINDING =====

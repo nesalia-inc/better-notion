@@ -182,4 +182,14 @@ class DatabaseManager:
             filter={"value": "database", "property": "object"}
         )
 
-        return [r for r in results if r.object == "database"]
+        # Filter results where 'object' field equals 'database' and convert to Database objects
+        from better_notion._sdk.models.database import Database
+
+        databases = []
+        for r in results:
+            if r.get("object") == "database":
+                # Convert raw dict to Database object
+                db = Database.from_data(self._client, r)
+                databases.append(db)
+
+        return databases
