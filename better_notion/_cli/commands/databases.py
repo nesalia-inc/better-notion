@@ -138,7 +138,7 @@ def list_all() -> None:
                     {
                         "id": db.id,
                         "title": db.title,
-                        "created_time": db.created_time,
+                        "url": db.url,
                     }
                     for db in databases
                 ],
