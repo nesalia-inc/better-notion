@@ -1,0 +1,61 @@
+"""
+Main entry point for Better Notion CLI.
+
+This module defines the main CLI application using AsyncTyper.
+"""
+from __future__ import annotations
+
+from better_notion._cli.async_typer import AsyncTyper
+from better_notion._cli.commands import auth
+from better_notion._cli.response import format_success
+
+# Create the main CLI app
+app = AsyncTyper()
+
+# Register command groups
+app.add_typer(auth.app, name="auth")
+
+
+@app.command()
+def version() -> None:
+    """
+    Show the CLI version.
+
+    Displays the version information for the Better Notion CLI.
+    """
+    import typer
+
+    typer.echo(format_success({"name": "Better Notion CLI", "version": "0.4.0"}))
+
+
+@app.callback()
+def main(
+    ctx: typer.Context,
+    verbose: bool = False,
+) -> None:
+    """
+    Better Notion CLI - Command-line interface for Notion API.
+
+    A CLI for interacting with Notion, designed for AI agents.
+
+    \b
+    Features:
+    - JSON-only output for programmatic parsing
+    - Structured error codes for reliable error handling
+    - Async command support for better performance
+    - Idempotency support for safe retries
+
+    \b
+    Getting Started:
+    1. Configure authentication: notion auth login
+    2. Check status: notion auth status
+    3. Get a page: notion pages get <page_id>
+
+    For more help on a specific command, run: notion <command> --help
+    """
+    ctx.ensure_object(dict)
+    ctx.obj["verbose"] = verbose
+
+
+if __name__ == "__main__":
+    app()
