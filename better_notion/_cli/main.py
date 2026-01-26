@@ -8,7 +8,17 @@ from __future__ import annotations
 import typer
 
 from better_notion._cli.async_typer import AsyncTyper
-from better_notion._cli.commands import auth
+from better_notion._cli.commands import (
+    auth,
+    blocks,
+    comments,
+    config,
+    databases,
+    pages,
+    search,
+    users,
+    workspace,
+)
 from better_notion._cli.response import format_success
 
 # Create the main CLI app
@@ -16,6 +26,14 @@ app = AsyncTyper()
 
 # Register command groups
 app.add_typer(auth.app, name="auth")
+app.add_typer(pages.app, name="pages")
+app.add_typer(databases.app, name="databases")
+app.add_typer(blocks.app, name="blocks")
+app.add_typer(search.app, name="search")
+app.add_typer(users.app, name="users")
+app.add_typer(comments.app, name="comments")
+app.add_typer(workspace.app, name="workspace")
+app.add_typer(config.app, name="config")
 
 
 @app.command()

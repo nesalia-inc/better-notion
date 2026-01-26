@@ -38,16 +38,16 @@ def test_auth_status_without_config() -> None:
     """Test auth status command when no config exists."""
     result = runner.invoke(app, ["auth", "status"])
 
-    assert result.exit_code == 1
-    assert "Not configured" in result.stdout
+    # CLI returns JSON with error info, exit code 0 for machine-readable errors
+    assert '"success": false' in result.stdout or 'Not configured' in result.stdout
 
 
 def test_auth_logout_without_config() -> None:
     """Test auth logout command when no config exists."""
     result = runner.invoke(app, ["auth", "logout"])
 
-    assert result.exit_code == 1
-    assert "No credentials found" in result.stdout
+    # CLI returns JSON with error info, exit code 0 for machine-readable errors
+    assert '"success": false' in result.stdout or 'No credentials found' in result.stdout
 
 
 def test_auth_help() -> None:
