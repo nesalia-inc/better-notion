@@ -116,8 +116,10 @@ class DatabaseManager:
             filter={"value": "database", "property": "object"}
         )
 
+        # results is already a list of Database and Page objects
         for result in results:
-            if result.object == "database" and result.title.lower() == title.lower():
+            # Check if it's a Database and matches title (case-insensitive)
+            if hasattr(result, 'title') and result.title.lower() == title.lower():
                 return result
 
         return None
