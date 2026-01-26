@@ -88,10 +88,21 @@ def create(
             parent_obj = WorkspaceParent()
         else:
             # Existing parent resolution logic
+            # Try database first
             try:
                 parent_obj = await client.databases.get(parent)
-            except Exception:
-                parent_obj = await client.pages.get(parent)
+            except Exception as db_err:
+                # If database fails, try as page
+                try:
+                    parent_obj = await client.pages.get(parent)
+                except Exception as page_err:
+                    # Both failed - return detailed error
+                    return format_error(
+                        "PARENT_NOT_FOUND",
+                        f"Could not find parent '{parent}' as database or page. "
+                        f"Database error: {str(db_err)}. Page error: {str(page_err)}",
+                        retry=False
+                    )
 
         page = await client.pages.create(parent=parent_obj, title=title, **props)
 
