@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
-from better_notion._api.entities import Database, Page
-
 
 class DatabaseCollection:
     """Collection for managing databases.
@@ -24,20 +22,19 @@ class DatabaseCollection:
         """
         self._api = api
 
-    async def get(self, database_id: str) -> Database:
+    async def get(self, database_id: str) -> dict[str, Any]:
         """Retrieve a database by ID.
 
         Args:
             database_id: The database ID.
 
         Returns:
-            A Database entity.
+            Raw database data dict from Notion API.
 
         Raises:
             NotFoundError: If the database does not exist.
         """
-        data = await self._api._request("GET", f"/databases/{database_id}")
-        return Database(self._api, data)
+        return await self._api._request("GET", f"/databases/{database_id}")
 
     # Alias for get() for compatibility
     retrieve = get
@@ -62,7 +59,7 @@ class DatabaseCollection:
             json=kwargs,
         )
 
-    async def create_page(self, database_id: str, **kwargs: Any) -> Page:
+    async def create_page(self, database_id: str, **kwargs: Any) -> dict[str, Any]:
         """Create a new page in a database.
 
         Args:
@@ -70,7 +67,7 @@ class DatabaseCollection:
             **kwargs: Page properties.
 
         Returns:
-            The created Page entity.
+            Raw page data dict from Notion API.
 
         Raises:
             ValidationError: If the page properties are invalid.
@@ -78,5 +75,4 @@ class DatabaseCollection:
         """
         # Ensure parent is set to the database
         page_data = {"parent": {"database_id": database_id}, **kwargs}
-        data = await self._api._request("POST", "/pages", json=page_data)
-        return Page(self._api, data)
+        return await self._api._request("POST", "/pages", json=page_data)
