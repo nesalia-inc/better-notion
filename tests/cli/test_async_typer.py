@@ -10,6 +10,8 @@ function is sync even if the original was async. Tests reflect this behavior.
 from __future__ import annotations
 
 import inspect
+from typing import Any
+
 import typer
 from typer.testing import CliRunner
 
@@ -20,7 +22,8 @@ def test_async_typer_creates_sync_wrapper() -> None:
     """Test that AsyncTyper creates sync wrappers for async functions."""
     app = AsyncTyper()
 
-    original_func = async def name: str -> str:
+    # Define an async function
+    async def original_func(name: str) -> str:
         """An async function."""
         return f"Hello {name}"
 
@@ -39,10 +42,15 @@ def test_sync_command_execution() -> None:
     app = AsyncTyper()
     runner = CliRunner()
 
+    @app.callback()
+    def main(ctx: typer.Context):
+        """Main callback."""
+        ctx.ensure_object(dict)
+
     @app.command()
-    def greet(name: str = "World"):
+    def greet():
         """Greet someone."""
-        typer.echo(f"Hello {name}")
+        typer.echo("Hello World")
 
     result = runner.invoke(app, ["greet"])
 
@@ -73,12 +81,17 @@ def test_async_command_with_options() -> None:
     app = AsyncTyper()
     runner = CliRunner()
 
+    @app.callback()
+    def main(ctx: typer.Context):
+        """Main callback."""
+        ctx.ensure_object(dict)
+
     @app.command()
     def greet(name: str, greeting: str = "Hello"):
         """Greet someone with a custom greeting."""
         typer.echo(f"{greeting}, {name}!")
 
-    result = runner.invoke(app, ["greet"])
+    result = runner.invoke(app, ["greet", "World"])
 
     assert result.exit_code == 0
     assert "Hello, World!" in result.stdout

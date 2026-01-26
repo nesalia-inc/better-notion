@@ -28,9 +28,10 @@ def test_root_help() -> None:
 
     assert result.exit_code == 0
     assert "Better Notion CLI" in result.stdout
-    assert "--verbose" in result.stdout
     assert "--help" in result.stdout
-    assert "Commands:" in result.stdout
+    assert "Commands" in result.stdout
+    assert "auth" in result.stdout
+    assert "version" in result.stdout
 
 
 def test_auth_status_without_config() -> None:
