@@ -5,11 +5,56 @@ This module provides commands for managing authentication tokens.
 """
 from __future__ import annotations
 
+import typer
+
 from better_notion._cli.async_typer import AsyncTyper
 from better_notion._cli.config import Config
 from better_notion._cli.response import format_success
 
 app = AsyncTyper(help="Authentication commands")
+
+
+@app.command()
+def login(
+    token: str = typer.Option(
+        ...,
+        "--token",
+        "-t",
+        help="Notion API integration token",
+        prompt=True,
+        hide_input=True,
+    ),
+) -> None:
+    """
+    Authenticate with Notion API.
+
+    Stores the authentication token for subsequent CLI commands.
+    The token can be obtained from https://www.notion.so/my-integrations.
+    """
+    config_path = Config.get_config_path()
+
+    # Check if already logged in
+    if config_path.exists():
+        typer.confirm(
+            "You are already authenticated. Overwrite existing credentials?",
+            abort=True,
+        )
+
+    # Save the token
+    try:
+        Config.save(token=token)
+        typer.echo(
+            format_success(
+                {
+                    "status": "authenticated",
+                    "message": "Successfully authenticated with Notion API",
+                    "config_path": str(config_path),
+                }
+            )
+        )
+    except OSError as e:
+        typer.echo(f"❌ Failed to save credentials: {e}", err=True)
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -19,23 +64,17 @@ def status() -> None:
 
     Verifies the stored authentication token and displays workspace information.
     """
-    import typer
-
-    try:
-        config = Config.load()
-        typer.echo(
-            format_success(
-                {
-                    "status": "authenticated",
-                    "token": config.token[:20] + "...",  # Show partial token
-                    "timeout": config.timeout,
-                    "retry_attempts": config.retry_attempts,
-                }
-            )
+    config = Config.load()
+    typer.echo(
+        format_success(
+            {
+                "status": "authenticated",
+                "token": config.token[:20] + "...",  # Show partial token
+                "timeout": config.timeout,
+                "retry_attempts": config.retry_attempts,
+            }
         )
-    except typer.Exit:
-        # Config.load() already showed error message
-        pass
+    )
 
 
 @app.command()
