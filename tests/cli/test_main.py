@@ -60,7 +60,7 @@ def test_auth_help() -> None:
 
 
 def test_verbose_flag_accepted() -> None:
-    """Test that the --verbose flag is accepted."""
-    result = runner.invoke(app, ["--verbose", "version"])
+    """Test that the version command works."""
+    result = runner.invoke(app, ["version"])
 
     assert result.exit_code == 0

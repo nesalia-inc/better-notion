@@ -33,7 +33,6 @@ def version() -> None:
 @app.callback()
 def main(
     ctx: typer.Context,
-    verbose: bool = False,
 ) -> None:
     """
     Better Notion CLI - Command-line interface for Notion API.
@@ -56,7 +55,6 @@ def main(
     For more help on a specific command, run: notion <command> --help
     """
     ctx.ensure_object(dict)
-    ctx.obj["verbose"] = verbose
 
 
 if __name__ == "__main__":
