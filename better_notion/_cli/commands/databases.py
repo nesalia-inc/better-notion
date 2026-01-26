@@ -42,7 +42,8 @@ def get(database_id: str) -> None:
                 "properties_count": len(db.schema) if db.schema else 0,
             })
         except Exception as e:
-            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+            import traceback
+            return format_error("UNKNOWN_ERROR", f"{str(e)}\n\nStack trace:\n{traceback.format_exc()}", retry=False)
 
     result = asyncio.run(_get())
     typer.echo(result)
