@@ -41,6 +41,9 @@ class BlockCollection:
         data = await self._api._request("GET", f"/blocks/{block_id}")
         return Block(self._api, data)
 
+    # Alias for get() for compatibility
+    retrieve = get
+
     async def update(self, block_id: str, **kwargs: Any) -> Block:
         """Update a block.
 

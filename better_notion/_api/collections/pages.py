@@ -40,6 +40,9 @@ class PageCollection:
         data = await self._api._request("GET", f"/pages/{page_id}")
         return Page(self._api, data)
 
+    # Alias for get() for compatibility
+    retrieve = get
+
     async def create(self, **kwargs: Any) -> Page:
         """Create a new page.
 

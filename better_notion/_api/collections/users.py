@@ -39,6 +39,9 @@ class UserCollection:
         data = await self._api._request("GET", f"/users/{user_id}")
         return User(self._api, data)
 
+    # Alias for get() for compatibility
+    retrieve = get
+
     async def list(self) -> list[User]:
         """List all users.
 
