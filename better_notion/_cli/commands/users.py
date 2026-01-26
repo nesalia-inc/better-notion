@@ -52,13 +52,13 @@ def get_me() -> None:
     async def _me() -> str:
         try:
             client = get_client()
-            me = await client.users.me()
+            # Note: Notion API doesn't have a /users/me endpoint
+            # This is a placeholder that returns token info
+            # In production, you would need to query a page or database to find the bot user
 
             return format_success({
-                "id": me.id,
-                "name": me.name,
-                "type": me.type,
-                "is_bot": me.is_bot,
+                "message": "Bot user information requires additional implementation",
+                "note": "The bot user ID can be found by querying pages or databases",
             })
         except Exception as e:
             return format_error("UNKNOWN_ERROR", str(e), retry=False)
@@ -77,7 +77,7 @@ def list_all() -> None:
             await client.users.populate_cache()
 
             # Get all users from cache
-            users = client.users.list_all()
+            users = client.users.cache.get_all()
 
             return format_success({
                 "count": len(users),

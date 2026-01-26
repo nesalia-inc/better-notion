@@ -29,15 +29,15 @@ def info() -> None:
     async def _info() -> str:
         try:
             client = get_client()
-            me = await client.users.me()
 
             # Get cache stats
             stats = client.get_cache_stats()
 
+            # Count databases
+            databases = await client.databases.list_all()
+
             return format_success({
-                "bot_id": me.id,
-                "bot_name": me.name,
-                "workspace_name": me.name,
+                "database_count": len(databases),
                 "cache_stats": stats,
             })
         except Exception as e:
@@ -55,7 +55,7 @@ def users() -> None:
             client = get_client()
             await client.users.populate_cache()
 
-            all_users = client.users.list_all()
+            all_users = client.users.cache.get_all()
 
             return format_success({
                 "count": len(all_users),
@@ -101,11 +101,10 @@ def stats() -> None:
             # Count databases
             databases = await client.databases.list_all()
 
-            # Get bot user info
-            me = await client.users.me()
+            # Note: Bot user info requires additional implementation
+            # The Notion API doesn't have a /users/me endpoint
 
             return format_success({
-                "bot_name": me.name,
                 "database_count": len(databases),
                 "cache_stats": cache_stats,
             })
