@@ -10,6 +10,10 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from importlib.metadata import version
+
+__version__ = version("better-notion")
+
 
 def format_response(
     *,
@@ -64,7 +68,7 @@ def format_response(
     response: dict[str, Any] = {
         "success": success,
         "meta": {
-            "version": "0.5.0",
+            "version": __version__,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "rate_limit": rate_limit or {"remaining": None, "reset_at": None},
         },

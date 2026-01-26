@@ -19,7 +19,7 @@ from better_notion._cli.commands import (
     users,
     workspace,
 )
-from better_notion._cli.response import format_success
+from better_notion._cli.response import __version__, format_success
 
 # Create the main CLI app
 app = AsyncTyper()
@@ -43,7 +43,7 @@ def version() -> None:
 
     Displays the version information for the Better Notion CLI.
     """
-    typer.echo(format_success({"name": "Better Notion CLI", "version": "0.5.0"}))
+    typer.echo(format_success({"name": "Better Notion CLI", "version": __version__}))
 
 
 @app.callback()
