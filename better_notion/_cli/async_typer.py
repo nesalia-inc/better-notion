@@ -10,7 +10,6 @@ using asyncer.runnify(), while passing sync functions through unchanged.
 from __future__ import annotations
 
 import inspect
-from functools import partial, wraps
 from typing import Any, Callable
 
 import asyncer
@@ -39,32 +38,6 @@ class AsyncTyper(Typer):
         ...     do_something_sync(name)
     """
 
-    @staticmethod
-    def maybe_run_async(
-        decorator: Callable[[CommandFunctionType], Any],
-        f: CommandFunctionType,
-    ) -> CommandFunctionType:
-        """
-        Run async functions with asyncer, sync functions normally.
-
-        Args:
-            decorator: Typer's command decorator
-            f: Command function (sync or async)
-
-        Returns:
-            The wrapped function
-        """
-        if inspect.iscoroutinefunction(f):
-            @wraps(f)
-            def runner(*args: Any, **kwargs: Any) -> Any:
-                return asyncer.runnify(f)(*args, **kwargs)
-
-            decorator(runner)
-        else:
-            decorator(f)
-
-        return f
-
     def command(
         self,
         name: str | None = None,
@@ -84,8 +57,8 @@ class AsyncTyper(Typer):
         """
         Override command decorator to support async functions.
 
-        This method intercepts the Typer.command() decorator and wraps it
-        with maybe_run_async() to handle async functions.
+        This method wraps async functions with a sync wrapper before
+        passing them to Typer, allowing async commands to work seamlessly.
 
         All parameters are passed through to Typer.command() unchanged.
 
@@ -106,18 +79,42 @@ class AsyncTyper(Typer):
         Returns:
             Decorator function that handles both sync and async commands
         """
-        decorator = super().command(
-            name=name,
-            cls=cls,
-            context_settings=context_settings,
-            help=help,
-            epilog=epilog,
-            short_help=short_help,
-            options_metavar=options_metavar,
-            add_help_option=add_help_option,
-            no_args_is_help=no_args_is_help,
-            hidden=hidden,
-            deprecated=deprecated,
-            rich_help_panel=rich_help_panel,
-        )
-        return partial(self.maybe_run_async, decorator)
+
+        def decorator(f: CommandFunctionType) -> CommandFunctionType:
+            # Wrap async functions with sync wrapper
+            if inspect.iscoroutinefunction(f):
+                # Create sync wrapper for async function
+                def runner(*args: Any, **kwargs: Any) -> Any:
+                    return asyncer.runnify(f)(*args, **kwargs)
+
+                # Copy function metadata
+                runner.__name__ = f.__name__
+                runner.__doc__ = f.__doc__
+                runner.__wrapped__ = f
+
+                # Use wrapper for registration
+                func_to_decorate = runner
+            else:
+                func_to_decorate = f
+
+            # Get parent's command decorator and apply it
+            parent_decorator = Typer.command(
+                self,
+                name=name,
+                cls=cls,
+                context_settings=context_settings,
+                help=help,
+                epilog=epilog,
+                short_help=short_help,
+                options_metavar=options_metavar,
+                add_help_option=add_help_option,
+                no_args_is_help=no_args_is_help,
+                hidden=hidden,
+                deprecated=deprecated,
+                rich_help_panel=rich_help_panel,
+            )
+
+            # Apply parent decorator and return result
+            return parent_decorator(func_to_decorate)
+
+        return decorator
