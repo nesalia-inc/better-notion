@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
-from better_notion._api.entities import Comment
 
 
 class CommentCollection:
@@ -24,20 +23,19 @@ class CommentCollection:
         """
         self._api = api
 
-    async def retrieve(self, comment_id: str) -> Comment:
+    async def retrieve(self, comment_id: str) -> dict[str, Any]:
         """Retrieve a comment by ID.
 
         Args:
             comment_id: The comment ID.
 
         Returns:
-            A Comment entity.
+            Raw comment data dict from Notion API.
 
         Raises:
             NotFoundError: If the comment does not exist.
         """
-        data = await self._api._request("GET", f"/comments/{comment_id}")
-        return Comment(self._api, data)
+        return await self._api._request("GET", f"/comments/{comment_id}")
 
     async def create(
         self,
@@ -47,7 +45,7 @@ class CommentCollection:
         rich_text: list[dict[str, Any]],
         attachments: list[dict[str, Any]] | None = None,
         display_name: dict[str, str] | None = None
-    ) -> Comment:
+    ) -> dict[str, Any]:
         """Create a new comment.
 
         Args:
@@ -58,7 +56,7 @@ class CommentCollection:
             display_name: Optional display name configuration
 
         Returns:
-            The created Comment entity.
+            Raw comment data dict from Notion API.
 
         Raises:
             ValidationError: If the request is invalid.
@@ -78,8 +76,7 @@ class CommentCollection:
         if display_name:
             payload["display_name"] = display_name
 
-        data = await self._api._request("POST", "/comments", json=payload)
-        return Comment(self._api, data)
+        return await self._api._request("POST", "/comments", json=payload)
 
     async def list(
         self,

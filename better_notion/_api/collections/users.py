@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
-from better_notion._api.entities import User
 
 
 class UserCollection:
@@ -24,38 +23,33 @@ class UserCollection:
         """
         self._api = api
 
-    async def get(self, user_id: str) -> User:
+    async def get(self, user_id: str) -> dict[str, Any]:
         """Retrieve a user by ID.
 
         Args:
             user_id: The user ID.
 
         Returns:
-            A User entity.
+            Raw user data dict from Notion API.
 
         Raises:
             NotFoundError: If the user does not exist.
         """
-        data = await self._api._request("GET", f"/users/{user_id}")
-        return User(self._api, data)
+        return await self._api._request("GET", f"/users/{user_id}")
 
-    # Alias for get() for compatibility
-    retrieve = get
-
-    async def list(self) -> list[User]:
+    async def list(self) -> list[dict[str, Any]]:
         """List all users.
 
         Returns:
-            List of User entities.
+            List of raw user data dicts from Notion API.
         """
         data = await self._api._request("GET", "/users")
-        return [User(self._api, user_data) for user_data in data.get("results", [])]
+        return data.get("results", [])
 
-    async def me(self) -> User:
+    async def me(self) -> dict[str, Any]:
         """Get the current bot user.
 
         Returns:
-            The current User entity.
+            Raw user data dict from Notion API.
         """
-        data = await self._api._request("GET", "/users/me")
-        return User(self._api, data)
+        return await self._api._request("GET", "/users/me")

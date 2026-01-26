@@ -438,7 +438,7 @@ class Database(BaseEntity):
             if page_id in self._client.page_cache:
                 return self._client.page_cache[page_id]
             # Fetch from API
-            data = await self._client.api.pages.retrieve(page_id=page_id)
+            data = await self._client.api.pages.get(page_id)
             from better_notion._sdk.models.page import Page
             parent = Page(self._client, data)
         elif parent_data.get("type") == "workspace":

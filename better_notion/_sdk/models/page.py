@@ -91,7 +91,7 @@ class Page(BaseEntity):
             return client.page_cache[page_id]
 
         # Fetch from API
-        data = await client.api.pages.retrieve(page_id=page_id)
+        data = await client.api.pages.get(page_id)
         page = cls(client, data)
 
         # Cache it
@@ -551,7 +551,7 @@ class Page(BaseEntity):
         """
         # Stage changes are handled via update()
         # For now, just reload from API
-        data = await self._client.api.pages.retrieve(page_id=self.id)
+        data = await self._client.api.pages.get(page_id=self.id)
 
         # Update local data
         self._data = data
@@ -620,7 +620,7 @@ class Page(BaseEntity):
             if db_id in self._client.database_cache:
                 return self._client.database_cache[db_id]
             # Fetch from API
-            data = await self._client.api.databases.retrieve(database_id=db_id)
+            data = await self._client.api.databases.get(db_id)
             return Database(self._client, data)
 
         elif parent_type == "page_id":
@@ -629,7 +629,7 @@ class Page(BaseEntity):
             if page_id in self._client.page_cache:
                 return self._client.page_cache[page_id]
             # Fetch from API
-            data = await self._client.api.pages.retrieve(page_id=page_id)
+            data = await self._client.api.pages.get(page_id)
             return Page(self._client, data)
 
         elif parent_type == "workspace":
@@ -639,7 +639,7 @@ class Page(BaseEntity):
         elif parent_type == "block_id":
             block_id = parent_data["block_id"]
             # Blocks can have children, treat as page parent
-            data = await self._client.api.blocks.retrieve(block_id=block_id)
+            data = await self._client.api.blocks.get(block_id)
             # If it's a block that behaves like a page, return Page
             if data.get("type") == "page":
                 return Page(self._client, data)

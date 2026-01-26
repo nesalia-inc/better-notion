@@ -66,7 +66,7 @@ class Comment(BaseEntity):
             return client.comment_cache[comment_id]
 
         # Fetch from API
-        data = await client.api.comments.retrieve(comment_id=comment_id)
+        data = await client.api.comments.get(comment_id)
         comment = cls(client, data)
 
         # Cache it

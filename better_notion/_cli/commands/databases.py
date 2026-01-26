@@ -37,7 +37,6 @@ def get(database_id: str) -> None:
                 "id": db.id,
                 "title": db.title,
                 "url": db.url,
-                "parent_id": db.parent.id if db.parent else None,
                 "archived": db.archived,
                 "properties_count": len(db.schema) if db.schema else 0,
             })

@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
-from better_notion._api.entities import Page
 from better_notion._api.utils import AsyncPaginatedIterator
 
 
@@ -25,41 +24,36 @@ class PageCollection:
         """
         self._api = api
 
-    async def get(self, page_id: str) -> Page:
+    async def get(self, page_id: str) -> dict[str, Any]:
         """Retrieve a page by ID.
 
         Args:
             page_id: The page ID.
 
         Returns:
-            A Page entity.
+            Raw page data dict from Notion API.
 
         Raises:
             NotFoundError: If the page does not exist.
         """
-        data = await self._api._request("GET", f"/pages/{page_id}")
-        return Page(self._api, data)
+        return await self._api._request("GET", f"/pages/{page_id}")
 
-    # Alias for get() for compatibility
-    retrieve = get
-
-    async def create(self, **kwargs: Any) -> Page:
+    async def create(self, **kwargs: Any) -> dict[str, Any]:
         """Create a new page.
 
         Args:
             **kwargs: Page properties including parent (required).
 
         Returns:
-            The created Page entity.
+            Raw page data dict from Notion API.
 
         Raises:
             ValidationError: If parent is not provided or invalid.
             BadRequestError: If the request is invalid.
         """
-        data = await self._api._request("POST", "/pages", json=kwargs)
-        return Page(self._api, data)
+        return await self._api._request("POST", "/pages", json=kwargs)
 
-    async def list(self, database_id: str, **kwargs: Any) -> list[Page]:
+    async def list(self, database_id: str, **kwargs: Any) -> list[dict[str, Any]]:
         """List pages in a database.
 
         Args:
@@ -67,7 +61,7 @@ class PageCollection:
             **kwargs: Query parameters (filter, sorts, start_cursor, etc.).
 
         Returns:
-            List of Page entities (first page only).
+            List of raw page data dicts from Notion API (first page only).
 
         Raises:
             NotFoundError: If the database does not exist.
@@ -78,9 +72,9 @@ class PageCollection:
             f"/databases/{database_id}/query",
             json=kwargs,
         )
-        return [Page(self._api, page_data) for page_data in data.get("results", [])]
+        return data.get("results", [])
 
-    def iterate(self, database_id: str, **kwargs: Any) -> AsyncPaginatedIterator[Page]:
+    def iterate(self, database_id: str, **kwargs: Any) -> AsyncPaginatedIterator[dict[str, Any]]:
         """Iterate over all pages in a database with automatic pagination.
 
         Args:
@@ -88,11 +82,11 @@ class PageCollection:
             **kwargs: Query parameters (filter, sorts, etc.).
 
         Returns:
-            Async iterator that yields Page entities.
+            Async iterator that yields raw page data dicts from Notion API.
 
         Example:
-            >>> async for page in api.pages.iterate("database_id"):
-            ...     print(page.title)
+            >>> async for page_data in api.pages.iterate("database_id"):
+            ...     print(page_data["id"])
 
         Note:
             This method does not fetch pages immediately. Pages are fetched
@@ -108,4 +102,4 @@ class PageCollection:
                 json=query_params,
             )
 
-        return AsyncPaginatedIterator(fetch_fn, lambda data: Page(self._api, data))
+        return AsyncPaginatedIterator(fetch_fn, lambda data: data)

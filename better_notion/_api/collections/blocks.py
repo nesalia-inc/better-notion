@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
-from better_notion._api.entities import Block
 
 
 class BlockCollection:
@@ -26,25 +25,21 @@ class BlockCollection:
         self._api = api
         self._parent_id = parent_id
 
-    async def get(self, block_id: str) -> Block:
+    async def get(self, block_id: str) -> dict[str, Any]:
         """Retrieve a block by ID.
 
         Args:
             block_id: The block ID.
 
         Returns:
-            A Block entity.
+            Raw block data dict from Notion API.
 
         Raises:
             NotFoundError: If the block does not exist.
         """
-        data = await self._api._request("GET", f"/blocks/{block_id}")
-        return Block(self._api, data)
+        return await self._api._request("GET", f"/blocks/{block_id}")
 
-    # Alias for get() for compatibility
-    retrieve = get
-
-    async def update(self, block_id: str, **kwargs: Any) -> Block:
+    async def update(self, block_id: str, **kwargs: Any) -> dict[str, Any]:
         """Update a block.
 
         Args:
@@ -56,7 +51,7 @@ class BlockCollection:
                 etc.
 
         Returns:
-            The updated Block entity.
+            Raw block data dict from Notion API.
 
         Raises:
             ValidationError: If the request is invalid.
@@ -69,14 +64,13 @@ class BlockCollection:
             ...     paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
             ... )
         """
-        data = await self._api._request("PATCH", f"/blocks/{block_id}", json=kwargs)
-        return Block(self._api, data)
+        return await self._api._request("PATCH", f"/blocks/{block_id}", json=kwargs)
 
-    async def children(self) -> list[Block]:
+    async def children(self) -> list[dict[str, Any]]:
         """Get children blocks.
 
         Returns:
-            List of child Block entities.
+            List of raw child block data dicts from Notion API.
 
         Raises:
             NotFoundError: If the parent block does not exist.
@@ -86,16 +80,16 @@ class BlockCollection:
             raise ValueError("parent_id is required to get children")
 
         data = await self._api._request("GET", f"/blocks/{self._parent_id}/children")
-        return [Block(self._api, block_data) for block_data in data.get("results", [])]
+        return data.get("results", [])
 
-    async def append(self, **kwargs: Any) -> Block:
+    async def append(self, **kwargs: Any) -> dict[str, Any]:
         """Append a new block.
 
         Args:
             **kwargs: Block properties including children (required).
 
         Returns:
-            The created Block entity.
+            Raw block data dict from Notion API.
 
         Raises:
             ValidationError: If parent_id is not set or request is invalid.
@@ -113,7 +107,7 @@ class BlockCollection:
         # We need to get the last created child
         children = data.get("results", [])
         if children:
-            return Block(self._api, children[-1])
+            return children[-1]
         # If no children returned, we need to fetch the parent's children again
         # For now, just return the first child from the response
-        return Block(self._api, data)
+        return data

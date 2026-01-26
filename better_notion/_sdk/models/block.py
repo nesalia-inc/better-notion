@@ -61,7 +61,7 @@ class Block(BaseEntity):
             >>> block = await Block.get(block_id, client=client)
         """
         # Fetch from API
-        data = await client.api.blocks.retrieve(block_id=block_id)
+        data = await client.api.blocks.get(block_id)
 
         # Return specialized instance based on type
         return cls.from_data(client, data)
@@ -357,7 +357,7 @@ class Block(BaseEntity):
             if page_id in self._client.page_cache:
                 return self._client.page_cache[page_id]
             # Fetch from API
-            data = await self._client.api.pages.retrieve(page_id=page_id)
+            data = await self._client.api.pages.get(page_id)
             from better_notion._sdk.models.page import Page
             parent = Page(self._client, data)
 

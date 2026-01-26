@@ -81,7 +81,7 @@ class User(BaseEntity):
             return client.user_cache[user_id]
 
         # Fetch from API
-        data = await client.api.users.retrieve(user_id=user_id)
+        data = await client.api.users.get(user_id)
         user = cls(client, data)
 
         # Cache it
