@@ -38,14 +38,17 @@ def get(page_id: str) -> None:
             client = get_client()
             page = await client.pages.get(page_id)
 
+            # Get parent (async method - note the parentheses)
+            parent_obj = await page.parent()
+
             return format_success({
                 "id": page.id,
                 "title": page.title,
                 "url": page.url,
-                "parent_id": page.parent.id if page.parent else None,
-                "parent_type": page.parent.type if page.parent else None,
-                "created_time": page.created_time,
-                "last_edited_time": page.last_edited_time,
+                "parent_id": parent_obj.id if parent_obj else None,
+                "parent_type": parent_obj.object if parent_obj else None,
+                "created_time": page._data.get("created_time"),
+                "last_edited_time": page._data.get("last_edited_time"),
                 "archived": page.archived,
                 "properties": {name: str(value) for name, value in page._data.get("properties", {}).items()},
             })
