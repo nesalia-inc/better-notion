@@ -96,3 +96,26 @@ class Text(Property):
                 }
             ]
         }
+
+
+def create_rich_text_array(content: str, **kwargs: Any) -> list[dict[str, Any]]:
+    """Create a rich text array for block content.
+
+    This is a convenience function for creating rich text arrays
+    used in block content (paragraphs, headings, etc.).
+
+    Args:
+        content: The text content.
+        **kwargs: Optional formatting options (bold, italic, etc.)
+
+    Returns:
+        A list with a single rich text object in Notion API format.
+
+    Example:
+        >>> create_rich_text_array("Hello, world!")
+        [{'type': 'text', 'text': {'content': 'Hello, world!'}}]
+        >>> create_rich_text_array("Bold text", bold=True)
+        [{'type': 'text', 'text': {'content': 'Bold text'}, 'annotations': {'bold': True}}]
+    """
+    rich_text = RichText(name="", content=content, **kwargs)
+    return [rich_text.to_dict()]

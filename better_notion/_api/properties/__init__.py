@@ -1,7 +1,7 @@
 """Property builders for Notion entities."""
 
 from better_notion._api.properties.base import Property
-from better_notion._api.properties.rich_text import RichText, Text
+from better_notion._api.properties.rich_text import RichText, Text, create_rich_text_array
 from better_notion._api.properties.title import Title
 from better_notion._api.properties.select import Select, MultiSelect
 from better_notion._api.properties.checkbox import Checkbox
@@ -15,6 +15,7 @@ __all__ = [
     "Property",
     "RichText",
     "Text",
+    "create_rich_text_array",
     "Title",
     "Select",
     "MultiSelect",
