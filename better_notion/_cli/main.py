@@ -15,6 +15,7 @@ from better_notion._cli.commands import (
     config,
     databases,
     pages,
+    plugins,
     search,
     users,
     workspace,
@@ -29,11 +30,41 @@ app.add_typer(auth.app, name="auth")
 app.add_typer(pages.app, name="pages")
 app.add_typer(databases.app, name="databases")
 app.add_typer(blocks.app, name="blocks")
+app.add_typer(plugins.app, name="plugin")
 app.add_typer(search.app, name="search")
 app.add_typer(users.app, name="users")
 app.add_typer(comments.app, name="comments")
 app.add_typer(workspace.app, name="workspace")
 app.add_typer(config.app, name="config")
+
+# Load and register official plugins
+def _load_official_plugins():
+    """Load and register official plugins."""
+    try:
+        from better_notion.plugins.official import OFFICIAL_PLUGINS
+        from better_notion.plugins.loader import PluginLoader
+
+        loader = PluginLoader()
+
+        for plugin_class in OFFICIAL_PLUGINS:
+            try:
+                plugin = plugin_class()
+                plugin.register_commands(app)
+                info = plugin.get_info()
+                # Store plugin for later reference
+                if not hasattr(app, '_loaded_plugins'):
+                    app._loaded_plugins = {}
+                app._loaded_plugins[info['name']] = plugin
+            except Exception as e:
+                # Log but don't fail if a plugin fails to load
+                pass
+    except ImportError:
+        # No official plugins available
+        pass
+
+
+# Load official plugins at startup
+_load_official_plugins()
 
 
 @app.command()
