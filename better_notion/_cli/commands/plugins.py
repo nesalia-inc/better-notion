@@ -123,9 +123,9 @@ def add(
                 )
 
     except subprocess.CalledProcessError as e:
-        return format_error("INSTALL_ERROR", str(e), False)
+        return format_error("INSTALL_ERROR",  str(e))
     except Exception as e:
-        return format_error("UNKNOWN_ERROR", str(e), False)
+        return format_error("UNKNOWN_ERROR",  str(e))
 
 
 @app.command()
@@ -171,7 +171,7 @@ def remove(
         })
 
     except Exception as e:
-        return format_error("REMOVE_ERROR", str(e), False)
+        return format_error("REMOVE_ERROR",  str(e))
 
 
 @app.command("list")
@@ -215,7 +215,7 @@ def list_plugins(
         typer.echo("└" + "─" * 50 + "┘")
 
     except Exception as e:
-        return format_error("LIST_ERROR", str(e), False)
+        return format_error("LIST_ERROR",  str(e))
 
 
 @app.command()
@@ -237,8 +237,7 @@ def info(
         if not plugin:
             return format_error(
                 "PLUGIN_NOT_FOUND",
-                f"Plugin '{plugin_name}' not found",
-                False
+                f"Plugin '{plugin_name}' not found"
             )
 
         info = plugin.get_info()
@@ -261,7 +260,7 @@ def info(
             typer.echo("  (Command listing not yet implemented)")
 
     except Exception as e:
-        return format_error("INFO_ERROR", str(e), False)
+        return format_error("INFO_ERROR",  str(e))
 
 
 @app.command()
@@ -380,7 +379,7 @@ class {plugin_name.replace("-", "_").title()}Plugin(PluginInterface):
                     return format_success({{"message": "Action executed"}})
 
                 except Exception as e:
-                    return format_error("ACTION_ERROR", str(e), False)
+                    return format_error("ACTION_ERROR",  str(e))
 
             result = asyncio.run(_action())
             typer.echo(result)
@@ -424,7 +423,7 @@ class {plugin_name.replace("-", "_").title()}Plugin(PluginInterface):
         })
 
     except Exception as e:
-        return format_error("INIT_ERROR", str(e), False)
+        return format_error("INIT_ERROR",  str(e))
 
 
 @app.command()
@@ -446,8 +445,7 @@ def validate(
         if not plugin:
             return format_error(
                 "PLUGIN_NOT_FOUND",
-                f"Plugin '{plugin_name}' not found",
-                False
+                f"Plugin '{plugin_name}' not found"
             )
 
         # Validate plugin
@@ -463,12 +461,11 @@ def validate(
             return format_error(
                 "VALIDATION_FAILED",
                 f"Plugin validation failed with {len(errors)} error(s)",
-                False,
                 details={"errors": errors}
             )
 
     except Exception as e:
-        return format_error("VALIDATE_ERROR", str(e), False)
+        return format_error("VALIDATE_ERROR",  str(e))
 
 
 @app.command()
@@ -501,7 +498,7 @@ def enable(
         })
 
     except Exception as e:
-        return format_error("ENABLE_ERROR", str(e), False)
+        return format_error("ENABLE_ERROR",  str(e))
 
 
 @app.command()
@@ -529,7 +526,7 @@ def disable(
         })
 
     except Exception as e:
-        return format_error("DISABLE_ERROR", str(e), False)
+        return format_error("DISABLE_ERROR",  str(e))
 
 
 @app.command()
@@ -565,6 +562,6 @@ def update(
             )
 
     except subprocess.CalledProcessError as e:
-        return format_error("UPDATE_ERROR", str(e), False)
+        return format_error("UPDATE_ERROR",  str(e))
     except Exception as e:
-        return format_error("UNKNOWN_ERROR", str(e), False)
+        return format_error("UNKNOWN_ERROR",  str(e))
