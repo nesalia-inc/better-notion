@@ -97,13 +97,11 @@ class Paragraph(Block):
         }
 
         # Create block via API
-        data = await client.api.blocks.children.append(
-            block_id=parent_id,
-            children=[block_data]
-        )
+        from better_notion._api.collections import BlockCollection
+        blocks = BlockCollection(client.api, parent_id=parent_id)
+        result_data = await blocks.append(children=[block_data])
 
-        # Return first created block
-        result_data = data.get("results", [{}])[0]
+        # Return the created block
         return cls.from_data(client, result_data)
 
     def __repr__(self) -> str:
