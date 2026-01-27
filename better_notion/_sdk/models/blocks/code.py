@@ -94,7 +94,7 @@ class Code(Block):
             ...     language="python"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -106,7 +106,7 @@ class Code(Block):
         block_data = {
             "type": "code",
             "code": {
-                "rich_text": [RichText[code]],
+                "rich_text": create_rich_text_array(code),
                 "language": language
             }
         }

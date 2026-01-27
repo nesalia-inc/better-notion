@@ -70,7 +70,7 @@ class Template(Block):
             ...     text="Meeting Notes"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -80,7 +80,7 @@ class Template(Block):
 
         # Build template data
         template_data = {
-            "rich_text": [RichText[text]]
+            "rich_text": create_rich_text_array(text)
         }
 
         # Build template block data
