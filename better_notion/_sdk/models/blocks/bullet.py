@@ -57,7 +57,7 @@ class Bullet(Block):
             ...     text="First item"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -69,7 +69,7 @@ class Bullet(Block):
         block_data = {
             "type": "bulleted_list_item",
             "bulleted_list_item": {
-                "rich_text": [RichText[text]]
+                "rich_text": create_rich_text_array(text)
             }
         }
 
