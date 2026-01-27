@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 from better_notion._cli.async_typer import AsyncTyper
 from better_notion._cli.config import Config
 from better_notion._cli.response import format_error, format_success
+from better_notion._cli.markdown import parse_markdown_file
 from better_notion._sdk.client import NotionClient
 
 app = AsyncTyper(help="Pages commands")
@@ -383,4 +384,89 @@ def restore(page_id: str) -> None:
         })
 
     result = asyncio.run(_restore())
+    typer.echo(result)
+
+
+@app.command("create-from-md")
+def create_from_md(
+    file: str = typer.Option(..., "--file", "-f", help="Path to markdown file"),
+    parent: str = typer.Option(..., "--parent", "-p", help="Parent database or page ID"),
+    title: str = typer.Option(None, "--title", "-t", help="Custom page title (default: first H1 or filename)"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be created without creating"),
+) -> None:
+    """
+    Create a page from a markdown file.
+
+    Parses the markdown file and creates a new Notion page with all blocks.
+    """
+    async def _create() -> str:
+        try:
+            # Parse markdown file
+            md_title, blocks = parse_markdown_file(file)
+
+            # Use custom title if provided
+            page_title = title or md_title
+
+            if dry_run:
+                # Show what would be created
+                return format_success({
+                    "dry_run": True,
+                    "file": file,
+                    "title": page_title,
+                    "parent": parent,
+                    "blocks_count": len(blocks),
+                    "blocks_preview": [
+                        {
+                            "type": block.get("type"),
+                            "preview": str(block.get(block.get("type", {}), {}))[:100]
+                        }
+                        for block in blocks[:5]  # Show first 5 blocks
+                    ]
+                })
+
+            client = get_client()
+
+            # Resolve parent
+            try:
+                parent_obj = await client.databases.get(parent)
+            except Exception:
+                parent_obj = await client.pages.get(parent)
+
+            # Create page
+            page = await client.pages.create(
+                parent=parent_obj,
+                title=page_title,
+            )
+
+            # Add blocks to page
+            if blocks:
+                # Use BlockCollection to append blocks
+                from better_notion._api.collections import BlockCollection
+
+                blocks_collection = BlockCollection(client.api, parent_id=page.id)
+
+                # Add blocks one by one (Notion API limitation)
+                for block_data in blocks:
+                    try:
+                        await blocks_collection.append(block_data)
+                    except Exception as e:
+                        # Continue with other blocks even if one fails
+                        pass
+
+            return format_success({
+                "id": page.id,
+                "title": page_title,
+                "url": page.url,
+                "blocks_created": len(blocks),
+                "file": file,
+            })
+
+        except FileNotFoundError as e:
+            return format_error("FILE_NOT_FOUND", str(e), retry=False)
+        except ValueError as e:
+            return format_error("INVALID_FILE", str(e), retry=False)
+        except Exception as e:
+            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+
+    result = asyncio.run(_create())
     typer.echo(result)

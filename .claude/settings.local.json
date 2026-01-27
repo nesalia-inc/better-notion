@@ -16,7 +16,8 @@
       "Bash(notion blocks paragraph --help:*)",
       "Bash(pip install:*)",
       "Bash(notion blocks paragraph:*)",
-      "Bash(uv build:*)"
+      "Bash(uv build:*)",
+      "Bash(git merge:*)"
     ]
   }
 }
