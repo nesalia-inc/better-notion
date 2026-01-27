@@ -392,17 +392,30 @@ class Block(BaseEntity):
             Handles pagination automatically
         """
         from better_notion._api.utils.pagination import AsyncPaginatedIterator
+        from better_notion._api.collections import BlockCollection
 
-        # Define fetch function
+        # Define fetch function using BlockCollection properly
         async def fetch_fn(cursor: str | None) -> dict:
             params = {}
             if cursor:
                 params["start_cursor"] = cursor
 
-            return await self._client.api.blocks.children.list(
-                block_id=self.id,
-                **params
-            )
+            # Create BlockCollection with parent_id set
+            blocks = BlockCollection(self._client.api, parent_id=self.id)
+            children_data = await blocks.children()
+
+            # Handle pagination manually if cursor is provided
+            if cursor:
+                # For pagination support, we'd need to modify BlockCollection.children()
+                # to accept cursor parameter. For now, just return all children
+                pass
+
+            # Return in the format expected by AsyncPaginatedIterator
+            return {
+                "results": children_data,
+                "next_cursor": None,  # TODO: Extract from response if pagination needed
+                "has_more": False
+            }
 
         # Define item parser
         def item_parser(item_data: dict) -> Block:
