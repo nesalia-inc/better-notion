@@ -21,7 +21,8 @@
       "Bash(gh issue close:*)",
       "Bash(gh pr view:*)",
       "Bash(curl:*)",
-      "Bash(gh issue comment:*)"
+      "Bash(gh issue comment:*)",
+      "Bash(uv run python:*)"
     ]
   }
 }
