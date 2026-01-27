@@ -12,7 +12,11 @@
       "Bash(printf:*)",
       "Bash(npx create-fumadocs-app:*)",
       "Bash(PYTEST_ASYNCIO_MODE=auto python -m pytest:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(notion blocks paragraph --help:*)",
+      "Bash(pip install:*)",
+      "Bash(notion blocks paragraph:*)",
+      "Bash(uv build:*)"
     ]
   }
 }
