@@ -75,7 +75,7 @@ class Callout(Block):
             ...     icon="💡"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -85,7 +85,7 @@ class Callout(Block):
 
         # Build callout data
         callout_data = {
-            "rich_text": [RichText[text]]
+            "rich_text": create_rich_text_array(text)
         }
 
         # Add icon if provided
