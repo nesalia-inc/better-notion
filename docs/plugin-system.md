@@ -11,7 +11,7 @@ Plugins can add new commands to the CLI, provide custom data processing, and int
 
 ## Official Plugins
 
-The following official plugins are included with Better Notion CLI:
+The following official plugins are included with Better Notion CLI but must be explicitly enabled to use:
 
 ### Productivity Plugin
 
@@ -21,6 +21,41 @@ The productivity plugin provides common productivity commands for daily workflow
 - `notion inbox-zero` - Process inbox items to achieve inbox zero
 - `notion my-tasks` - Show your active tasks
 - `notion daily-notes` - Create a daily notes page
+
+**Note**: Official plugins are **not enabled by default** to keep the CLI lightweight. You must explicitly enable them:
+
+```bash
+# Enable the productivity plugin
+notion plugin enable productivity
+
+# Now the commands are available
+notion quick-capture --text "Meeting notes"
+```
+
+### Enabling Official Plugins
+
+Official plugins are bundled with the CLI but not activated by default. To enable an official plugin:
+
+```bash
+notion plugin enable <plugin-name>
+```
+
+For example:
+```bash
+notion plugin enable productivity
+```
+
+Once enabled, the plugin's commands become available in the CLI.
+
+To disable an official plugin:
+```bash
+notion plugin disable <plugin-name>
+```
+
+To see which official plugins are available:
+```bash
+notion plugin list --available-official
+```
 
 ## Installing Plugins
 

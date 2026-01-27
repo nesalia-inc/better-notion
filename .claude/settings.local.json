@@ -19,7 +19,9 @@
       "Bash(uv build:*)",
       "Bash(git merge:*)",
       "Bash(gh issue close:*)",
-      "Bash(gh pr view:*)"
+      "Bash(gh pr view:*)",
+      "Bash(curl:*)",
+      "Bash(gh issue comment:*)"
     ]
   }
 }

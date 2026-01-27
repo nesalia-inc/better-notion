@@ -37,33 +37,56 @@ app.add_typer(comments.app, name="comments")
 app.add_typer(workspace.app, name="workspace")
 app.add_typer(config.app, name="config")
 
-# Load and register official plugins
+# Load and register official plugins (when enabled by user)
 def _load_official_plugins():
-    """Load and register official plugins."""
+    """Load and register official plugins that are enabled by the user."""
+    import json
+    from pathlib import Path
+
     try:
         from better_notion.plugins.official import OFFICIAL_PLUGINS
         from better_notion.plugins.loader import PluginLoader
 
-        loader = PluginLoader()
+        # Load enabled plugins from configuration
+        enabled_plugins_file = Path.home() / ".notion" / "plugins" / "enabled.json"
+        enabled_plugins = []
 
-        for plugin_class in OFFICIAL_PLUGINS:
+        if enabled_plugins_file.exists():
             try:
-                plugin = plugin_class()
-                plugin.register_commands(app)
-                info = plugin.get_info()
-                # Store plugin for later reference
-                if not hasattr(app, '_loaded_plugins'):
-                    app._loaded_plugins = {}
-                app._loaded_plugins[info['name']] = plugin
-            except Exception as e:
-                # Log but don't fail if a plugin fails to load
+                config = json.loads(enabled_plugins_file.read_text())
+                enabled_plugins = config.get("enabled", [])
+            except (json.JSONDecodeError, IOError):
                 pass
+
+        # Only load plugins that are explicitly enabled
+        if enabled_plugins:
+            loader = PluginLoader()
+
+            for plugin_class in OFFICIAL_PLUGINS:
+                plugin = plugin_class()
+                info = plugin.get_info()
+                plugin_name = info['name']
+
+                # Only load if explicitly enabled
+                if plugin_name in enabled_plugins:
+                    try:
+                        plugin.register_commands(app)
+                        # Store plugin for later reference
+                        if not hasattr(app, '_loaded_plugins'):
+                            app._loaded_plugins = {}
+                        app._loaded_plugins[plugin_name] = plugin
+                    except Exception as e:
+                        # Log but don't fail if a plugin fails to load
+                        pass
+
     except ImportError:
         # No official plugins available
         pass
 
 
-# Load official plugins at startup
+# Load official plugins at startup (only those explicitly enabled)
+# Note: Official plugins are not enabled by default
+# Users can enable them via: notion plugin enable <plugin-name>
 _load_official_plugins()
 
 
