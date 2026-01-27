@@ -43,11 +43,11 @@ class Paragraph(Block):
             >>> para = await Paragraph.create(parent=page, client=client, text="Old")
             >>> await para.set_text("New text")
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Update via API
         updated = await self.update(paragraph={
-            "rich_text": [RichText[text]]
+            "rich_text": create_rich_text_array(text)
         })
 
         return updated
@@ -79,7 +79,7 @@ class Paragraph(Block):
             ...     text="Hello, world!"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -92,7 +92,7 @@ class Paragraph(Block):
         block_data = {
             "type": "paragraph",
             "paragraph": {
-                "rich_text": [RichText[text]]
+                "rich_text": create_rich_text_array(text)
             }
         }
 
