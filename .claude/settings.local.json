@@ -17,7 +17,9 @@
       "Bash(pip install:*)",
       "Bash(notion blocks paragraph:*)",
       "Bash(uv build:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(gh issue close:*)",
+      "Bash(gh pr view:*)"
     ]
   }
 }

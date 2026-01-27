@@ -123,8 +123,8 @@ def delete(database_id: str) -> None:
     typer.echo(result)
 
 
-@app.command()
-def list_all() -> None:
+@app.command("list")
+def list_cmd() -> None:
     """List all databases in workspace."""
     async def _list() -> str:
         try:
