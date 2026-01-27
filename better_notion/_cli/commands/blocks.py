@@ -291,7 +291,7 @@ def create_code(
 def create_todo(
     parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
     text: str = typer.Option(..., "--text", "-t", help="Todo text"),
-    checked: bool = typer.Option(False, "--checked/--unchecked", "-c/-u", help="Initial checked state"),
+    checked: bool = typer.Option(False, "--checked/--unchecked", help="Initial checked state"),
 ) -> None:
     """Create a todo block."""
     async def _create() -> str:
@@ -366,6 +366,117 @@ def create_heading(
                 "id": block.id,
                 "type": "heading",
                 "level": level,
+            })
+        except Exception as e:
+            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+
+    result = asyncio.run(_create())
+    typer.echo(result)
+
+
+@app.command("bullet")
+def create_bullet(
+    parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
+    text: str = typer.Option(..., "--text", "-t", help="Bullet text"),
+) -> None:
+    """Create a bulleted list item block."""
+    async def _create() -> str:
+        try:
+            client = get_client()
+            parent_obj = await client.blocks.get(parent)
+
+            block = await client.blocks.create_bullet(
+                parent=parent_obj,
+                text=text,
+            )
+
+            return format_success({
+                "id": block.id,
+                "type": "bulleted_list_item",
+            })
+        except Exception as e:
+            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+
+    result = asyncio.run(_create())
+    typer.echo(result)
+
+
+@app.command("numbered")
+def create_numbered(
+    parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
+    text: str = typer.Option(..., "--text", "-t", help="Numbered item text"),
+) -> None:
+    """Create a numbered list item block."""
+    async def _create() -> str:
+        try:
+            client = get_client()
+            parent_obj = await client.blocks.get(parent)
+
+            block = await client.blocks.create_numbered(
+                parent=parent_obj,
+                text=text,
+            )
+
+            return format_success({
+                "id": block.id,
+                "type": "numbered_list_item",
+            })
+        except Exception as e:
+            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+
+    result = asyncio.run(_create())
+    typer.echo(result)
+
+
+@app.command("quote")
+def create_quote(
+    parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
+    text: str = typer.Option(..., "--text", "-t", help="Quote text"),
+) -> None:
+    """Create a quote block."""
+    async def _create() -> str:
+        try:
+            client = get_client()
+            parent_obj = await client.blocks.get(parent)
+
+            block = await client.blocks.create_quote(
+                parent=parent_obj,
+                text=text,
+            )
+
+            return format_success({
+                "id": block.id,
+                "type": "quote",
+            })
+        except Exception as e:
+            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+
+    result = asyncio.run(_create())
+    typer.echo(result)
+
+
+@app.command("callout")
+def create_callout(
+    parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
+    text: str = typer.Option(..., "--text", "-t", help="Callout text"),
+    emoji: str = typer.Option(None, "--emoji", "-e", help="Callout emoji (optional)"),
+) -> None:
+    """Create a callout block."""
+    async def _create() -> str:
+        try:
+            client = get_client()
+            parent_obj = await client.blocks.get(parent)
+
+            block = await client.blocks.create_callout(
+                parent=parent_obj,
+                text=text,
+                emoji=emoji,
+            )
+
+            return format_success({
+                "id": block.id,
+                "type": "callout",
+                "emoji": emoji,
             })
         except Exception as e:
             return format_error("UNKNOWN_ERROR", str(e), retry=False)
