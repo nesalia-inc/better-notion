@@ -83,7 +83,7 @@ class Bookmark(Block):
             ...     caption="My bookmark"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -98,7 +98,7 @@ class Bookmark(Block):
 
         # Add caption if provided
         if caption:
-            bookmark_data["caption"] = [RichText[caption]]
+            bookmark_data["caption"] = create_rich_text_array(caption)
 
         # Build bookmark block data
         block_data = {

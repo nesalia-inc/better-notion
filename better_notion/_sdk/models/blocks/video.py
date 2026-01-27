@@ -91,7 +91,7 @@ class Video(Block):
             ...     url="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -107,7 +107,7 @@ class Video(Block):
 
         # Add caption if provided
         if caption:
-            video_data["caption"] = [RichText[caption]]
+            video_data["caption"] = create_rich_text_array(caption)
 
         # Build video block data
         block_data = {

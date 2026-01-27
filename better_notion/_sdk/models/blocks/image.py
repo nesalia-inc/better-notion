@@ -92,7 +92,7 @@ class Image(Block):
             ...     caption="My image"
             ... )
         """
-        from better_notion._api.properties import RichText
+        from better_notion._api.properties import create_rich_text_array
 
         # Prepare parent reference
         if hasattr(parent, 'id'):
@@ -108,7 +108,7 @@ class Image(Block):
 
         # Add caption if provided
         if caption:
-            image_data["caption"] = [RichText[caption]]
+            image_data["caption"] = create_rich_text_array(caption)
 
         # Build image block data
         block_data = {
