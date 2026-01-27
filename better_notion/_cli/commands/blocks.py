@@ -291,7 +291,7 @@ def create_code(
 def create_todo(
     parent: str = typer.Option(..., "--parent", "-p", help="Parent block ID"),
     text: str = typer.Option(..., "--text", "-t", help="Todo text"),
-    checked: bool = typer.Option(False, "--checked", "-c", help="Initial checked state"),
+    checked: bool = typer.Option(False, "--checked/--unchecked", "-c/-u", help="Initial checked state"),
 ) -> None:
     """Create a todo block."""
     async def _create() -> str:
