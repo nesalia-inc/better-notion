@@ -81,13 +81,41 @@ _load_official_plugins()
 
 
 @app.command()
-def version() -> None:
+def version(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """
     Show the CLI version.
 
     Displays the version information for the Better Notion CLI.
     """
-    typer.echo(format_success({"name": "Better Notion CLI", "version": __version__}))
+    from better_notion._cli.display import is_human_mode, print_rich_info
+
+    use_json = json_output or not is_human_mode()
+
+    version_info = {
+        "name": "Better Notion CLI",
+        "version": __version__
+    }
+
+    if use_json:
+        import json
+        typer.echo(json.dumps({
+            "success": True,
+            "meta": {
+                "version": __version__,
+                "timestamp": None,
+                "rate_limit": {
+                    "remaining": None,
+                    "reset_at": None
+                }
+            },
+            "data": version_info
+        }, indent=2))
+    else:
+        from rich.console import Console
+        console = Console()
+        console.print(f"[bold blue]Better Notion CLI[/bold blue] version [bold green]{__version__}[/bold green]")
 
 
 @app.callback()
