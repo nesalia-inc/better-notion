@@ -25,6 +25,10 @@ from better_notion.utils.agents.schemas import (
     WorkIssueSchema,
 )
 from better_notion.utils.agents.state_machine import TaskStatus, TaskStateMachine
+from better_notion.utils.agents.workspace import (
+    WorkspaceInitializer,
+    initialize_workspace_command,
+)
 
 __all__ = [
     # Agent authentication
@@ -55,4 +59,7 @@ __all__ = [
     # State machine
     "TaskStatus",
     "TaskStateMachine",
+    # Workspace initialization
+    "WorkspaceInitializer",
+    "initialize_workspace_command",
 ]
