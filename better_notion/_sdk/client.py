@@ -99,6 +99,11 @@ class NotionClient:
         self._comment_cache: Cache[object] = Cache()
         # No cache for Block (too many)
 
+        # Plugin-managed resources (for SDK plugin system)
+        self._plugin_caches: dict[str, Cache[object]] = {}
+        self._plugin_managers: dict[str, object] = {}
+        self._plugin_models: dict[str, type] = {}
+
         # Search cache
         self._search_cache: dict[str, list[object]] = {}
 
@@ -259,10 +264,92 @@ class NotionClient:
 
         return results
 
+    # ===== SDK PLUGIN SYSTEM =====
+
+    def register_sdk_plugin(
+        self,
+        models: dict[str, type] | None = None,
+        caches: dict[str, "Cache"] | None = None,
+        managers: dict[str, object] | None = None,
+    ) -> None:
+        """Register an SDK plugin's resources with the client.
+
+        This method allows plugins to register custom models, caches, and
+        managers without modifying the core SDK.
+
+        Args:
+            models: Dict mapping model names to model classes
+            caches: Dict mapping cache names to Cache instances
+            managers: Dict mapping manager names to manager instances
+
+        Example:
+            >>> client.register_sdk_plugin(
+            ...     models={"Organization": Organization},
+            ...     caches={"organizations": Cache()},
+            ...     managers={"organizations": OrganizationManager(client)},
+            ... )
+        """
+        if models:
+            self._plugin_models.update(models)
+
+        if caches:
+            self._plugin_caches.update(caches)
+
+        if managers:
+            self._plugin_managers.update(managers)
+
+    def plugin_cache(self, name: str) -> "Cache | None":
+        """Access a plugin-registered cache.
+
+        Args:
+            name: Cache name (e.g., "organizations")
+
+        Returns:
+            Cache instance if found, None otherwise
+
+        Example:
+            >>> cache = client.plugin_cache("organizations")
+            >>> if cache and org_id in cache:
+            ...     org = cache[org_id]
+        """
+        return self._plugin_caches.get(name)
+
+    def plugin_manager(self, name: str) -> object | None:
+        """Access a plugin-registered manager.
+
+        Args:
+            name: Manager name (e.g., "organizations")
+
+        Returns:
+            Manager instance if found, None otherwise
+
+        Example:
+            >>> orgs_mgr = client.plugin_manager("organizations")
+            >>> if orgs_mgr:
+            ...     orgs = await orgs_mgr.list()
+        """
+        return self._plugin_managers.get(name)
+
+    def plugin_model(self, name: str) -> type | None:
+        """Access a plugin-registered model class.
+
+        Args:
+            name: Model name (e.g., "Organization")
+
+        Returns:
+            Model class if found, None otherwise
+
+        Example:
+            >>> OrgClass = client.plugin_model("Organization")
+            >>> if OrgClass:
+            ...     org = await OrgClass.get(org_id, client=client)
+        """
+        return self._plugin_models.get(name)
+
     # ===== CACHE MANAGEMENT =====
 
     def clear_all_caches(self) -> None:
-        """Clear all caches.
+        """Clear all caches including plugin caches.
 
         Example:
             >>> client.clear_all_caches()
@@ -272,8 +359,12 @@ class NotionClient:
         self._page_cache.clear()
         self._search_cache.clear()
 
+        # Clear plugin caches
+        for cache in self._plugin_caches.values():
+            cache.clear()
+
     def get_cache_stats(self) -> dict[str, dict[str, Any]]:
-        """Get statistics for all caches.
+        """Get statistics for all caches including plugin caches.
 
         Returns:
             Dict with stats for each cache
@@ -283,10 +374,11 @@ class NotionClient:
             >>> print(stats)
             {
                 'user_cache': {'hits': 100, 'misses': 5, 'size': 50, 'hit_rate': 0.95},
+                'plugin:organizations': {'hits': 50, 'misses': 2, 'size': 10, 'hit_rate': 0.96},
                 ...
             }
         """
-        return {
+        stats = {
             "user_cache": {
                 "hits": self._user_cache.stats.hits,
                 "misses": self._user_cache.stats.misses,
@@ -309,6 +401,17 @@ class NotionClient:
                 "size": len(self._search_cache)
             }
         }
+
+        # Add plugin cache stats
+        for cache_name, cache in self._plugin_caches.items():
+            stats[f"plugin:{cache_name}"] = {
+                "hits": cache.stats.hits,
+                "misses": cache.stats.misses,
+                "size": cache.stats.size,
+                "hit_rate": cache.stats.hit_rate
+            }
+
+        return stats
 
     # ===== CONTEXT MANAGER =====
 
