@@ -183,40 +183,87 @@ def list_plugins(
     """
     List all installed and available plugins.
 
+    Shows both official plugins (built-in) and user-installed plugins.
+
     Examples:
         notion plugin list
         notion plugin list --verbose
         notion plugin list --json
     """
     try:
+        from better_notion.plugins.official import OFFICIAL_PLUGINS
+        from better_notion.plugins.state import PluginStateManager
+
         loader = get_plugin_loader()
-        plugins = loader.list_plugins()
+        state_manager = PluginStateManager()
+
+        # Get user plugins
+        user_plugins = loader.list_plugins()
+
+        # Get official plugins with their state
+        official_plugins = {}
+        for plugin_class in OFFICIAL_PLUGINS:
+            try:
+                plugin = plugin_class()
+                info = plugin.get_info()
+                plugin_name = info.get('name')
+
+                # Add state information
+                info['bundled'] = True
+                info['enabled'] = state_manager.is_enabled(plugin_name)
+
+                official_plugins[plugin_name] = info
+            except Exception:
+                # Skip plugins that fail to instantiate
+                continue
+
+        # Merge both
+        all_plugins = {**official_plugins, **user_plugins}
 
         if json_output:
-            return typer.echo(json.dumps(plugins, indent=2))
+            return typer.echo(json.dumps(all_plugins, indent=2))
 
-        # Display as table
-        if not plugins:
-            typer.echo("No plugins installed.")
+        # Display as formatted output
+        if not all_plugins:
+            typer.echo("No plugins found.")
             typer.echo(f"\nPlugins directory: {Path.home() / '.notion' / 'plugins'}")
             return
 
-        typer.echo("Installed Plugins:")
-        typer.echo("┌" + "─" * 50 + "┐")
+        typer.echo("Plugins:")
+        typer.echo("=" * 70)
 
-        for name, info in plugins.items():
-            official_marker = "✓" if info.get("official") else " "
-            typer.echo(f"│ {official_marker} {name:30} │ {info.get('description', 'No description'):40} │")
+        # Group by type
+        has_official = bool(official_plugins)
+        has_user = bool(user_plugins)
 
-            if verbose:
-                typer.echo(f"│   Version: {info.get('version', 'unknown'):20} │")
-                typer.echo(f"│   Author:  {info.get('author', 'unknown'):20} │")
-                typer.echo("│" + "─" * 50 + "│")
+        if has_official:
+            typer.echo("\nOfficial Plugins (built-in):")
+            for name, info in official_plugins.items():
+                enabled = info.get('enabled', True)
+                status = "✓ Enabled" if enabled else "✗ Disabled"
+                typer.echo(f"  • {name:20} {info.get('description', 'No description'):40} [{status}]")
 
-        typer.echo("└" + "─" * 50 + "┘")
+                if verbose:
+                    typer.echo(f"    Version: {info.get('version', 'unknown')}")
+                    typer.echo(f"    Author:  {info.get('author', 'unknown')}")
+                    if info.get('category'):
+                        typer.echo(f"    Category: {info.get('category')}")
+
+        if has_user:
+            if has_official:
+                typer.echo("\nUser Plugins:")
+            for name, info in user_plugins.items():
+                official_marker = "✓" if info.get("official") else " "
+                typer.echo(f"  • [{official_marker}] {name:20} {info.get('description', 'No description'):40}")
+
+                if verbose:
+                    typer.echo(f"    Version: {info.get('version', 'unknown')}")
+                    typer.echo(f"    Author:  {info.get('author', 'unknown')}")
+
+        typer.echo("\nTip: Use 'notion plugin enable/disable <name>' to toggle official plugins")
 
     except Exception as e:
-        return format_error("LIST_ERROR",  str(e))
+        return format_error("LIST_ERROR", str(e))
 
 
 @app.command()
@@ -476,14 +523,33 @@ def enable(
     """
     Enable a plugin.
 
+    For official plugins, this re-enables them if they were disabled.
+    For user plugins, this adds them to the enabled list.
+
     Examples:
+        notion plugin enable productivity
         notion plugin enable organizations
     """
-    # Create enabled plugins list
-    config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-
     try:
+        loader = get_plugin_loader()
+
+        # Check if it's an official plugin
+        if loader.is_official_plugin(plugin_name):
+            from better_notion.plugins.state import PluginStateManager
+
+            state_manager = PluginStateManager()
+            state_manager.enable(plugin_name)
+
+            return format_success({
+                "plugin": plugin_name,
+                "status": "enabled",
+                "type": "official"
+            })
+
+        # For user plugins, use the existing enabled.json logic
+        config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+
         if config_file.exists():
             config = json.loads(config_file.read_text())
         else:
@@ -495,11 +561,12 @@ def enable(
 
         return format_success({
             "plugin": plugin_name,
-            "status": "enabled"
+            "status": "enabled",
+            "type": "user"
         })
 
     except Exception as e:
-        return format_error("ENABLE_ERROR",  str(e))
+        return format_error("ENABLE_ERROR", str(e))
 
 
 @app.command()
@@ -509,25 +576,51 @@ def disable(
     """
     Disable a plugin.
 
+    For official plugins, this disables them (but doesn't remove them).
+    For user plugins, this removes them from the enabled list.
+
     Examples:
+        notion plugin disable productivity
         notion plugin disable organizations
     """
-    config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
-
     try:
-        if config_file.exists():
-            config = json.loads(config_file.read_text())
-            if plugin_name in config.get("enabled", []):
-                config["enabled"].remove(plugin_name)
-                config_file.write_text(json.dumps(config, indent=2))
+        loader = get_plugin_loader()
 
-        return format_success({
-            "plugin": plugin_name,
-            "status": "disabled"
-        })
+        # Check if it's an official plugin
+        if loader.is_official_plugin(plugin_name):
+            from better_notion.plugins.state import PluginStateManager
+
+            state_manager = PluginStateManager()
+            state_manager.disable(plugin_name)
+
+            return format_success({
+                "plugin": plugin_name,
+                "status": "disabled",
+                "type": "official",
+                "message": "Plugin will be disabled after CLI restart"
+            })
+
+        # For user plugins, use the existing enabled.json logic
+        config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
+
+        try:
+            if config_file.exists():
+                config = json.loads(config_file.read_text())
+                if plugin_name in config.get("enabled", []):
+                    config["enabled"].remove(plugin_name)
+                    config_file.write_text(json.dumps(config, indent=2))
+
+            return format_success({
+                "plugin": plugin_name,
+                "status": "disabled",
+                "type": "user"
+            })
+
+        except Exception as e:
+            return format_error("DISABLE_ERROR", str(e))
 
     except Exception as e:
-        return format_error("DISABLE_ERROR",  str(e))
+        return format_error("DISABLE_ERROR", str(e))
 
 
 @app.command()
