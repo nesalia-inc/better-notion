@@ -33,6 +33,9 @@ dependencies = [
 
     # Async support
     "typing-extensions>=4.0.0",
+
+    # Terminal UI (for human-friendly output)
+    "rich>=13.0.0,<14.0.0",
 ]
 
 [project.optional-dependencies]
