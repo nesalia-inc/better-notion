@@ -1146,3 +1146,1111 @@ class Task(BaseEntity):
             if dep.status != "Completed":
                 return False
         return True
+
+
+class Idea(BaseEntity):
+    """
+    Idea entity representing an improvement opportunity discovered during work.
+
+    Ideas enable continuous improvement by capturing innovations and
+    problems discovered during development work.
+
+    Attributes:
+        id: Idea page ID
+        title: Idea title
+        category: Idea category (Feature, Improvement, Refactor, etc.)
+        status: Idea status (New, Evaluated, Accepted, Rejected, Deferred)
+        description: Detailed explanation
+        proposed_solution: How to implement
+        benefits: Why this is valuable
+        effort_estimate: Implementation effort (Small, Medium, Large)
+        context: What you were doing when you thought of this
+        project_id: Related project ID (optional)
+        related_task_id: Task created from this idea (optional)
+
+    Example:
+        >>> idea = await Idea.create(
+        ...     client=client,
+        ...     database_id=db_id,
+        ...     title="Add caching layer",
+        ...     category="Improvement",
+        ...     description="Would improve performance"
+        ... )
+        >>> await idea.accept()
+        >>> task = await idea.create_task(version_id=ver.id)
+    """
+
+    def __init__(self, client: "NotionClient", data: dict[str, Any]) -> None:
+        """Initialize idea with client and API data."""
+        super().__init__(client, data)
+        self._idea_cache = client.plugin_cache("ideas")
+
+    # ===== PROPERTIES =====
+
+    @property
+    def title(self) -> str:
+        """Get idea title."""
+        title_prop = self._data["properties"].get("Title") or self._data["properties"].get("title")
+        if title_prop and title_prop.get("type") == "title":
+            title_data = title_prop.get("title", [])
+            if title_data:
+                return title_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def category(self) -> str:
+        """Get idea category."""
+        cat_prop = self._data["properties"].get("Category") or self._data["properties"].get("category")
+        if cat_prop and cat_prop.get("type") == "select":
+            select_data = cat_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def status(self) -> str:
+        """Get idea status."""
+        status_prop = self._data["properties"].get("Status") or self._data["properties"].get("status")
+        if status_prop and status_prop.get("type") == "select":
+            select_data = status_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def description(self) -> str:
+        """Get idea description."""
+        desc_prop = self._data["properties"].get("Description") or self._data["properties"].get("description")
+        if desc_prop and desc_prop.get("type") == "rich_text":
+            text_data = desc_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def proposed_solution(self) -> str:
+        """Get proposed solution."""
+        sol_prop = self._data["properties"].get("Proposed Solution") or self._data["properties"].get("proposed_solution")
+        if sol_prop and sol_prop.get("type") == "rich_text":
+            text_data = sol_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def benefits(self) -> str:
+        """Get idea benefits."""
+        ben_prop = self._data["properties"].get("Benefits") or self._data["properties"].get("benefits")
+        if ben_prop and ben_prop.get("type") == "rich_text":
+            text_data = ben_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def effort_estimate(self) -> str:
+        """Get effort estimate."""
+        effort_prop = self._data["properties"].get("Effort Estimate") or self._data["properties"].get("effort_estimate")
+        if effort_prop and effort_prop.get("type") == "select":
+            select_data = effort_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def context(self) -> str:
+        """Get idea context."""
+        ctx_prop = self._data["properties"].get("Context") or self._data["properties"].get("context")
+        if ctx_prop and ctx_prop.get("type") == "rich_text":
+            text_data = ctx_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def project_id(self) -> str | None:
+        """Get related project ID."""
+        proj_prop = self._data["properties"].get("Project") or self._data["properties"].get("project")
+        if proj_prop and proj_prop.get("type") == "relation":
+            relations = proj_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def related_task_id(self) -> str | None:
+        """Get ID of task created from this idea."""
+        task_prop = self._data["properties"].get("Related Task") or self._data["properties"].get("related_task")
+        if task_prop and task_prop.get("type") == "relation":
+            relations = task_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    # ===== AUTONOMOUS METHODS =====
+
+    @classmethod
+    async def get(cls, idea_id: str, *, client: "NotionClient") -> "Idea":
+        """Get an idea by ID."""
+        cache = client.plugin_cache("ideas")
+        if cache and idea_id in cache:
+            return cache[idea_id]
+
+        data = await client._api.pages.get(page_id=idea_id)
+        idea = cls(client, data)
+
+        if cache:
+            cache[idea_id] = idea
+
+        return idea
+
+    @classmethod
+    async def create(
+        cls,
+        *,
+        client: "NotionClient",
+        database_id: str,
+        title: str,
+        category: str,
+        status: str = "New",
+        description: str | None = None,
+        proposed_solution: str | None = None,
+        benefits: str | None = None,
+        effort_estimate: str = "Medium",
+        context: str | None = None,
+        project_id: str | None = None,
+    ) -> "Idea":
+        """Create a new idea."""
+        from better_notion._api.properties import Title, RichText, Select, Relation
+
+        properties: dict[str, Any] = {
+            "Title": Title(title),
+            "Category": Select(category),
+            "Status": Select(status),
+            "Effort Estimate": Select(effort_estimate),
+        }
+
+        if description:
+            properties["Description"] = RichText(description)
+        if proposed_solution:
+            properties["Proposed Solution"] = RichText(proposed_solution)
+        if benefits:
+            properties["Benefits"] = RichText(benefits)
+        if context:
+            properties["Context"] = RichText(context)
+        if project_id:
+            properties["Project"] = Relation([project_id])
+
+        data = await client._api.pages.create(
+            parent={"database_id": database_id},
+            properties=properties,
+        )
+
+        idea = cls(client, data)
+
+        cache = client.plugin_cache("ideas")
+        if cache:
+            cache[idea.id] = idea
+
+        return idea
+
+    async def update(
+        self,
+        *,
+        title: str | None = None,
+        category: str | None = None,
+        status: str | None = None,
+        description: str | None = None,
+        proposed_solution: str | None = None,
+        benefits: str | None = None,
+        effort_estimate: str | None = None,
+        context: str | None = None,
+    ) -> "Idea":
+        """Update idea properties."""
+        from better_notion._api.properties import Title, RichText, Select
+
+        properties: dict[str, Any] = {}
+
+        if title is not None:
+            properties["Title"] = Title(title)
+        if category is not None:
+            properties["Category"] = Select(category)
+        if status is not None:
+            properties["Status"] = Select(status)
+        if description is not None:
+            properties["Description"] = RichText(description)
+        if proposed_solution is not None:
+            properties["Proposed Solution"] = RichText(proposed_solution)
+        if benefits is not None:
+            properties["Benefits"] = RichText(benefits)
+        if effort_estimate is not None:
+            properties["Effort Estimate"] = Select(effort_estimate)
+        if context is not None:
+            properties["Context"] = RichText(context)
+
+        data = await self._client._api.pages.update(
+            page_id=self.id,
+            properties=properties,
+        )
+
+        self._data = data
+
+        cache = self._client.plugin_cache("ideas")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+        return self
+
+    async def delete(self) -> None:
+        """Delete the idea."""
+        await self._client._api.pages.delete(page_id=self.id)
+
+        cache = self._client.plugin_cache("ideas")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+    # ===== WORKFLOW METHODS =====
+
+    async def accept(self) -> "Idea":
+        """
+        Accept this idea (transition to Accepted status).
+
+        Returns:
+            Updated Idea instance
+
+        Example:
+            >>> await idea.accept()
+        """
+        return await self.update(status="Accepted")
+
+    async def reject(self, reason: str) -> "Idea":
+        """
+        Reject this idea (transition to Rejected status).
+
+        Args:
+            reason: Rejection reason stored in context
+
+        Returns:
+            Updated Idea instance
+
+        Example:
+            >>> await idea.reject("Not technically feasible")
+        """
+        return await self.update(
+            status="Rejected",
+            context=f"Rejected: {reason}",
+        )
+
+    async def defer(self) -> "Idea":
+        """
+        Defer this idea (transition to Deferred status).
+
+        Returns:
+            Updated Idea instance
+
+        Example:
+            >>> await idea.defer()
+        """
+        return await self.update(status="Deferred")
+
+    async def create_task(
+        self,
+        *,
+        version_id: str,
+        title: str | None = None,
+        task_type: str = "New Feature",
+        priority: str = "Medium",
+    ) -> Task:
+        """
+        Create a task from this idea.
+
+        Args:
+            version_id: Version to create task in
+            title: Task title (defaults to idea title)
+            task_type: Type of task
+            priority: Task priority
+
+        Returns:
+            Created Task instance
+
+        Example:
+            >>> task = await idea.create_task(version_id=ver.id, priority="High")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        # Get database ID
+        import json
+        from pathlib import Path
+
+        config_path = Path.home() / ".notion" / "workspace.json"
+        config = json.loads(config_path.read_text())
+        tasks_db_id = config.get("Tasks")
+
+        if not tasks_db_id:
+            raise ValueError("Tasks database not found in workspace config")
+
+        task = await Task.create(
+            client=self._client,
+            database_id=tasks_db_id,
+            title=title or self.title,
+            version_id=version_id,
+            task_type=task_type,
+            priority=priority,
+        )
+
+        # Link idea to task
+        await self.link_to_task(task.id)
+
+        return task
+
+    async def link_to_task(self, task_id: str) -> None:
+        """
+        Link this idea to a task.
+
+        Args:
+            task_id: Task ID to link to
+
+        Example:
+            >>> await idea.link_to_task(task.id)
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Related Task": Relation([task_id]),
+            },
+        )
+
+
+class WorkIssue(BaseEntity):
+    """
+    Work Issue entity representing a development-time problem.
+
+    Work Issues track blockers, confusions, documentation gaps,
+    tooling limitations, and other problems encountered during development.
+
+    Attributes:
+        id: Work Issue page ID
+        title: Issue title
+        project_id: Affected project ID
+        task_id: Task where issue occurred (optional)
+        type: Issue type (Blocker, Confusion, Documentation, Tooling, etc.)
+        severity: Issue severity (Critical, High, Medium, Low)
+        status: Issue status (Open, Investigating, Resolved, Won't Fix, Deferred)
+        description: What happened
+        context: Environment details
+        proposed_solution: How to fix
+        related_idea_id: Idea this inspired (optional)
+
+    Example:
+        >>> issue = await WorkIssue.create(
+        ...     client=client,
+        ...     database_id=db_id,
+        ...     title="API documentation unclear",
+        ...     project_id=proj.id,
+        ...     type="Documentation",
+        ...     severity="Medium"
+        ... )
+        >>> await issue.resolve("Updated docs with examples")
+        >>> idea = await issue.create_idea_from_solution()
+    """
+
+    def __init__(self, client: "NotionClient", data: dict[str, Any]) -> None:
+        """Initialize work issue with client and API data."""
+        super().__init__(client, data)
+        self._work_issue_cache = client.plugin_cache("work_issues")
+
+    # ===== PROPERTIES =====
+
+    @property
+    def title(self) -> str:
+        """Get issue title."""
+        title_prop = self._data["properties"].get("Title") or self._data["properties"].get("title")
+        if title_prop and title_prop.get("type") == "title":
+            title_data = title_prop.get("title", [])
+            if title_data:
+                return title_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def project_id(self) -> str | None:
+        """Get affected project ID."""
+        proj_prop = self._data["properties"].get("Project") or self._data["properties"].get("project")
+        if proj_prop and proj_prop.get("type") == "relation":
+            relations = proj_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def task_id(self) -> str | None:
+        """Get related task ID."""
+        task_prop = self._data["properties"].get("Task") or self._data["properties"].get("task")
+        if task_prop and task_prop.get("type") == "relation":
+            relations = task_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def type(self) -> str:
+        """Get issue type."""
+        type_prop = self._data["properties"].get("Type") or self._data["properties"].get("type")
+        if type_prop and type_prop.get("type") == "select":
+            select_data = type_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def severity(self) -> str:
+        """Get issue severity."""
+        sev_prop = self._data["properties"].get("Severity") or self._data["properties"].get("severity")
+        if sev_prop and sev_prop.get("type") == "select":
+            select_data = sev_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def status(self) -> str:
+        """Get issue status."""
+        status_prop = self._data["properties"].get("Status") or self._data["properties"].get("status")
+        if status_prop and status_prop.get("type") == "select":
+            select_data = status_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def description(self) -> str:
+        """Get issue description."""
+        desc_prop = self._data["properties"].get("Description") or self._data["properties"].get("description")
+        if desc_prop and desc_prop.get("type") == "rich_text":
+            text_data = desc_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def context(self) -> str:
+        """Get issue context."""
+        ctx_prop = self._data["properties"].get("Context") or self._data["properties"].get("context")
+        if ctx_prop and ctx_prop.get("type") == "rich_text":
+            text_data = ctx_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def proposed_solution(self) -> str:
+        """Get proposed solution."""
+        sol_prop = self._data["properties"].get("Proposed Solution") or self._data["properties"].get("proposed_solution")
+        if sol_prop and sol_prop.get("type") == "rich_text":
+            text_data = sol_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def related_idea_id(self) -> str | None:
+        """Get related idea ID."""
+        idea_prop = self._data["properties"].get("Related Idea") or self._data["properties"].get("related_idea")
+        if idea_prop and idea_prop.get("type") == "relation":
+            relations = idea_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    # ===== AUTONOMOUS METHODS =====
+
+    @classmethod
+    async def get(cls, issue_id: str, *, client: "NotionClient") -> "WorkIssue":
+        """Get a work issue by ID."""
+        cache = client.plugin_cache("work_issues")
+        if cache and issue_id in cache:
+            return cache[issue_id]
+
+        data = await client._api.pages.get(page_id=issue_id)
+        issue = cls(client, data)
+
+        if cache:
+            cache[issue_id] = issue
+
+        return issue
+
+    @classmethod
+    async def create(
+        cls,
+        *,
+        client: "NotionClient",
+        database_id: str,
+        title: str,
+        project_id: str,
+        task_id: str | None = None,
+        type: str = "Blocker",
+        severity: str = "Medium",
+        status: str = "Open",
+        description: str | None = None,
+        context: str | None = None,
+        proposed_solution: str | None = None,
+    ) -> "WorkIssue":
+        """Create a new work issue."""
+        from better_notion._api.properties import Title, RichText, Select, Relation
+
+        properties: dict[str, Any] = {
+            "Title": Title(title),
+            "Project": Relation([project_id]),
+            "Type": Select(type),
+            "Severity": Select(severity),
+            "Status": Select(status),
+        }
+
+        if task_id:
+            properties["Task"] = Relation([task_id])
+        if description:
+            properties["Description"] = RichText(description)
+        if context:
+            properties["Context"] = RichText(context)
+        if proposed_solution:
+            properties["Proposed Solution"] = RichText(proposed_solution)
+
+        data = await client._api.pages.create(
+            parent={"database_id": database_id},
+            properties=properties,
+        )
+
+        issue = cls(client, data)
+
+        cache = client.plugin_cache("work_issues")
+        if cache:
+            cache[issue.id] = issue
+
+        return issue
+
+    async def update(
+        self,
+        *,
+        title: str | None = None,
+        type: str | None = None,
+        severity: str | None = None,
+        status: str | None = None,
+        description: str | None = None,
+        context: str | None = None,
+        proposed_solution: str | None = None,
+    ) -> "WorkIssue":
+        """Update work issue properties."""
+        from better_notion._api.properties import Title, RichText, Select
+
+        properties: dict[str, Any] = {}
+
+        if title is not None:
+            properties["Title"] = Title(title)
+        if type is not None:
+            properties["Type"] = Select(type)
+        if severity is not None:
+            properties["Severity"] = Select(severity)
+        if status is not None:
+            properties["Status"] = Select(status)
+        if description is not None:
+            properties["Description"] = RichText(description)
+        if context is not None:
+            properties["Context"] = RichText(context)
+        if proposed_solution is not None:
+            properties["Proposed Solution"] = RichText(proposed_solution)
+
+        data = await self._client._api.pages.update(
+            page_id=self.id,
+            properties=properties,
+        )
+
+        self._data = data
+
+        cache = self._client.plugin_cache("work_issues")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+        return self
+
+    async def delete(self) -> None:
+        """Delete the work issue."""
+        await self._client._api.pages.delete(page_id=self.id)
+
+        cache = self._client.plugin_cache("work_issues")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+    # ===== WORKFLOW METHODS =====
+
+    async def resolve(self, solution: str) -> "WorkIssue":
+        """
+        Resolve this issue.
+
+        Args:
+            solution: How the issue was resolved
+
+        Returns:
+            Updated WorkIssue instance
+
+        Example:
+            >>> await issue.resolve("Updated documentation")
+        """
+        return await self.update(
+        status="Resolved",
+        proposed_solution=solution,
+    )
+
+    async def investigate(self) -> "WorkIssue":
+        """
+        Mark issue as under investigation.
+
+        Returns:
+            Updated WorkIssue instance
+
+        Example:
+            >>> await issue.investigate()
+        """
+        return await self.update(status="Investigating")
+
+    async def link_to_idea(self, idea_id: str) -> None:
+        """
+        Link this issue to an idea.
+
+        Args:
+            idea_id: Idea ID to link to
+
+        Example:
+            >>> await issue.link_to_idea(idea.id)
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Related Idea": Relation([idea_id]),
+            },
+        )
+
+    async def create_idea_from_solution(self) -> Idea:
+        """
+        Create an idea from this issue's solution.
+
+        Returns:
+            Created Idea instance
+
+        Example:
+            >>> idea = await issue.create_idea_from_solution()
+        """
+        from better_notion.plugins.official.agents_sdk.models import Idea
+
+        import json
+        from pathlib import Path
+
+        config_path = Path.home() / ".notion" / "workspace.json"
+        config = json.loads(config_path.read_text())
+        ideas_db_id = config.get("Ideas")
+
+        if not ideas_db_id:
+            raise ValueError("Ideas database not found in workspace config")
+
+        idea = await Idea.create(
+            client=self._client,
+            database_id=ideas_db_id,
+            title=f"Prevent issue: {self.title}",
+            category="Process",
+            status="New",
+            description=f"Issue {self.id} revealed process gap",
+            proposed_solution=self.proposed_solution or "Implement prevention",
+            context=self.context,
+            project_id=self.project_id,
+        )
+
+        # Link issue to idea
+        await self.link_to_idea(idea.id)
+
+        return idea
+
+
+class Incident(BaseEntity):
+    """
+    Incident entity representing a production incident.
+
+    Incidents track production problems separate from development
+    work issues. Critical for production reliability and MTTR tracking.
+
+    Attributes:
+        id: Incident page ID
+        title: Incident title
+        project_id: Affected project ID
+        affected_version_id: Version where incident occurred
+        severity: Incident severity (Critical, High, Medium, Low)
+        type: Incident type (Bug, Crash, Performance, Security, etc.)
+        status: Incident status (Open, Investigating, Fix in Progress, Resolved)
+        fix_task_id: Task to fix this incident (optional)
+        root_cause: Analysis of what went wrong
+        discovery_date: When incident was discovered
+        resolved_date: When incident was resolved (optional)
+
+    Example:
+        >>> incident = await Incident.create(
+        ...     client=client,
+        ...     database_id=db_id,
+        ...     title="Production database down",
+        ...     project_id=proj.id,
+        ...     affected_version_id=ver.id,
+        ...     severity="Critical",
+        ...     type="Outage"
+        ... )
+        >>> task = await incident.create_fix_task(version_id=hotfix.id)
+        >>> await incident.resolve("Config error in connection pool")
+        >>> mttr = incident.calculate_mttr()
+    """
+
+    def __init__(self, client: "NotionClient", data: dict[str, Any]) -> None:
+        """Initialize incident with client and API data."""
+        super().__init__(client, data)
+        self._incident_cache = client.plugin_cache("incidents")
+
+    # ===== PROPERTIES =====
+
+    @property
+    def title(self) -> str:
+        """Get incident title."""
+        title_prop = self._data["properties"].get("Title") or self._data["properties"].get("title")
+        if title_prop and title_prop.get("type") == "title":
+            title_data = title_prop.get("title", [])
+            if title_data:
+                return title_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def project_id(self) -> str | None:
+        """Get affected project ID."""
+        proj_prop = self._data["properties"].get("Project") or self._data["properties"].get("project")
+        if proj_prop and proj_prop.get("type") == "relation":
+            relations = proj_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def affected_version_id(self) -> str | None:
+        """Get affected version ID."""
+        ver_prop = self._data["properties"].get("Affected Version") or self._data["properties"].get("affected_version")
+        if ver_prop and ver_prop.get("type") == "relation":
+            relations = ver_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def severity(self) -> str:
+        """Get incident severity."""
+        sev_prop = self._data["properties"].get("Severity") or self._data["properties"].get("severity")
+        if sev_prop and sev_prop.get("type") == "select":
+            select_data = sev_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def type(self) -> str:
+        """Get incident type."""
+        type_prop = self._data["properties"].get("Type") or self._data["properties"].get("type")
+        if type_prop and type_prop.get("type") == "select":
+            select_data = type_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def status(self) -> str:
+        """Get incident status."""
+        status_prop = self._data["properties"].get("Status") or self._data["properties"].get("status")
+        if status_prop and status_prop.get("type") == "select":
+            select_data = status_prop.get("select")
+            if select_data:
+                return select_data.get("name", "Unknown")
+        return "Unknown"
+
+    @property
+    def fix_task_id(self) -> str | None:
+        """Get fix task ID."""
+        task_prop = self._data["properties"].get("Fix Task") or self._data["properties"].get("fix_task")
+        if task_prop and task_prop.get("type") == "relation":
+            relations = task_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
+    @property
+    def root_cause(self) -> str:
+        """Get root cause analysis."""
+        rc_prop = self._data["properties"].get("Root Cause") or self._data["properties"].get("root_cause")
+        if rc_prop and rc_prop.get("type") == "rich_text":
+            text_data = rc_prop.get("rich_text", [])
+            if text_data:
+                return text_data[0].get("plain_text", "")
+        return ""
+
+    @property
+    def discovery_date(self) -> str | None:
+        """Get discovery date."""
+        date_prop = self._data["properties"].get("Discovery Date") or self._data["properties"].get("discovery_date")
+        if date_prop and date_prop.get("type") == "date":
+            date_data = date_prop.get("date")
+            if date_data and date_data.get("start"):
+                return date_data["start"]
+        return None
+
+    @property
+    def resolved_date(self) -> str | None:
+        """Get resolved date."""
+        date_prop = self._data["properties"].get("Resolved Date") or self._data["properties"].get("resolved_date")
+        if date_prop and date_prop.get("type") == "date":
+            date_data = date_prop.get("date")
+            if date_data and date_data.get("start"):
+                return date_data["start"]
+        return None
+
+    # ===== AUTONOMOUS METHODS =====
+
+    @classmethod
+    async def get(cls, incident_id: str, *, client: "NotionClient") -> "Incident":
+        """Get an incident by ID."""
+        cache = client.plugin_cache("incidents")
+        if cache and incident_id in cache:
+            return cache[incident_id]
+
+        data = await client._api.pages.get(page_id=incident_id)
+        incident = cls(client, data)
+
+        if cache:
+            cache[incident_id] = incident
+
+        return incident
+
+    @classmethod
+    async def create(
+        cls,
+        *,
+        client: "NotionClient",
+        database_id: str,
+        title: str,
+        project_id: str,
+        affected_version_id: str,
+        severity: str = "High",
+        type: str = "Bug",
+        status: str = "Open",
+        discovery_date: str | None = None,
+    ) -> "Incident":
+        """Create a new incident."""
+        from datetime import datetime
+        from better_notion._api.properties import Title, Date, Select, Relation
+
+        properties: dict[str, Any] = {
+            "Title": Title(title),
+            "Project": Relation([project_id]),
+            "Affected Version": Relation([affected_version_id]),
+            "Severity": Select(severity),
+            "Type": Select(type),
+            "Status": Select(status),
+            "Discovery Date": Date(discovery_date or datetime.now().isoformat()),
+        }
+
+        data = await client._api.pages.create(
+            parent={"database_id": database_id},
+            properties=properties,
+        )
+
+        incident = cls(client, data)
+
+        cache = client.plugin_cache("incidents")
+        if cache:
+            cache[incident.id] = incident
+
+        return incident
+
+    async def update(
+        self,
+        *,
+        title: str | None = None,
+        severity: str | None = None,
+        status: str | None = None,
+        root_cause: str | None = None,
+        resolved_date: str | None = None,
+    ) -> "Incident":
+        """Update incident properties."""
+        from better_notion._api.properties import Title, RichText, Select, Date
+
+        properties: dict[str, Any] = {}
+
+        if title is not None:
+            properties["Title"] = Title(title)
+        if severity is not None:
+            properties["Severity"] = Select(severity)
+        if status is not None:
+            properties["Status"] = Select(status)
+        if root_cause is not None:
+            properties["Root Cause"] = RichText(root_cause)
+        if resolved_date is not None:
+            properties["Resolved Date"] = Date(resolved_date)
+
+        data = await self._client._api.pages.update(
+            page_id=self.id,
+            properties=properties,
+        )
+
+        self._data = data
+
+        cache = self._client.plugin_cache("incidents")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+        return self
+
+    async def delete(self) -> None:
+        """Delete the incident."""
+        await self._client._api.pages.delete(page_id=self.id)
+
+        cache = self._client.plugin_cache("incidents")
+        if cache and self.id in cache:
+            del cache[self.id]
+
+    # ===== WORKFLOW METHODS =====
+
+    async def investigate(self) -> "Incident":
+        """
+        Mark incident as under investigation.
+
+        Returns:
+            Updated Incident instance
+
+        Example:
+            >>> await incident.investigate()
+        """
+        return await self.update(status="Investigating")
+
+    async def assign(self, task_id: str) -> "Incident":
+        """
+        Assign a fix task to this incident.
+
+        Args:
+            task_id: Task ID that will fix this incident
+
+        Returns:
+            Updated Incident instance
+
+        Example:
+            >>> await incident.assign(task.id)
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Fix Task": Relation([task_id]),
+                "Status": Select("Fix in Progress"),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Fix Task"] = {"type": "relation", "relation": [{"id": task_id}]}
+        self._data["properties"]["Status"] = {"type": "select", "select": {"name": "Fix in Progress"}}
+
+        return self
+
+    async def resolve(self, root_cause: str, resolved_date: str | None = None) -> "Incident":
+        """
+        Resolve this incident.
+
+        Args:
+            root_cause: Analysis of what went wrong
+            resolved_date: When incident was resolved (defaults to now)
+
+        Returns:
+            Updated Incident instance
+
+        Example:
+            >>> await incident.resolve("Config error in connection pool")
+        """
+        from datetime import datetime
+
+        return await self.update(
+            status="Resolved",
+        root_cause=root_cause,
+        resolved_date=resolved_date or datetime.now().isoformat(),
+        )
+
+    def calculate_mttr(self) -> float | None:
+        """
+        Calculate Mean Time To Resolve in minutes.
+
+        Returns:
+            MTTR in minutes, or None if not resolved
+
+        Example:
+            >>> mttr_minutes = incident.calculate_mttr()
+            >>> print(f"MTTR: {mttr_minutes:.1f} minutes")
+        """
+        if not self.resolved_date or not self.discovery_date:
+            return None
+
+        from datetime import datetime
+
+        resolved = datetime.fromisoformat(self.resolved_date)
+        discovered = datetime.fromisoformat(self.discovery_date)
+
+        mttr_seconds = (resolved - discovered).total_seconds()
+        return mttr_seconds / 60
+
+    async def create_fix_task(
+        self,
+        *,
+        version_id: str,
+        title: str | None = None,
+        priority: str = "Critical",
+    ) -> Task:
+        """
+        Create a fix task for this incident.
+
+        Args:
+            version_id: Version to create fix in
+            title: Task title (defaults to incident title)
+            priority: Task priority
+
+        Returns:
+            Created Task instance
+
+        Example:
+            >>> task = await incident.create_fix_task(
+            ...     version_id=hotfix.id,
+            ...     priority="Critical"
+            ... )
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        import json
+        from pathlib import Path
+
+        config_path = Path.home() / ".notion" / "workspace.json"
+        config = json.loads(config_path.read_text())
+        tasks_db_id = config.get("Tasks")
+
+        if not tasks_db_id:
+            raise ValueError("Tasks database not found in workspace config")
+
+        task = await Task.create(
+            client=self._client,
+            database_id=tasks_db_id,
+            title=title or f"Fix incident: {self.title}",
+            version_id=version_id,
+            task_type="Bug Fix",
+            priority=priority,
+        )
+
+        # Assign task to incident
+        await self.assign(task.id)
+
+        return task
