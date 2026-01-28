@@ -11,40 +11,52 @@ import typer
 
 from better_notion._cli.async_typer import AsyncTyper
 from better_notion._cli.config import Config
-from better_notion._cli.response import format_error, format_success
+from better_notion._cli.display import is_human_mode, print_rich_error, print_rich_info, print_rich_success
 
 app = AsyncTyper(help="Configuration commands")
 
 
 @app.command("get")
-def get(key: str = typer.Argument(..., help="Configuration key to get")) -> None:
+def get(
+    key: str = typer.Argument(..., help="Configuration key to get"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """Get a configuration value."""
+    use_json = json_output or not is_human_mode()
+
     try:
         config = Config.load()
 
         valid_keys = ["token", "default_database", "default_output", "timeout", "retry_attempts"]
 
         if key not in valid_keys:
-            result = format_error(
-                "INVALID_KEY",
+            print_rich_error(
                 f"Invalid key. Valid keys: {', '.join(valid_keys)}",
-                retry=False,
+                code="INVALID_KEY",
+                json_output=use_json
             )
-            typer.echo(result)
             raise typer.Exit(1)
 
         value = getattr(config, key, None)
-        result = format_success({
-            "key": key,
-            "value": value,
-        })
-        typer.echo(result)
+
+        # Mask token for security
+        if key == "token" and value:
+            value = value[:20] + "..."
+
+        print_rich_info(
+            {"key": key, "value": value},
+            title="Configuration Value",
+            json_output=use_json
+        )
 
     except typer.Exit:
         raise
     except Exception as e:
-        result = format_error("UNKNOWN_ERROR", str(e), retry=False)
-        typer.echo(result)
+        print_rich_error(
+            f"Failed to get configuration: {e}",
+            code="UNKNOWN_ERROR",
+            json_output=use_json
+        )
         raise typer.Exit(1)
 
 
@@ -52,8 +64,11 @@ def get(key: str = typer.Argument(..., help="Configuration key to get")) -> None
 def set(
     key: str = typer.Argument(..., help="Configuration key to set"),
     value: str = typer.Argument(..., help="Value to set"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """Set a configuration value."""
+    use_json = json_output or not is_human_mode()
+
     try:
         config_path = Config.get_config_path()
 
@@ -65,67 +80,99 @@ def set(
             config_data = {}
 
         # Parse value based on type
+        parsed_value = value
         if key == "timeout" or key == "retry_attempts":
-            value = int(value)
+            parsed_value = int(value)
         elif key == "token" or key == "default_database" or key == "default_output":
             pass  # Keep as string
 
-        config_data[key] = value
+        config_data[key] = parsed_value
 
         # Save updated config
         with open(config_path, "w") as f:
             json.dump(config_data, f, indent=2)
 
-        result = format_success({
-            "key": key,
-            "value": value,
-            "status": "set",
-        })
-        typer.echo(result)
+        print_rich_success(
+            f"Configuration '{key}' set to {parsed_value}",
+            data={"key": key, "value": parsed_value},
+            json_output=use_json
+        )
 
+    except ValueError:
+        print_rich_error(
+            f"Invalid value for '{key}'. Expected type: int for timeout/retry_attempts",
+            code="INVALID_VALUE",
+            json_output=use_json
+        )
+        raise typer.Exit(1)
     except Exception as e:
-        result = format_error("UNKNOWN_ERROR", str(e), retry=False)
-        typer.echo(result)
+        print_rich_error(
+            f"Failed to set configuration: {e}",
+            code="UNKNOWN_ERROR",
+            json_output=use_json
+        )
         raise typer.Exit(1)
 
 
 @app.command("list")
-def list_all() -> None:
+def list_all(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """List all configuration values."""
+    use_json = json_output or not is_human_mode()
+
     try:
+        from better_notion._cli.display import print_rich_table
+
         config = Config.load()
 
-        result = format_success({
-            "token": config.token[:20] + "..." if config.token else None,
-            "default_database": config.default_database,
-            "default_output": config.default_output,
-            "timeout": config.timeout,
-            "retry_attempts": config.retry_attempts,
-        })
-        typer.echo(result)
+        config_data = [
+            {"key": "token", "value": config.token[:20] + "..." if config.token else None},
+            {"key": "default_database", "value": config.default_database},
+            {"key": "default_output", "value": config.default_output},
+            {"key": "timeout", "value": config.timeout},
+            {"key": "retry_attempts", "value": config.retry_attempts},
+        ]
+
+        print_rich_table(
+            config_data,
+            title="Configuration",
+            columns=["key", "value"],
+            json_output=use_json
+        )
 
     except Exception as e:
-        result = format_error("UNKNOWN_ERROR", str(e), retry=False)
-        typer.echo(result)
+        print_rich_error(
+            f"Failed to list configuration: {e}",
+            code="UNKNOWN_ERROR",
+            json_output=use_json
+        )
         raise typer.Exit(1)
 
 
 @app.command("reset")
-def reset() -> None:
+def reset(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """Reset configuration to defaults."""
+    use_json = json_output or not is_human_mode()
+
     try:
         config_path = Config.get_config_path()
 
         if config_path.exists():
             config_path.unlink()
 
-        result = format_success({
-            "status": "reset",
-            "message": "Configuration has been reset. Run 'notion auth login' to configure.",
-        })
-        typer.echo(result)
+        print_rich_success(
+            "Configuration has been reset. Run 'notion auth login' to configure.",
+            data={"status": "reset"},
+            json_output=use_json
+        )
 
     except Exception as e:
-        result = format_error("UNKNOWN_ERROR", str(e), retry=False)
-        typer.echo(result)
+        print_rich_error(
+            f"Failed to reset configuration: {e}",
+            code="UNKNOWN_ERROR",
+            json_output=use_json
+        )
         raise typer.Exit(1)
