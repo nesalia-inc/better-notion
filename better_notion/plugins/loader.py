@@ -13,9 +13,12 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from better_notion.plugins.base import CommandPlugin
+
+if TYPE_CHECKING:
+    from better_notion._sdk.client import NotionClient
 
 
 class PluginLoader:
@@ -242,3 +245,50 @@ class PluginLoader:
                 return True
 
         return False
+
+    def register_sdk_extensions(self, client: "NotionClient") -> None:
+        """
+        Register SDK extensions from all loaded plugins with a NotionClient.
+
+        This method iterates through all loaded plugins and registers their
+        SDK models, caches, and managers with the provided NotionClient instance.
+
+        Args:
+            client: NotionClient instance to register extensions with
+
+        Example:
+            >>> loader = PluginLoader()
+            >>> loader.discover()  # Load plugins first
+            >>> client = NotionClient(auth="...")
+            >>> loader.register_sdk_extensions(client)
+        """
+        # Get all loaded plugins
+        plugins = list(self.loaded_plugins.values())
+
+        # Also discover plugins if not already loaded
+        if not plugins:
+            plugins = self.discover()
+
+        # Register SDK extensions from each plugin
+        for plugin in plugins:
+            try:
+                # Register models
+                models = plugin.register_sdk_models()
+                if models:
+                    client._plugin_models.update(models)
+
+                # Register caches
+                caches = plugin.register_sdk_caches(client)
+                if caches:
+                    client._plugin_caches.update(caches)
+
+                # Register managers
+                managers = plugin.register_sdk_managers(client)
+                if managers:
+                    client._plugin_managers.update(managers)
+
+                # Initialize plugin
+                plugin.sdk_initialize(client)
+            except Exception:
+                # Continue with other plugins if one fails
+                continue
