@@ -129,3 +129,4 @@ Desktop.ini
 .env.local
 .env.*.local
 test_tokens.py
+.notion

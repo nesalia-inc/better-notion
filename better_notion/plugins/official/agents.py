@@ -163,34 +163,36 @@ class AgentsPlugin(PluginInterface):
             try:
                 # Validate role
                 if not RoleManager.is_valid_role(role):
-                    return format_error(
+                    result = format_error(
                         "INVALID_ROLE",
                         f"Invalid role: {role}. Valid roles: {', '.join(RoleManager.get_all_roles())}",
                         retry=False,
                     )
+                else:
+                    # Create .notion file
+                    context = ProjectContext.create(
+                        project_id=project_id,
+                        project_name=project_name,
+                        org_id=org_id,
+                        role=role,
+                        path=Path.cwd(),
+                    )
 
-                # Create .notion file
-                context = ProjectContext.create(
-                    project_id=project_id,
-                    project_name=project_name,
-                    org_id=org_id,
-                    role=role,
-                    path=Path.cwd(),
-                )
-
-                return format_success(
-                    {
-                        "message": "Project initialized successfully",
-                        "project_id": context.project_id,
-                        "project_name": context.project_name,
-                        "org_id": context.org_id,
-                        "role": context.role,
-                        "notion_file": str(Path.cwd() / ".notion"),
-                    }
-                )
+                    result = format_success(
+                        {
+                            "message": "Project initialized successfully",
+                            "project_id": context.project_id,
+                            "project_name": context.project_name,
+                            "org_id": context.org_id,
+                            "role": context.role,
+                            "notion_file": str(Path.cwd() / ".notion"),
+                        }
+                    )
 
             except Exception as e:
-                return format_error("INIT_PROJECT_ERROR", str(e), retry=False)
+                result = format_error("INIT_PROJECT_ERROR", str(e), retry=False)
+
+            typer.echo(result)
 
         # Role management commands
         role_app = typer.Typer(
@@ -219,38 +221,40 @@ class AgentsPlugin(PluginInterface):
             try:
                 # Validate role
                 if not RoleManager.is_valid_role(new_role):
-                    return format_error(
+                    result = format_error(
                         "INVALID_ROLE",
                         f"Invalid role: {new_role}. Valid roles: {', '.join(RoleManager.get_all_roles())}",
                         retry=False,
                     )
-
-                # Load project context
-                if path:
-                    context = ProjectContext.from_path(path)
                 else:
-                    context = ProjectContext.from_current_directory()
+                    # Load project context
+                    if path:
+                        context = ProjectContext.from_path(path)
+                    else:
+                        context = ProjectContext.from_current_directory()
 
-                if not context:
-                    return format_error(
-                        "NO_PROJECT_CONTEXT",
-                        "No .notion file found. Are you in a project directory?",
-                        retry=False,
-                    )
+                    if not context:
+                        result = format_error(
+                            "NO_PROJECT_CONTEXT",
+                            "No .notion file found. Are you in a project directory?",
+                            retry=False,
+                        )
+                    else:
+                        # Update role
+                        context.update_role(new_role, path=path or None)
 
-                # Update role
-                context.update_role(new_role, path=path or None)
-
-                return format_success(
-                    {
-                        "message": f"Role updated to {new_role}",
-                        "previous_role": context.role,
-                        "new_role": new_role,
-                    }
-                )
+                        result = format_success(
+                            {
+                                "message": f"Role updated to {new_role}",
+                                "previous_role": context.role,
+                                "new_role": new_role,
+                            }
+                        )
 
             except Exception as e:
-                return format_error("ROLE_UPDATE_ERROR", str(e), retry=False)
+                result = format_error("ROLE_UPDATE_ERROR", str(e), retry=False)
+
+            typer.echo(result)
 
         @role_app.command("whoami")
         def role_whoami(
@@ -276,26 +280,28 @@ class AgentsPlugin(PluginInterface):
                     context = ProjectContext.from_current_directory()
 
                 if not context:
-                    return format_error(
+                    result = format_error(
                         "NO_PROJECT_CONTEXT",
                         "No .notion file found. Are you in a project directory?",
                         retry=False,
                     )
+                else:
+                    # Get role description
+                    description = RoleManager.get_role_description(context.role)
 
-                # Get role description
-                description = RoleManager.get_role_description(context.role)
-
-                return format_success(
-                    {
-                        "role": context.role,
-                        "description": description,
-                        "project": context.project_name,
-                        "permissions": RoleManager.get_permissions(context.role),
-                    }
-                )
+                    result = format_success(
+                        {
+                            "role": context.role,
+                            "description": description,
+                            "project": context.project_name,
+                            "permissions": RoleManager.get_permissions(context.role),
+                        }
+                    )
 
             except Exception as e:
-                return format_error("ROLE_ERROR", str(e), retry=False)
+                result = format_error("ROLE_ERROR", str(e), retry=False)
+
+            typer.echo(result)
 
         @role_app.command("list")
         def role_list() -> None:
@@ -322,7 +328,7 @@ class AgentsPlugin(PluginInterface):
                         }
                     )
 
-                return format_success(
+                result = format_success(
                     {
                         "roles": role_info,
                         "total": len(roles),
@@ -330,7 +336,9 @@ class AgentsPlugin(PluginInterface):
                 )
 
             except Exception as e:
-                return format_error("ROLE_LIST_ERROR", str(e), retry=False)
+                result = format_error("ROLE_LIST_ERROR", str(e), retry=False)
+
+            typer.echo(result)
 
         # Register agents app to main CLI
         app.add_typer(agents_app)
