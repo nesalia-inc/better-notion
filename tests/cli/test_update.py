@@ -23,6 +23,40 @@ def runner():
 class TestUpdateUpgrade:
     """Tests for the update upgrade command."""
 
+    def test_default_update_performs_upgrade(self, runner):
+        """Test that 'notion update' without args performs upgrade by default."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            result = runner.invoke(app, [])
+
+            # Verify command executed
+            assert result.exit_code == 0
+
+            # Verify pip upgrade was called
+            mock_run.assert_called_once()
+            call_args = mock_run.call_args
+            assert "pip" in call_args[0][0]
+            assert "install" in call_args[0][0]
+            assert "--upgrade" in call_args[0][0]
+            assert "better-notion" in call_args[0][0]
+
+    def test_default_update_with_check_flag(self, runner):
+        """Test that 'notion update --check' checks for updates."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "better-notion (0.9.3)\nAvailable versions: 0.9.3, 0.9.2"
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            result = runner.invoke(app, ["--check"])
+
+            assert result.exit_code == 0
+            # Verify pip index was called
+            call_args = mock_run.call_args
+            assert "index" in call_args[0][0]
+            assert "versions" in call_args[0][0]
+
     def test_upgrade_without_check_performs_update(self, runner):
         """Test that upgrade command performs pip upgrade."""
         mock_result = MagicMock()
@@ -95,6 +129,18 @@ class TestUpdateUpgrade:
 
             assert result.exit_code == 0
             # Verify check mode was used
+            call_args = mock_run.call_args
+            assert "index" in call_args[0][0]
+
+    def test_default_update_short_flag(self, runner):
+        """Test that 'notion update -c' works."""
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            result = runner.invoke(app, ["-c"])
+
+            assert result.exit_code == 0
             call_args = mock_run.call_args
             assert "index" in call_args[0][0]
 
