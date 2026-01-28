@@ -13,40 +13,19 @@ import typer
 from better_notion._cli.async_typer import AsyncTyper
 from better_notion._cli.response import format_error, format_success
 
-app = AsyncTyper(help="Update Better Notion CLI", invoke_without_command=True)
+app = AsyncTyper(help="Update Better Notion CLI", invoke_without_command=True, no_args_is_help=False)
 
 
-@app.callback()
-def main(
-    ctx: typer.Context,
-    check: bool = typer.Option(False, "--check", "-c", help="Only check if an update is available"),
-) -> None:
+def _perform_upgrade(check: bool = False) -> None:
     """
-    Update Better Notion CLI to the latest version.
+    Internal function to perform the upgrade.
 
-    If no subcommand is specified, performs an update by default.
+    Args:
+        check: If True, only check for updates without installing
     """
-    # If no subcommand was provided, execute upgrade
-    if ctx.invoked_subcommand is None:
-        upgrade(check=check)
+    import platform
+    import sys
 
-
-@app.command()
-def upgrade(
-    check: bool = typer.Option(False, "--check", "-c", help="Only check if an update is available"),
-) -> None:
-    """
-    Update Better Notion CLI to the latest version.
-
-    This is a simple wrapper around pip that checks for and installs updates.
-    pip handles all version checking, downloading, and dependency management.
-
-    Examples:
-        notion update                 # Install latest version (default)
-        notion update upgrade         # Same as above
-        notion update --check         # Check for updates only
-        notion update upgrade --check # Same as above
-    """
     package_name = "better-notion"
 
     if check:
@@ -85,6 +64,14 @@ def upgrade(
     else:
         # Perform the actual upgrade
         typer.echo(f"Updating {package_name} to the latest version...")
+
+        # Warn Windows users about potential file locking
+        if platform.system() == "Windows":
+            typer.echo("")
+            typer.echo("⚠ Note: On Windows, if you see a file access error,")
+            typer.echo("  close all terminals and run: pip install --upgrade better-notion")
+            typer.echo("")
+
         typer.echo("")
 
         try:
@@ -112,6 +99,40 @@ def upgrade(
             return format_error("UPDATE_ERROR", str(e))
 
 
+@app.callback()
+def main(
+    ctx: typer.Context,
+    check: bool = typer.Option(False, "--check", "-c", help="Only check if an update is available"),
+) -> None:
+    """
+    Update Better Notion CLI to the latest version.
+
+    If no subcommand is specified, performs an update by default.
+    """
+    # If no subcommand was provided, execute upgrade
+    if ctx.invoked_subcommand is None:
+        _perform_upgrade(check=check)
+
+
+@app.command()
+def upgrade(
+    check: bool = typer.Option(False, "--check", "-c", help="Only check if an update is available"),
+) -> None:
+    """
+    Update Better Notion CLI to the latest version.
+
+    This is a simple wrapper around pip that checks for and installs updates.
+    pip handles all version checking, downloading, and dependency management.
+
+    Examples:
+        notion update                 # Install latest version (default)
+        notion update upgrade         # Same as above
+        notion update --check         # Check for updates only
+        notion update upgrade --check # Same as above
+    """
+    _perform_upgrade(check=check)
+
+
 @app.command()
 def check() -> None:
     """
@@ -122,7 +143,7 @@ def check() -> None:
     Examples:
         notion update check
     """
-    upgrade(check=True)
+    _perform_upgrade(check=True)
 
 
 @app.command()
@@ -135,4 +156,4 @@ def self() -> None:
     Examples:
         notion update self
     """
-    upgrade(check=False)
+    _perform_upgrade(check=False)
