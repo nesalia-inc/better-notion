@@ -17,6 +17,7 @@ from better_notion._cli.commands import (
     pages,
     plugins,
     search,
+    update,
     users,
     workspace,
 )
@@ -36,6 +37,7 @@ app.add_typer(users.app, name="users")
 app.add_typer(comments.app, name="comments")
 app.add_typer(workspace.app, name="workspace")
 app.add_typer(config.app, name="config")
+app.add_typer(update.app, name="update")
 
 # Load and register official plugins
 def _load_official_plugins():
