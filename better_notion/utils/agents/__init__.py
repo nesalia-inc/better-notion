@@ -12,6 +12,18 @@ from better_notion.utils.agents.auth import (
 from better_notion.utils.agents.dependency_resolver import DependencyResolver
 from better_notion.utils.agents.project_context import ProjectContext
 from better_notion.utils.agents.rbac import RoleManager
+from better_notion.utils.agents.schemas import (
+    IncidentSchema,
+    IdeaSchema,
+    OrganizationSchema,
+    ProjectSchema,
+    PropertyBuilder,
+    SelectOption,
+    TagSchema,
+    TaskSchema,
+    VersionSchema,
+    WorkIssueSchema,
+)
 from better_notion.utils.agents.state_machine import TaskStatus, TaskStateMachine
 
 __all__ = [
@@ -29,6 +41,17 @@ __all__ = [
     "ProjectContext",
     # Role-based access control
     "RoleManager",
+    # Database schemas
+    "IncidentSchema",
+    "IdeaSchema",
+    "OrganizationSchema",
+    "ProjectSchema",
+    "PropertyBuilder",
+    "SelectOption",
+    "TagSchema",
+    "TaskSchema",
+    "VersionSchema",
+    "WorkIssueSchema",
     # State machine
     "TaskStatus",
     "TaskStateMachine",
