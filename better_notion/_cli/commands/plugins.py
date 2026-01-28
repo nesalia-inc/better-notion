@@ -6,6 +6,7 @@ Provides commands for managing the plugin system:
 - remove: Uninstall a plugin
 - list: List all plugins
 - info: Show plugin details
+- marketplace: Browse official plugin marketplace
 - update: Update plugins
 - init: Create a new plugin
 - validate: Validate a plugin
@@ -565,3 +566,97 @@ def update(
         return format_error("UPDATE_ERROR",  str(e))
     except Exception as e:
         return format_error("UNKNOWN_ERROR",  str(e))
+
+
+@app.command()
+def marketplace(
+    category: str = typer.Option(None, "--category", "-c", help="Filter by category"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """
+    List available official plugins in the marketplace.
+
+    Shows all official plugins that are bundled with the CLI package,
+    including their descriptions, versions, and other metadata.
+
+    Examples:
+        notion plugin marketplace
+        notion plugin marketplace --category productivity
+        notion plugin marketplace --verbose
+        notion plugin marketplace --json
+    """
+    try:
+        # Import official plugins registry
+        from better_notion.plugins.official import OFFICIAL_PLUGINS
+
+        if not OFFICIAL_PLUGINS:
+            typer.echo("No official plugins available in the marketplace.")
+            return
+
+        # Collect plugin information
+        plugins_data = []
+        for plugin_class in OFFICIAL_PLUGINS:
+            try:
+                plugin = plugin_class()
+                info = plugin.get_info()
+                plugins_data.append(info)
+            except Exception:
+                # Skip plugins that fail to instantiate
+                continue
+
+        # Filter by category if specified
+        if category:
+            plugins_data = [p for p in plugins_data if p.get("category") == category]
+
+        # Output as JSON if requested
+        if json_output:
+            return typer.echo(json.dumps({"plugins": plugins_data}, indent=2))
+
+        # Display in formatted table
+        if not plugins_data:
+            if category:
+                typer.echo(f"No plugins found in category '{category}'.")
+            else:
+                typer.echo("No official plugins available.")
+            return
+
+        typer.echo("Official Plugins Marketplace")
+        typer.echo("=" * 70)
+        typer.echo(f"Found {len(plugins_data)} official plugin(s)")
+        typer.echo()
+
+        for idx, info in enumerate(plugins_data, 1):
+            typer.echo(f"{idx}. {info.get('name', 'unknown')}")
+            typer.echo(f"   {info.get('description', 'No description')}")
+
+            # Always show basic info
+            typer.echo(f"   Version: {info.get('version', 'unknown'):8} │ "
+                      f"Author: {info.get('author', 'unknown')}")
+
+            if verbose:
+                # Show additional details in verbose mode
+                if info.get("category"):
+                    typer.echo(f"   Category: {info.get('category')}")
+                if info.get("dependencies"):
+                    deps = info.get("dependencies", [])
+                    if deps:
+                        typer.echo(f"   Dependencies: {', '.join(deps)}")
+                    else:
+                        typer.echo(f"   Dependencies: None")
+                if info.get("official"):
+                    typer.echo(f"   Official: ✓ Yes")
+
+                # Show any additional metadata
+                for key in ["license", "homepage", "repository"]:
+                    if info.get(key):
+                        typer.echo(f"   {key.capitalize()}: {info.get(key)}")
+
+            typer.echo()
+
+        if category:
+            typer.echo(f"Showing plugins in category: {category}")
+        typer.echo("\nTip: Use --verbose to see more details")
+
+    except Exception as e:
+        return format_error("MARKETPLACE_ERROR", str(e))
