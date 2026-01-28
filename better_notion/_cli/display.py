@@ -130,9 +130,6 @@ def print_rich_table(
     if console is None:
         console = Console()
 
-    if title:
-        console.print(f"[bold blue]{title}[/bold blue]")
-
     # Convert dict with list headers to list of dicts
     if isinstance(data, dict) and all(isinstance(v, list) for v in data.values()):
         # data format: {"col1": [val1, val2], "col2": [val3, val4]}
@@ -143,6 +140,7 @@ def print_rich_table(
             table.add_column(col, style="cyan")
         for col in columns:
             table.add_row(*data[col])
+        console.print(table)
     elif isinstance(data, list):
         # data format: [{"col1": val1, "col2": val2}, ...]
         if not data:
@@ -154,11 +152,10 @@ def print_rich_table(
         for col in columns:
             table.add_column(col, style="cyan")
         for row in data:
-            table.add_row(*[row.get(col, "") for col in columns])
+            table.add_row(*[str(row.get(col, "")) for col in columns])
+        console.print(table)
     else:
         console.print(str(data))
-
-    console.print()
 
 
 def print_rich_info(
