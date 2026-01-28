@@ -41,22 +41,33 @@ app.add_typer(update.app, name="update")
 
 # Load and register official plugins
 def _load_official_plugins():
-    """Load and register official plugins."""
+    """Load and register official plugins, respecting their enabled/disabled state."""
     try:
         from better_notion.plugins.official import OFFICIAL_PLUGINS
         from better_notion.plugins.loader import PluginLoader
+        from better_notion.plugins.state import PluginStateManager
 
         loader = PluginLoader()
+        state_manager = PluginStateManager()
 
         for plugin_class in OFFICIAL_PLUGINS:
             try:
                 plugin = plugin_class()
-                plugin.register_commands(app)
                 info = plugin.get_info()
+                plugin_name = info.get('name')
+
+                # Check if plugin is disabled
+                if not state_manager.is_enabled(plugin_name):
+                    # Skip loading this plugin
+                    continue
+
+                # Register the plugin's commands
+                plugin.register_commands(app)
+
                 # Store plugin for later reference
                 if not hasattr(app, '_loaded_plugins'):
                     app._loaded_plugins = {}
-                app._loaded_plugins[info['name']] = plugin
+                app._loaded_plugins[plugin_name] = plugin
             except Exception as e:
                 # Log but don't fail if a plugin fails to load
                 pass
