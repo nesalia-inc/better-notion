@@ -6,6 +6,7 @@ Provides commands for managing the plugin system:
 - remove: Uninstall a plugin
 - list: List all plugins
 - info: Show plugin details
+- marketplace: Browse official plugin marketplace
 - update: Update plugins
 - init: Create a new plugin
 - validate: Validate a plugin
@@ -24,7 +25,12 @@ import typer
 from typer.testing import CliRunner
 
 from better_notion._cli.async_typer import AsyncTyper
-from better_notion._cli.response import format_error, format_success
+from better_notion._cli.display import (
+    is_human_mode,
+    print_rich_error,
+    print_rich_success,
+    print_rich_table,
+)
 from better_notion.plugins.loader import PluginLoader
 from better_notion.plugins.base import CommandPlugin
 
@@ -182,40 +188,98 @@ def list_plugins(
     """
     List all installed and available plugins.
 
+    Shows both official plugins (built-in) and user-installed plugins.
+
     Examples:
         notion plugin list
         notion plugin list --verbose
         notion plugin list --json
     """
     try:
+        from better_notion.plugins.official import OFFICIAL_PLUGINS
+        from better_notion.plugins.state import PluginStateManager
+
         loader = get_plugin_loader()
-        plugins = loader.list_plugins()
+        state_manager = PluginStateManager()
 
-        if json_output:
-            return typer.echo(json.dumps(plugins, indent=2))
+        # Get user plugins
+        user_plugins = loader.list_plugins()
 
-        # Display as table
-        if not plugins:
-            typer.echo("No plugins installed.")
+        # Get official plugins with their state
+        official_plugins = {}
+        for plugin_class in OFFICIAL_PLUGINS:
+            try:
+                plugin = plugin_class()
+                info = plugin.get_info()
+                plugin_name = info.get('name')
+
+                # Add state information
+                info['bundled'] = True
+                info['enabled'] = state_manager.is_enabled(plugin_name)
+
+                official_plugins[plugin_name] = info
+            except Exception:
+                # Skip plugins that fail to instantiate
+                continue
+
+        # Merge both
+        all_plugins = {**official_plugins, **user_plugins}
+
+        # Determine output mode
+        use_json = json_output or not is_human_mode()
+
+        if use_json:
+            return typer.echo(json.dumps(all_plugins, indent=2))
+
+        # Display as formatted output
+        if not all_plugins:
+            typer.echo("No plugins found.")
             typer.echo(f"\nPlugins directory: {Path.home() / '.notion' / 'plugins'}")
             return
 
-        typer.echo("Installed Plugins:")
-        typer.echo("┌" + "─" * 50 + "┐")
+        # Build table data for Rich display
+        table_data = []
+        for name, info in all_plugins.items():
+            is_bundled = info.get('bundled', False)
+            enabled = info.get('enabled', True) if is_bundled else True
 
-        for name, info in plugins.items():
-            official_marker = "✓" if info.get("official") else " "
-            typer.echo(f"│ {official_marker} {name:30} │ {info.get('description', 'No description'):40} │")
+            status = "✓ Enabled" if enabled else "✗ Disabled"
+            if not is_bundled:
+                status = "User"
+
+            row = {
+                "name": name,
+                "description": info.get('description', 'No description')[:40],
+                "status": status,
+            }
 
             if verbose:
-                typer.echo(f"│   Version: {info.get('version', 'unknown'):20} │")
-                typer.echo(f"│   Author:  {info.get('author', 'unknown'):20} │")
-                typer.echo("│" + "─" * 50 + "│")
+                row["version"] = info.get('version', 'unknown')
+                row["author"] = info.get('author', 'unknown')
 
-        typer.echo("└" + "─" * 50 + "┘")
+            table_data.append(row)
+
+        # Display table
+        columns = ["name", "description", "status"]
+        if verbose:
+            columns.extend(["version", "author"])
+
+        print_rich_table(
+            table_data,
+            title=f"Plugins ({len(all_plugins)} total)",
+            columns=columns,
+            json_output=False
+        )
+
+        # Show tip
+        typer.echo("\nTip: Use 'notion plugin enable/disable <name>' to toggle official plugins")
 
     except Exception as e:
-        return format_error("LIST_ERROR",  str(e))
+        print_rich_error(
+            f"Failed to list plugins: {e}",
+            code="LIST_ERROR",
+            json_output=json_output or not is_human_mode()
+        )
 
 
 @app.command()
@@ -471,18 +535,40 @@ def validate(
 @app.command()
 def enable(
     plugin_name: str = typer.Argument(..., help="Name of the plugin to enable"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """
     Enable a plugin.
 
+    For official plugins, this re-enables them if they were disabled.
+    For user plugins, this adds them to the enabled list.
+
     Examples:
+        notion plugin enable productivity
         notion plugin enable organizations
     """
-    # Create enabled plugins list
-    config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
-    config_file.parent.mkdir(parents=True, exist_ok=True)
-
     try:
+        loader = get_plugin_loader()
+
+        # Check if it's an official plugin
+        if loader.is_official_plugin(plugin_name):
+            from better_notion.plugins.state import PluginStateManager
+
+            state_manager = PluginStateManager()
+            state_manager.enable(plugin_name)
+
+            use_json = json_output or not is_human_mode()
+            print_rich_success(
+                f"Plugin '{plugin_name}' enabled (may require CLI restart)",
+                data={"plugin": plugin_name, "type": "official"},
+                json_output=use_json
+            )
+            return
+
+        # For user plugins, use the existing enabled.json logic
+        config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+
         if config_file.exists():
             config = json.loads(config_file.read_text())
         else:
@@ -492,41 +578,87 @@ def enable(
             config["enabled"].append(plugin_name)
             config_file.write_text(json.dumps(config, indent=2))
 
-        return format_success({
-            "plugin": plugin_name,
-            "status": "enabled"
-        })
+        use_json = json_output or not is_human_mode()
+        print_rich_success(
+            f"Plugin '{plugin_name}' enabled",
+            data={"plugin": plugin_name, "type": "user"},
+            json_output=use_json
+        )
 
     except Exception as e:
-        return format_error("ENABLE_ERROR",  str(e))
+        use_json = json_output or not is_human_mode()
+        print_rich_error(
+            f"Failed to enable plugin: {e}",
+            code="ENABLE_ERROR",
+            json_output=use_json
+        )
 
 
 @app.command()
 def disable(
     plugin_name: str = typer.Argument(..., help="Name of the plugin to disable"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """
     Disable a plugin.
 
+    For official plugins, this disables them (but doesn't remove them).
+    For user plugins, this removes them from the enabled list.
+
     Examples:
+        notion plugin disable productivity
         notion plugin disable organizations
     """
-    config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
-
     try:
-        if config_file.exists():
-            config = json.loads(config_file.read_text())
-            if plugin_name in config.get("enabled", []):
-                config["enabled"].remove(plugin_name)
-                config_file.write_text(json.dumps(config, indent=2))
+        loader = get_plugin_loader()
 
-        return format_success({
-            "plugin": plugin_name,
-            "status": "disabled"
-        })
+        # Check if it's an official plugin
+        if loader.is_official_plugin(plugin_name):
+            from better_notion.plugins.state import PluginStateManager
+
+            state_manager = PluginStateManager()
+            state_manager.disable(plugin_name)
+
+            use_json = json_output or not is_human_mode()
+            print_rich_success(
+                f"Plugin '{plugin_name}' disabled (will take effect after CLI restart)",
+                data={"plugin": plugin_name, "type": "official"},
+                json_output=use_json
+            )
+            return
+
+        # For user plugins, use the existing enabled.json logic
+        config_file = Path.home() / ".notion" / "plugins" / "enabled.json"
+
+        try:
+            if config_file.exists():
+                config = json.loads(config_file.read_text())
+                if plugin_name in config.get("enabled", []):
+                    config["enabled"].remove(plugin_name)
+                    config_file.write_text(json.dumps(config, indent=2))
+
+            use_json = json_output or not is_human_mode()
+            print_rich_success(
+                f"Plugin '{plugin_name}' disabled",
+                data={"plugin": plugin_name, "type": "user"},
+                json_output=use_json
+            )
+
+        except Exception as e:
+            use_json = json_output or not is_human_mode()
+            print_rich_error(
+                f"Failed to disable plugin: {e}",
+                code="DISABLE_ERROR",
+                json_output=use_json
+            )
 
     except Exception as e:
-        return format_error("DISABLE_ERROR",  str(e))
+        use_json = json_output or not is_human_mode()
+        print_rich_error(
+            f"Failed to disable plugin: {e}",
+            code="DISABLE_ERROR",
+            json_output=use_json
+        )
 
 
 @app.command()
@@ -565,3 +697,107 @@ def update(
         return format_error("UPDATE_ERROR",  str(e))
     except Exception as e:
         return format_error("UNKNOWN_ERROR",  str(e))
+
+
+@app.command()
+def marketplace(
+    category: str = typer.Option(None, "--category", "-c", help="Filter by category"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed information"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
+    """
+    List available official plugins in the marketplace.
+
+    Shows all official plugins that are bundled with the CLI package,
+    including their descriptions, versions, and other metadata.
+
+    Examples:
+        notion plugin marketplace
+        notion plugin marketplace --category productivity
+        notion plugin marketplace --verbose
+        notion plugin marketplace --json
+    """
+    try:
+        # Import official plugins registry
+        from better_notion.plugins.official import OFFICIAL_PLUGINS
+
+        if not OFFICIAL_PLUGINS:
+            typer.echo("No official plugins available in the marketplace.")
+            return
+
+        # Collect plugin information
+        plugins_data = []
+        for plugin_class in OFFICIAL_PLUGINS:
+            try:
+                plugin = plugin_class()
+                info = plugin.get_info()
+                plugins_data.append(info)
+            except Exception:
+                # Skip plugins that fail to instantiate
+                continue
+
+        # Filter by category if specified
+        if category:
+            plugins_data = [p for p in plugins_data if p.get("category") == category]
+
+        # Determine output mode
+        use_json = json_output or not is_human_mode()
+
+        if use_json:
+            return typer.echo(json.dumps({"plugins": plugins_data}, indent=2))
+
+        # Display in formatted table
+        if not plugins_data:
+            if category:
+                typer.echo(f"No plugins found in category '{category}'.")
+            else:
+                typer.echo("No official plugins available.")
+            return
+
+        # Build table data for Rich
+        table_data = []
+        for info in plugins_data:
+            row = {
+                "name": info.get('name', 'unknown'),
+                "description": info.get('description', 'No description')[:40],
+                "version": info.get('version', 'unknown'),
+            }
+
+            if verbose:
+                row["author"] = info.get('author', 'unknown')
+                if info.get("category"):
+                    row["category"] = info.get('category')
+                deps = info.get("dependencies", [])
+                row["dependencies"] = ', '.join(deps) if deps else "None"
+
+            table_data.append(row)
+
+        # Display table
+        columns = ["name", "description", "version"]
+        if verbose:
+            columns.append("author")
+            if any("category" in row for row in table_data):
+                columns.append("category")
+            if any("dependencies" in row for row in table_data):
+                columns.append("dependencies")
+
+        title = f"Official Plugins Marketplace ({len(plugins_data)} available)"
+        if category:
+            title += f" - Category: {category}"
+
+        print_rich_table(
+            table_data,
+            title=title,
+            columns=columns,
+            json_output=False
+        )
+
+        if not verbose:
+            typer.echo("\nTip: Use --verbose to see more details")
+
+    except Exception as e:
+        print_rich_error(
+            f"Failed to load marketplace: {e}",
+            code="MARKETPLACE_ERROR",
+            json_output=json_output or not is_human_mode()
+        )

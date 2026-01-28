@@ -17,6 +17,7 @@ from better_notion._cli.commands import (
     pages,
     plugins,
     search,
+    update,
     users,
     workspace,
 )
@@ -36,25 +37,37 @@ app.add_typer(users.app, name="users")
 app.add_typer(comments.app, name="comments")
 app.add_typer(workspace.app, name="workspace")
 app.add_typer(config.app, name="config")
+app.add_typer(update.app, name="update")
 
 # Load and register official plugins
 def _load_official_plugins():
-    """Load and register official plugins."""
+    """Load and register official plugins, respecting their enabled/disabled state."""
     try:
         from better_notion.plugins.official import OFFICIAL_PLUGINS
         from better_notion.plugins.loader import PluginLoader
+        from better_notion.plugins.state import PluginStateManager
 
         loader = PluginLoader()
+        state_manager = PluginStateManager()
 
         for plugin_class in OFFICIAL_PLUGINS:
             try:
                 plugin = plugin_class()
-                plugin.register_commands(app)
                 info = plugin.get_info()
+                plugin_name = info.get('name')
+
+                # Check if plugin is disabled
+                if not state_manager.is_enabled(plugin_name):
+                    # Skip loading this plugin
+                    continue
+
+                # Register the plugin's commands
+                plugin.register_commands(app)
+
                 # Store plugin for later reference
                 if not hasattr(app, '_loaded_plugins'):
                     app._loaded_plugins = {}
-                app._loaded_plugins[info['name']] = plugin
+                app._loaded_plugins[plugin_name] = plugin
             except Exception as e:
                 # Log but don't fail if a plugin fails to load
                 pass
@@ -68,13 +81,41 @@ _load_official_plugins()
 
 
 @app.command()
-def version() -> None:
+def version(
+    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
+) -> None:
     """
     Show the CLI version.
 
     Displays the version information for the Better Notion CLI.
     """
-    typer.echo(format_success({"name": "Better Notion CLI", "version": __version__}))
+    from better_notion._cli.display import is_human_mode, print_rich_info
+
+    use_json = json_output or not is_human_mode()
+
+    version_info = {
+        "name": "Better Notion CLI",
+        "version": __version__
+    }
+
+    if use_json:
+        import json
+        typer.echo(json.dumps({
+            "success": True,
+            "meta": {
+                "version": __version__,
+                "timestamp": None,
+                "rate_limit": {
+                    "remaining": None,
+                    "reset_at": None
+                }
+            },
+            "data": version_info
+        }, indent=2))
+    else:
+        from rich.console import Console
+        console = Console()
+        console.print(f"[bold blue]Better Notion CLI[/bold blue] version [bold green]{__version__}[/bold green]")
 
 
 @app.callback()
