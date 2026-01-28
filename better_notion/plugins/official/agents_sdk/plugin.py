@@ -39,7 +39,7 @@ class AgentsSDKPlugin:
         >>> org = await Organization.get("org_id", client=client)
     """
 
-    def register_models(self) -> dict[str, type["BaseEntity"]]:
+    def register_models(self) -> dict[str, type]:
         """Register workflow entity models.
 
         Returns:
@@ -50,7 +50,7 @@ class AgentsSDKPlugin:
             Project,
             Task,
             Version,
-        }
+        )
 
         return {
             "Organization": Organization,
