@@ -1,7 +1,7 @@
 [project]
 name = "better-notion"
-version = "0.9.9"
-description = "A high-level Python SDK for the Notion API with developer experience in mind."
+version = "1.0.0"
+description = "A high-level Python SDK for the Notion API with developer experience in mind. Now with AI agents workflow management system!"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [
