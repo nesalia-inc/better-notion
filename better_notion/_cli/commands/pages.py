@@ -370,22 +370,35 @@ async def clear(page_id: str) -> None:
     client = get_client()
     page = await client.pages.get(page_id)
 
-    # Collect all block IDs first
+    # Collect all block IDs using direct API call
     block_ids = []
-    async for block in page.children():
-        block_ids.append(block.id)
+    response = await client.api._request("GET", f"/blocks/{page_id}/children")
+    for block_data in response.get("results", []):
+        block_ids.append(block_data["id"])
+
+    # Handle pagination if there are more blocks
+    while response.get("next_cursor"):
+        response = await client.api._request(
+            "GET",
+            f"/blocks/{page_id}/children",
+            params={"start_cursor": response["next_cursor"]}
+        )
+        for block_data in response.get("results", []):
+            block_ids.append(block_data["id"])
 
     # Delete all blocks
+    deleted_count = 0
     for block_id in block_ids:
         try:
             await client.api.blocks.delete(block_id)
+            deleted_count += 1
         except Exception:
             # Continue even if deletion fails
             pass
 
     result = format_success({
         "id": page_id,
-        "blocks_deleted": len(block_ids),
+        "blocks_deleted": deleted_count,
         "status": "cleared",
     })
     typer.echo(result)
