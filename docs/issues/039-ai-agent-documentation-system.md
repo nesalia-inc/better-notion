@@ -4,6 +4,49 @@
 
 Design and implement a comprehensive documentation system that enables AI agents to understand the complete Better Notion CLI architecture at a high level of abstraction, rather than just individual command help text.
 
+## Primary Use Case
+
+**Enable AI agents (like Claude Code) to pull comprehensive information at the start of a conversation and understand:**
+
+1. **How the CLI works overall**
+   - Command structure and organization
+   - Plugin architecture
+   - Available capabilities
+
+2. **How the agents system specifically works**
+   - What is a workspace?
+   - How are databases structured and related?
+   - What are the available workflows?
+   - How to compose commands effectively
+
+### Ideal Agent Workflow
+
+```python
+# Agent starts conversation
+# 1. Pull system overview
+notion docs overview
+
+# 2. Pull agents-specific documentation
+notion agents schema
+
+# 3. Now agent understands:
+#    - How to initialize a workspace (and when to use --skip vs --reset)
+#    - How databases are related (Organizations → Projects → Versions → Tasks)
+#    - What workflows are available
+#    - How to recover from errors
+#    - Best practices
+
+# 4. Agent can now help user effectively
+#    Without trial-and-error or confusion
+```
+
+### Key Requirements
+
+- **Single-shot comprehension**: Agent should understand everything from one schema call
+- **No exploration needed**: Agent shouldn't have to try commands to learn
+- **Complete context**: Relationships, workflows, error recovery all included
+- **Machine-readable**: JSON format for easy parsing by agents
+
 ## Problem Statement
 
 ### Current Limitations
