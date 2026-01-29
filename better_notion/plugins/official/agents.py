@@ -86,6 +86,18 @@ class AgentsPlugin(CombinedPluginInterface):
                 "-n",
                 help="Name for the workspace",
             ),
+            reset: bool = typer.Option(
+                False,
+                "--reset",
+                "-r",
+                help="Reset workspace (delete existing databases and recreate)",
+            ),
+            skip: bool = typer.Option(
+                False,
+                "--skip",
+                "-s",
+                help="Skip if workspace already exists (return existing databases)",
+            ),
             debug: bool = typer.Option(
                 False,
                 "--debug",
@@ -106,8 +118,13 @@ class AgentsPlugin(CombinedPluginInterface):
             - Incidents
             - Tags
 
+            If a workspace already exists in the page, use --reset to recreate
+            or --skip to keep the existing one.
+
             Example:
                 $ notion agents init --parent-page page123 --name "My Workspace"
+                $ notion agents init --parent-page page123 --reset  # Recreate
+                $ notion agents init --parent-page page123 --skip    # Keep existing
             """
             import asyncio
             import logging
@@ -128,17 +145,40 @@ class AgentsPlugin(CombinedPluginInterface):
                     client = get_client()
                     initializer = WorkspaceInitializer(client)
 
+                    # Handle --skip flag
+                    if skip:
+                        from better_notion._sdk.models.page import Page
+                        from better_notion.utils.agents.metadata import WorkspaceMetadata
+
+                        try:
+                            page = await Page.get(parent_page_id, client=client)
+                            existing = await WorkspaceMetadata.detect_workspace(page, client)
+
+                            if existing:
+                                database_ids = existing.get("database_ids", {})
+                                return format_success(
+                                    {
+                                        "message": "Workspace already exists, skipping initialization",
+                                        "workspace_id": existing.get("workspace_id"),
+                                        "databases_found": len(database_ids),
+                                        "database_ids": database_ids,
+                                    }
+                                )
+                        except Exception:
+                            # If detection fails, proceed with normal init
+                            pass
+
+                    # Initialize workspace (with skip_detection=True if --reset)
                     database_ids = await initializer.initialize_workspace(
                         parent_page_id=parent_page_id,
                         workspace_name=workspace_name,
+                        skip_detection=reset,  # Skip detection if resetting
                     )
-
-                    # Save database IDs
-                    initializer.save_database_ids()
 
                     return format_success(
                         {
                             "message": "Workspace initialized successfully",
+                            "workspace_id": initializer._workspace_id,
                             "databases_created": len(database_ids),
                             "database_ids": database_ids,
                         }
@@ -149,6 +189,81 @@ class AgentsPlugin(CombinedPluginInterface):
                     return result
 
             result = asyncio.run(_init())
+            typer.echo(result)
+
+        @agents_app.command("info")
+        def workspace_info(
+            parent_page_id: str = typer.Option(
+                ...,
+                "--parent-page",
+                "-p",
+                help="ID of the parent page to check",
+            ),
+        ) -> None:
+            """
+            Show workspace information for a page.
+
+            Displays whether a workspace is initialized in the given page,
+            along with workspace metadata and database information.
+
+            Example:
+                $ notion agents info --parent-page page123
+            """
+            import asyncio
+
+            async def _info() -> str:
+                try:
+                    client = get_client()
+                    from better_notion._sdk.models.page import Page
+                    from better_notion.utils.agents.metadata import WorkspaceMetadata
+
+                    page = await Page.get(parent_page_id, client=client)
+                    existing = await WorkspaceMetadata.detect_workspace(page, client)
+
+                    if existing:
+                        database_ids = existing.get("database_ids", {})
+
+                        return format_success(
+                            {
+                                "message": "Workspace found in this page",
+                                "parent_page": parent_page_id,
+                                "parent_title": page.title,
+                                "workspace_id": existing.get("workspace_id"),
+                                "workspace_name": existing.get("workspace_name"),
+                                "initialized_at": existing.get("initialized_at"),
+                                "databases_count": len(database_ids),
+                                "database_ids": database_ids,
+                                "detection_method": existing.get("detection_method", "config_file"),
+                            }
+                        )
+                    else:
+                        # Search for any databases in the page
+                        results = await client.search(
+                            query="",
+                            filter={"value": "database", "property": "object"}
+                        )
+
+                        # Count databases in this page
+                        databases_in_page = []
+                        for result in results:
+                            if hasattr(result, 'title'):
+                                databases_in_page.append(result.title)
+
+                        return format_success(
+                            {
+                                "message": "No agents workspace found in this page",
+                                "parent_page": parent_page_id,
+                                "parent_title": page.title,
+                                "workspace_initialized": False,
+                                "other_databases": len(databases_in_page),
+                            }
+                        )
+
+                except Exception as e:
+                    result = format_error("INFO_ERROR", str(e), retry=False)
+                    return result
+
+            result = asyncio.run(_info())
             typer.echo(result)
 
         @agents_app.command("init-project")
