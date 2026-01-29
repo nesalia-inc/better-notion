@@ -522,9 +522,10 @@ class Page(BaseEntity):
             if cursor:
                 params["start_cursor"] = cursor
 
-            return await self._client.api.blocks.children.list(
-                block_id=self.id,
-                **params
+            return await self._client.api._request(
+                "GET",
+                f"/blocks/{self.id}/children",
+                params=params
             )
 
         # Define item parser

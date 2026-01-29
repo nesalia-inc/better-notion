@@ -390,7 +390,7 @@ async def clear(page_id: str) -> None:
     deleted_count = 0
     for block_id in block_ids:
         try:
-            await client.api.blocks.delete(block_id)
+            await client.api._request("DELETE", f"/blocks/{block_id}")
             deleted_count += 1
         except Exception:
             # Continue even if deletion fails
