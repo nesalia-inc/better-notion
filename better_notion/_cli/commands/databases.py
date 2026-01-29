@@ -5,7 +5,6 @@ This module provides commands for managing Notion databases.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any
 
@@ -17,6 +16,49 @@ from better_notion._cli.response import format_error, format_success
 from better_notion._sdk.client import NotionClient
 
 app = AsyncTyper(help="Databases commands")
+
+
+# Schema templates for common use cases
+SCHEMA_TEMPLATES = {
+    "minimal": {
+        "description": "Database with only a title property (minimal schema)",
+        "schema": {}
+    },
+    "simple": {
+        "description": "Simple database with title, text, and number properties",
+        "schema": {
+            "Notes": {"type": "rich_text"},
+            "Count": {"type": "number"}
+        }
+    },
+    "task": {
+        "description": "Task tracking database with status, priority, and due date",
+        "schema": {
+            "Status": {
+                "type": "select",
+                "select": {
+                    "options": [
+                        {"name": "Not Started", "color": "gray"},
+                        {"name": "In Progress", "color": "blue"},
+                        {"name": "Completed", "color": "green"}
+                    ]
+                }
+            },
+            "Priority": {
+                "type": "select",
+                "select": {
+                    "options": [
+                        {"name": "Low", "color": "gray"},
+                        {"name": "Medium", "color": "yellow"},
+                        {"name": "High", "color": "orange"},
+                        {"name": "Critical", "color": "red"}
+                    ]
+                }
+            },
+            "Due Date": {"type": "date"}
+        }
+    }
+}
 
 
 def get_client() -> NotionClient:
@@ -48,34 +90,115 @@ def get(database_id: str) -> None:
 
 
 @app.command()
-def create(
+async def create(
     parent: str = typer.Option(..., "--parent", "-p", help="Parent page ID"),
     title: str = typer.Option(..., "--title", "-t", help="Database title"),
     schema: str = typer.Option("{}", "--schema", "-s", help="JSON schema for properties"),
+    template: str = typer.Option(None, "--template", help="Use a predefined schema template (minimal, simple, task)"),
 ) -> None:
-    """Create a new database."""
-    async def _create() -> str:
-        try:
-            client = get_client()
-            parent_page = await client.pages.get(parent)
-            schema_dict = json.loads(schema)
+    """Create a new database.
 
-            db = await client.databases.create(
-                parent=parent_page,
-                title=title,
-                schema=schema_dict,
+    Schema Format:
+        The schema should be a JSON object mapping property names to their types.
+        Each property should have a "type" field and type-specific configuration.
+
+    Common property types:
+        - title: {"type": "title"} (Note: Every database must have exactly one title property)
+        - rich_text: {"type": "rich_text"}
+        - number: {"type": "number", "number": {"format": "number"}}
+        - select: {"type": "select", "select": {"options": [{"name": "Option1", "color": "gray"}]}}
+        - date: {"type": "date"}
+        - checkbox: {"type": "checkbox"}
+        - email: {"type": "email"}
+        - url: {"type": "url"}
+        - phone: {"type": "phone_number"}
+
+    Examples:
+        # Minimal database (title only)
+        notion databases create --parent page123 --title "My Database" --template minimal
+
+        # Simple custom schema
+        notion databases create --parent page123 --title "Tasks" \\
+            --schema '{"Status": {"type": "select", "select": {"options": [{"name": "Todo", "color": "gray"}]}}}'
+
+        # Use a predefined template
+        notion databases create --parent page123 --title "Task Tracker" --template task
+
+        # Show available templates
+        notion database-templates
+    """
+    try:
+        client = get_client()
+        parent_page = await client.pages.get(parent)
+
+        # Use template if specified
+        if template:
+            if template not in SCHEMA_TEMPLATES:
+                result = format_error(
+                    "INVALID_TEMPLATE",
+                    f"Template '{template}' not found. Available templates: {', '.join(SCHEMA_TEMPLATES.keys())}. Use 'notion database-templates' to see all templates.",
+                    retry=False
+                )
+                typer.echo(result)
+                raise typer.Exit(code=1)
+            schema_dict = SCHEMA_TEMPLATES[template]["schema"]
+        else:
+            # Parse custom schema
+            try:
+                schema_dict = json.loads(schema)
+            except json.JSONDecodeError as e:
+                result = format_error(
+                    "INVALID_SCHEMA",
+                    f"Invalid JSON schema: {str(e)}",
+                    retry=False
+                )
+                typer.echo(result)
+                raise typer.Exit(code=1)
+
+        # Validate schema structure
+        if not isinstance(schema_dict, dict):
+            result = format_error(
+                "INVALID_SCHEMA",
+                "Schema must be a JSON object (dictionary)",
+                retry=False
             )
+            typer.echo(result)
+            raise typer.Exit(code=1)
 
-            return format_success({
-                "id": db.id,
-                "title": db.title,
-                "url": db.url,
-            })
-        except Exception as e:
-            return format_error("UNKNOWN_ERROR", str(e), retry=False)
+        db = await client.databases.create(
+            parent=parent_page,
+            title=title,
+            schema=schema_dict,
+        )
 
-    result = asyncio.run(_create())
-    typer.echo(result)
+        result = format_success({
+            "id": db.id,
+            "title": db.title,
+            "url": db.url,
+            "properties_count": len(db.schema) if db.schema else 0,
+        })
+        typer.echo(result)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        error_msg = str(e)
+        # Add helpful context for common errors
+        if "schema" in error_msg.lower():
+            error_msg += "\n\nHint: Use 'notion database-templates' to see schema examples or --template minimal for a simple database"
+        result = format_error("CREATE_ERROR", error_msg, retry=False)
+        typer.echo(result)
+        raise typer.Exit(code=1)
+
+
+@app.command("database-templates")
+def templates_cmd() -> None:
+    """Show available database schema templates.
+
+    Examples:
+        notion database-templates
+    """
+    typer.echo(json.dumps(SCHEMA_TEMPLATES, indent=2))
 
 
 @app.command()
