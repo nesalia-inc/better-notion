@@ -770,20 +770,28 @@ def tasks_start(task_id: str) -> str:
 
 def tasks_complete(
     task_id: str,
-    actual_hours: Optional[int] = typer.Option(None, "--actual-hours", "-a", help="Actual hours spent"),
+    actual_hours: Optional[int] = typer.Option(None, "--actual-hours", "-a", help="Actual hours spent (must be non-negative)"),
 ) -> str:
     """
     Complete a task (transition to Completed).
 
     Args:
         task_id: Task page ID
-        actual_hours: Actual hours spent (optional)
+        actual_hours: Actual hours spent (optional, must be non-negative)
 
     Example:
         $ notion tasks complete task_123 --actual-hours 3
     """
     async def _complete() -> str:
         try:
+            # Validate actual_hours parameter if provided
+            if actual_hours is not None:
+                from better_notion.utils.validators import Validators, ValidationError
+                try:
+                    Validators.non_negative_float(actual_hours, "actual_hours")
+                except ValidationError as e:
+                    return format_error("INVALID_PARAMETER", str(e), retry=False)
+
             client = get_client()
 
             # Register SDK plugin
@@ -1050,13 +1058,20 @@ def ideas_review(count: int = 10) -> str:
     Get a batch of ideas for review, prioritized by effort.
 
     Args:
-        count: Maximum number of ideas to return
+        count: Maximum number of ideas to return (must be positive)
 
     Example:
         $ notion ideas review --count 5
     """
     async def _review() -> str:
         try:
+            # Validate count parameter
+            from better_notion.utils.validators import Validators, ValidationError
+            try:
+                Validators.positive_int(count, "count")
+            except ValidationError as e:
+                return format_error("INVALID_PARAMETER", str(e), retry=False)
+
             client = get_client()
 
             # Register SDK plugin
@@ -1626,13 +1641,20 @@ def incidents_mttr(project_id: Optional[str] = None, within_days: int = 30) -> s
 
     Args:
         project_id: Filter by project ID (optional)
-        within_days: Only consider incidents from last N days
+        within_days: Only consider incidents from last N days (must be positive)
 
     Example:
         $ notion incidents mttr --project-id proj_123 --within-days 30
     """
     async def _mttr() -> str:
         try:
+            # Validate within_days parameter
+            from better_notion.utils.validators import Validators, ValidationError
+            try:
+                Validators.positive_int(within_days, "within_days")
+            except ValidationError as e:
+                return format_error("INVALID_PARAMETER", str(e), retry=False)
+
             client = get_client()
 
             # Register SDK plugin
