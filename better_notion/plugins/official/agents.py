@@ -346,31 +346,31 @@ class AgentsPlugin(CombinedPluginInterface):
         # Register agents app to main CLI
         app.add_typer(agents_app)
 
-        # Import and register CRUD commands
+        # Import and register CRUD commands as sub-commands of agents
         from better_notion.plugins.official import agents_cli
 
-        # Organizations commands
+        # Organizations commands (under agents)
         orgs_app = typer.Typer(name="orgs", help="Organizations management commands")
         orgs_app.command("list")(agents_cli.orgs_list)
         orgs_app.command("get")(agents_cli.orgs_get)
         orgs_app.command("create")(agents_cli.orgs_create)
-        app.add_typer(orgs_app)
+        agents_app.add_typer(orgs_app)
 
-        # Projects commands
+        # Projects commands (under agents)
         projects_app = typer.Typer(name="projects", help="Projects management commands")
         projects_app.command("list")(projects_list_with_cli := lambda **kwargs: agents_cli.projects_list(**kwargs))
         projects_app.command("get")(projects_get_with_cli := lambda project_id: agents_cli.projects_get(project_id))
         projects_app.command("create")(lambda **kwargs: agents_cli.projects_create(**kwargs))
-        app.add_typer(projects_app)
+        agents_app.add_typer(projects_app)
 
-        # Versions commands
+        # Versions commands (under agents)
         versions_app = typer.Typer(name="versions", help="Versions management commands")
         versions_app.command("list")(lambda **kwargs: agents_cli.versions_list(**kwargs))
         versions_app.command("get")(lambda version_id: agents_cli.versions_get(version_id))
         versions_app.command("create")(lambda **kwargs: agents_cli.versions_create(**kwargs))
-        app.add_typer(versions_app)
+        agents_app.add_typer(versions_app)
 
-        # Tasks commands
+        # Tasks commands (under agents)
         tasks_app = typer.Typer(name="tasks", help="Tasks management commands")
         tasks_app.command("list")(lambda **kwargs: agents_cli.tasks_list(**kwargs))
         tasks_app.command("get")(lambda task_id: agents_cli.tasks_get(task_id))
@@ -380,9 +380,9 @@ class AgentsPlugin(CombinedPluginInterface):
         tasks_app.command("start")(lambda task_id: agents_cli.tasks_start(task_id))
         tasks_app.command("complete")(lambda **kwargs: agents_cli.tasks_complete(**kwargs))
         tasks_app.command("can-start")(lambda task_id: agents_cli.tasks_can_start(task_id))
-        app.add_typer(tasks_app)
+        agents_app.add_typer(tasks_app)
 
-        # Ideas commands
+        # Ideas commands (under agents)
         ideas_app = typer.Typer(name="ideas", help="Ideas management commands")
         ideas_app.command("list")(lambda **kwargs: agents_cli.ideas_list(**kwargs))
         ideas_app.command("get")(lambda idea_id: agents_cli.ideas_get(idea_id))
@@ -390,18 +390,18 @@ class AgentsPlugin(CombinedPluginInterface):
         ideas_app.command("review")(lambda count: agents_cli.ideas_review(count))
         ideas_app.command("accept")(lambda idea_id: agents_cli.ideas_accept(idea_id))
         ideas_app.command("reject")(lambda idea_id, reason: agents_cli.ideas_reject(idea_id, reason))
-        app.add_typer(ideas_app)
+        agents_app.add_typer(ideas_app)
 
-        # Work Issues commands
+        # Work Issues commands (under agents)
         work_issues_app = typer.Typer(name="work-issues", help="Work Issues management commands")
         work_issues_app.command("list")(lambda **kwargs: agents_cli.work_issues_list(**kwargs))
         work_issues_app.command("get")(lambda issue_id: agents_cli.work_issues_get(issue_id))
         work_issues_app.command("create")(lambda **kwargs: agents_cli.work_issues_create(**kwargs))
         work_issues_app.command("resolve")(lambda issue_id, resolution: agents_cli.work_issues_resolve(issue_id, resolution))
         work_issues_app.command("blockers")(lambda project_id: agents_cli.work_issues_blockers(project_id))
-        app.add_typer(work_issues_app)
+        agents_app.add_typer(work_issues_app)
 
-        # Incidents commands
+        # Incidents commands (under agents)
         incidents_app = typer.Typer(name="incidents", help="Incidents management commands")
         incidents_app.command("list")(lambda **kwargs: agents_cli.incidents_list(**kwargs))
         incidents_app.command("get")(lambda incident_id: agents_cli.incidents_get(incident_id))
@@ -409,7 +409,7 @@ class AgentsPlugin(CombinedPluginInterface):
         incidents_app.command("resolve")(lambda incident_id, resolution: agents_cli.incidents_resolve(incident_id, resolution))
         incidents_app.command("mttr")(lambda **kwargs: agents_cli.incidents_mttr(**kwargs))
         incidents_app.command("sla-violations")(lambda: agents_cli.incidents_sla_violations())
-        app.add_typer(incidents_app)
+        agents_app.add_typer(incidents_app)
 
     def register_sdk_models(self) -> dict[str, type]:
         """Register workflow entity models."""
