@@ -20,10 +20,11 @@
       "Bash(git merge:*)",
       "Bash(gh issue close:*)",
       "Bash(gh pr view:*)",
-      "Bash(find:*)",
-      "Bash(python3 -m pytest:*)",
-      "Bash(pip3:*)",
-      "Bash(python3:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh issue view:*)"
     ]
   }
 }
