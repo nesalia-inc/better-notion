@@ -343,72 +343,258 @@ class AgentsPlugin(CombinedPluginInterface):
             except Exception as e:
                 return format_error("ROLE_LIST_ERROR", str(e), retry=False)
 
-        # Register agents app to main CLI
+        # Register the agents app to main CLI FIRST
         app.add_typer(agents_app)
 
-        # Import and register CRUD commands as sub-commands of agents
+        # Import CLI functions for CRUD commands
         from better_notion.plugins.official import agents_cli
 
         # Organizations commands (under agents)
         orgs_app = typer.Typer(name="orgs", help="Organizations management commands")
-        orgs_app.command("list")(agents_cli.orgs_list)
-        orgs_app.command("get")(agents_cli.orgs_get)
-        orgs_app.command("create")(agents_cli.orgs_create)
+
+        @orgs_app.command("list")
+        def orgs_list_cmd():
+            typer.echo(agents_cli.orgs_list())
+
+        @orgs_app.command("get")
+        def orgs_get_cmd(org_id: str):
+            typer.echo(agents_cli.orgs_get(org_id))
+
+        @orgs_app.command("create")
+        def orgs_create_cmd(
+            name: str = typer.Option(..., "--name", "-n"),
+            slug: str = typer.Option(..., "--slug"),
+            description: str = typer.Option("", "--description", "-d"),
+            repository_url: str = typer.Option("", "--repository-url"),
+            status: str = typer.Option("Active", "--status"),
+        ):
+            typer.echo(agents_cli.orgs_create(name, slug, description, repository_url, status))
+
         agents_app.add_typer(orgs_app)
 
         # Projects commands (under agents)
         projects_app = typer.Typer(name="projects", help="Projects management commands")
-        projects_app.command("list")(projects_list_with_cli := lambda **kwargs: agents_cli.projects_list(**kwargs))
-        projects_app.command("get")(projects_get_with_cli := lambda project_id: agents_cli.projects_get(project_id))
-        projects_app.command("create")(lambda **kwargs: agents_cli.projects_create(**kwargs))
+
+        @projects_app.command("list")
+        def projects_list_cmd(org_id: str = typer.Option(None, "--org-id", "-o")):
+            typer.echo(agents_cli.projects_list(org_id))
+
+        @projects_app.command("get")
+        def projects_get_cmd(project_id: str):
+            typer.echo(agents_cli.projects_get(project_id))
+
+        @projects_app.command("create")
+        def projects_create_cmd(
+            name: str = typer.Option(..., "--name", "-n"),
+            org_id: str = typer.Option(..., "--org-id", "-o"),
+            slug: str = typer.Option("", "--slug"),
+            description: str = typer.Option("", "--description", "-d"),
+            repository: str = typer.Option("", "--repository"),
+            status: str = typer.Option("Active", "--status"),
+            tech_stack: str = typer.Option("", "--tech-stack"),
+        ):
+            typer.echo(agents_cli.projects_create(name, org_id, slug, description, repository, status, tech_stack))
+
         agents_app.add_typer(projects_app)
 
         # Versions commands (under agents)
         versions_app = typer.Typer(name="versions", help="Versions management commands")
-        versions_app.command("list")(lambda **kwargs: agents_cli.versions_list(**kwargs))
-        versions_app.command("get")(lambda version_id: agents_cli.versions_get(version_id))
-        versions_app.command("create")(lambda **kwargs: agents_cli.versions_create(**kwargs))
+
+        @versions_app.command("list")
+        def versions_list_cmd(project_id: str = typer.Option(None, "--project-id", "-p")):
+            typer.echo(agents_cli.versions_list(project_id))
+
+        @versions_app.command("get")
+        def versions_get_cmd(version_id: str):
+            typer.echo(agents_cli.versions_get(version_id))
+
+        @versions_app.command("create")
+        def versions_create_cmd(
+            name: str = typer.Option(..., "--name", "-n"),
+            project_id: str = typer.Option(..., "--project-id", "-p"),
+            status: str = typer.Option("Planning", "--status"),
+            type_: str = typer.Option("Minor", "--type", "-t"),
+            branch_name: str = typer.Option("", "--branch-name"),
+        ):
+            typer.echo(agents_cli.versions_create(name, project_id, status, type_, branch_name))
+
         agents_app.add_typer(versions_app)
 
         # Tasks commands (under agents)
         tasks_app = typer.Typer(name="tasks", help="Tasks management commands")
-        tasks_app.command("list")(lambda **kwargs: agents_cli.tasks_list(**kwargs))
-        tasks_app.command("get")(lambda task_id: agents_cli.tasks_get(task_id))
-        tasks_app.command("create")(lambda **kwargs: agents_cli.tasks_create(**kwargs))
-        tasks_app.command("next")(lambda **kwargs: agents_cli.tasks_next(**kwargs))
-        tasks_app.command("claim")(lambda task_id: agents_cli.tasks_claim(task_id))
-        tasks_app.command("start")(lambda task_id: agents_cli.tasks_start(task_id))
-        tasks_app.command("complete")(lambda **kwargs: agents_cli.tasks_complete(**kwargs))
-        tasks_app.command("can-start")(lambda task_id: agents_cli.tasks_can_start(task_id))
+
+        @tasks_app.command("list")
+        def tasks_list_cmd(
+            version_id: str = typer.Option(None, "--version-id", "-v"),
+            status: str = typer.Option(None, "--status", "-s"),
+        ):
+            typer.echo(agents_cli.tasks_list(version_id, status))
+
+        @tasks_app.command("get")
+        def tasks_get_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_get(task_id))
+
+        @tasks_app.command("create")
+        def tasks_create_cmd(
+            title: str = typer.Option(..., "--title", "-t"),
+            version_id: str = typer.Option(..., "--version-id", "-v"),
+            type_: str = typer.Option("New Feature", "--type"),
+            priority: str = typer.Option("Medium", "--priority"),
+            estimated_hours: float = typer.Option(0, "--estimated-hours"),
+        ):
+            typer.echo(agents_cli.tasks_create(title, version_id, type_, priority, estimated_hours))
+
+        @tasks_app.command("next")
+        def tasks_next_cmd(project_id: str = typer.Option(None, "--project-id", "-p")):
+            typer.echo(agents_cli.tasks_next(project_id))
+
+        @tasks_app.command("claim")
+        def tasks_claim_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_claim(task_id))
+
+        @tasks_app.command("start")
+        def tasks_start_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_start(task_id))
+
+        @tasks_app.command("complete")
+        def tasks_complete_cmd(
+            task_id: str,
+            actual_hours: float = typer.Option(0, "--actual-hours"),
+        ):
+            typer.echo(agents_cli.tasks_complete(task_id, actual_hours))
+
+        @tasks_app.command("can-start")
+        def tasks_can_start_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_can_start(task_id))
+
         agents_app.add_typer(tasks_app)
 
         # Ideas commands (under agents)
         ideas_app = typer.Typer(name="ideas", help="Ideas management commands")
-        ideas_app.command("list")(lambda **kwargs: agents_cli.ideas_list(**kwargs))
-        ideas_app.command("get")(lambda idea_id: agents_cli.ideas_get(idea_id))
-        ideas_app.command("create")(lambda **kwargs: agents_cli.ideas_create(**kwargs))
-        ideas_app.command("review")(lambda count: agents_cli.ideas_review(count))
-        ideas_app.command("accept")(lambda idea_id: agents_cli.ideas_accept(idea_id))
-        ideas_app.command("reject")(lambda idea_id, reason: agents_cli.ideas_reject(idea_id, reason))
+
+        @ideas_app.command("list")
+        def ideas_list_cmd(
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            status: str = typer.Option(None, "--status", "-s"),
+        ):
+            typer.echo(agents_cli.ideas_list(project_id, status))
+
+        @ideas_app.command("get")
+        def ideas_get_cmd(idea_id: str):
+            typer.echo(agents_cli.ideas_get(idea_id))
+
+        @ideas_app.command("create")
+        def ideas_create_cmd(
+            title: str = typer.Option(..., "--title", "-t"),
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            category: str = typer.Option("Feature", "--category"),
+            description: str = typer.Option("", "--description", "-d"),
+            proposed_solution: str = typer.Option("", "--proposed-solution"),
+            benefits: str = typer.Option("", "--benefits"),
+            effort_estimate: str = typer.Option("Medium", "--effort-estimate"),
+            context: str = typer.Option("", "--context"),
+        ):
+            typer.echo(agents_cli.ideas_create(title, project_id, category, description, proposed_solution, benefits, effort_estimate, context))
+
+        @ideas_app.command("review")
+        def ideas_review_cmd(count: int = typer.Option(10, "--count", "-c")):
+            typer.echo(agents_cli.ideas_review(count))
+
+        @ideas_app.command("accept")
+        def ideas_accept_cmd(idea_id: str):
+            typer.echo(agents_cli.ideas_accept(idea_id))
+
+        @ideas_app.command("reject")
+        def ideas_reject_cmd(
+            idea_id: str,
+            reason: str = typer.Option("", "--reason", "-r"),
+        ):
+            typer.echo(agents_cli.ideas_reject(idea_id, reason))
+
         agents_app.add_typer(ideas_app)
 
         # Work Issues commands (under agents)
         work_issues_app = typer.Typer(name="work-issues", help="Work Issues management commands")
-        work_issues_app.command("list")(lambda **kwargs: agents_cli.work_issues_list(**kwargs))
-        work_issues_app.command("get")(lambda issue_id: agents_cli.work_issues_get(issue_id))
-        work_issues_app.command("create")(lambda **kwargs: agents_cli.work_issues_create(**kwargs))
-        work_issues_app.command("resolve")(lambda issue_id, resolution: agents_cli.work_issues_resolve(issue_id, resolution))
-        work_issues_app.command("blockers")(lambda project_id: agents_cli.work_issues_blockers(project_id))
+
+        @work_issues_app.command("list")
+        def work_issues_list_cmd(
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            status: str = typer.Option(None, "--status", "-s"),
+        ):
+            typer.echo(agents_cli.work_issues_list(project_id, status))
+
+        @work_issues_app.command("get")
+        def work_issues_get_cmd(issue_id: str):
+            typer.echo(agents_cli.work_issues_get(issue_id))
+
+        @work_issues_app.command("create")
+        def work_issues_create_cmd(
+            title: str = typer.Option(..., "--title", "-t"),
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            task_id: str = typer.Option(None, "--task-id"),
+            type_: str = typer.Option("Blocker", "--type"),
+            severity: str = typer.Option("Medium", "--severity"),
+            description: str = typer.Option("", "--description", "-d"),
+            context: str = typer.Option("", "--context"),
+            proposed_solution: str = typer.Option("", "--proposed-solution"),
+        ):
+            typer.echo(agents_cli.work_issues_create(title, project_id, task_id, type_, severity, description, context, proposed_solution))
+
+        @work_issues_app.command("resolve")
+        def work_issues_resolve_cmd(
+            issue_id: str,
+            resolution: str = typer.Option("", "--resolution", "-r"),
+        ):
+            typer.echo(agents_cli.work_issues_resolve(issue_id, resolution))
+
+        @work_issues_app.command("blockers")
+        def work_issues_blockers_cmd(project_id: str):
+            typer.echo(agents_cli.work_issues_blockers(project_id))
+
         agents_app.add_typer(work_issues_app)
 
         # Incidents commands (under agents)
         incidents_app = typer.Typer(name="incidents", help="Incidents management commands")
-        incidents_app.command("list")(lambda **kwargs: agents_cli.incidents_list(**kwargs))
-        incidents_app.command("get")(lambda incident_id: agents_cli.incidents_get(incident_id))
-        incidents_app.command("create")(lambda **kwargs: agents_cli.incidents_create(**kwargs))
-        incidents_app.command("resolve")(lambda incident_id, resolution: agents_cli.incidents_resolve(incident_id, resolution))
-        incidents_app.command("mttr")(lambda **kwargs: agents_cli.incidents_mttr(**kwargs))
-        incidents_app.command("sla-violations")(lambda: agents_cli.incidents_sla_violations())
+
+        @incidents_app.command("list")
+        def incidents_list_cmd(
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            severity: str = typer.Option(None, "--severity", "-s"),
+        ):
+            typer.echo(agents_cli.incidents_list(project_id, severity))
+
+        @incidents_app.command("get")
+        def incidents_get_cmd(incident_id: str):
+            typer.echo(agents_cli.incidents_get(incident_id))
+
+        @incidents_app.command("create")
+        def incidents_create_cmd(
+            title: str = typer.Option(..., "--title", "-t"),
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            affected_version_id: str = typer.Option(None, "--affected-version-id"),
+            severity: str = typer.Option("Medium", "--severity"),
+            type_: str = typer.Option("Bug", "--type"),
+        ):
+            typer.echo(agents_cli.incidents_create(title, project_id, affected_version_id, severity, type_))
+
+        @incidents_app.command("resolve")
+        def incidents_resolve_cmd(
+            incident_id: str,
+            resolution: str = typer.Option("", "--resolution", "-r"),
+        ):
+            typer.echo(agents_cli.incidents_resolve(incident_id, resolution))
+
+        @incidents_app.command("mttr")
+        def incidents_mttr_cmd(
+            project_id: str = typer.Option(None, "--project-id", "-p"),
+            within_days: int = typer.Option(30, "--within-days", "-d"),
+        ):
+            typer.echo(agents_cli.incidents_mttr(project_id, within_days))
+
+        @incidents_app.command("sla-violations")
+        def incidents_sla_violations_cmd():
+            typer.echo(agents_cli.incidents_sla_violations())
+
         agents_app.add_typer(incidents_app)
 
     def register_sdk_models(self) -> dict[str, type]:

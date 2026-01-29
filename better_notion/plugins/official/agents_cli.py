@@ -37,6 +37,27 @@ def get_workspace_config() -> dict:
         return json.load(f)
 
 
+def register_agents_sdk_plugin(client: NotionClient) -> None:
+    """Register the agents SDK plugin with a NotionClient instance.
+
+    This helper function registers all models, caches, and managers
+    for the agents workflow system.
+
+    Args:
+        client: NotionClient instance
+    """
+    from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+
+    plugin = AgentsSDKPlugin()
+    plugin.initialize(client)
+
+    # Register models, caches, and managers
+    models = plugin.register_models()
+    caches = plugin.register_caches(client)
+    managers = plugin.register_managers(client)
+    client.register_sdk_plugin(models=models, caches=caches, managers=managers)
+
+
 # ===== ORGANIZATIONS =====
 
 def orgs_list() -> str:
@@ -54,7 +75,12 @@ def orgs_list() -> str:
             from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
             plugin = AgentsSDKPlugin()
             plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+
+            # Register models, caches, and managers
+            models = plugin.register_models()
+            caches = plugin.register_caches(client)
+            managers = plugin.register_managers(client)
+            client.register_sdk_plugin(models=models, caches=caches, managers=managers)
 
             # Get manager
             manager = client.plugin_manager("organizations")
@@ -94,10 +120,7 @@ def orgs_get(org_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get organization
             manager = client.plugin_manager("organizations")
@@ -143,10 +166,7 @@ def orgs_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Create organization
             manager = client.plugin_manager("organizations")
@@ -191,10 +211,7 @@ def projects_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager
             manager = client.plugin_manager("projects")
@@ -236,10 +253,7 @@ def projects_get(project_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get project
             manager = client.plugin_manager("projects")
@@ -294,10 +308,7 @@ def projects_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Parse tech stack
             tech_stack_list = tech_stack.split(",") if tech_stack else None
@@ -348,10 +359,7 @@ def versions_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager
             manager = client.plugin_manager("versions")
@@ -394,10 +402,7 @@ def versions_get(version_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get version
             manager = client.plugin_manager("versions")
@@ -446,10 +451,7 @@ def versions_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Create version
             manager = client.plugin_manager("versions")
@@ -496,10 +498,7 @@ def tasks_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager
             manager = client.plugin_manager("tasks")
@@ -542,10 +541,7 @@ def tasks_get(task_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get task
             manager = client.plugin_manager("tasks")
@@ -598,10 +594,7 @@ def tasks_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Parse dependencies
             dependency_ids = dependencies.split(",") if dependencies else None
@@ -655,10 +648,7 @@ def tasks_next(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager
             manager = client.plugin_manager("tasks")
@@ -703,10 +693,7 @@ def tasks_claim(task_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get and claim task
             manager = client.plugin_manager("tasks")
@@ -745,10 +732,7 @@ def tasks_start(task_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get and start task
             manager = client.plugin_manager("tasks")
@@ -800,10 +784,7 @@ def tasks_complete(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get and complete task
             manager = client.plugin_manager("tasks")
@@ -843,10 +824,7 @@ def tasks_can_start(task_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get task and check
             manager = client.plugin_manager("tasks")
@@ -907,10 +885,7 @@ def ideas_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and list
             manager = client.plugin_manager("ideas")
@@ -956,10 +931,7 @@ def ideas_get(idea_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get idea
             from better_notion.plugins.official.agents_sdk.models import Idea
@@ -1013,10 +985,7 @@ def ideas_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get workspace config
             workspace_config = get_workspace_config()
@@ -1088,10 +1057,7 @@ def ideas_review(count: int = 10) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and review batch
             manager = client.plugin_manager("ideas")
@@ -1132,10 +1098,7 @@ def ideas_accept(idea_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get idea and accept
             from better_notion.plugins.official.agents_sdk.models import Idea
@@ -1170,10 +1133,7 @@ def ideas_reject(idea_id: str, reason: str = "") -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get idea and reject
             from better_notion.plugins.official.agents_sdk.models import Idea
@@ -1220,10 +1180,7 @@ def work_issues_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and list
             manager = client.plugin_manager("work_issues")
@@ -1270,10 +1227,7 @@ def work_issues_get(issue_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get issue
             from better_notion.plugins.official.agents_sdk.models import WorkIssue
@@ -1326,10 +1280,7 @@ def work_issues_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get workspace config
             workspace_config = get_workspace_config()
@@ -1396,10 +1347,7 @@ def work_issues_resolve(issue_id: str, resolution: str = "") -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get issue and resolve
             from better_notion.plugins.official.agents_sdk.models import WorkIssue
@@ -1434,10 +1382,7 @@ def work_issues_blockers(project_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and find blockers
             manager = client.plugin_manager("work_issues")
@@ -1488,10 +1433,7 @@ def incidents_list(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and list
             manager = client.plugin_manager("incidents")
@@ -1537,10 +1479,7 @@ def incidents_get(incident_id: str) -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get incident
             from better_notion.plugins.official.agents_sdk.models import Incident
@@ -1592,10 +1531,7 @@ def incidents_create(
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get workspace config
             workspace_config = get_workspace_config()
@@ -1661,10 +1597,7 @@ def incidents_resolve(incident_id: str, resolution: str = "") -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get incident and resolve
             from better_notion.plugins.official.agents_sdk.models import Incident
@@ -1700,10 +1633,7 @@ def incidents_mttr(project_id: Optional[str] = None, within_days: int = 30) -> s
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and calculate MTTR
             manager = client.plugin_manager("incidents")
@@ -1738,10 +1668,7 @@ def incidents_sla_violations() -> str:
             client = get_client()
 
             # Register SDK plugin
-            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
-            plugin = AgentsSDKPlugin()
-            plugin.initialize(client)
-            client.register_sdk_plugin(plugin)
+            register_agents_sdk_plugin(client)
 
             # Get manager and find violations
             manager = client.plugin_manager("incidents")
