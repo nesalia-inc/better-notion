@@ -15,7 +15,6 @@ Features:
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 from typing import Optional
 
@@ -74,7 +73,7 @@ class AgentsPlugin(CombinedPluginInterface):
 
         # Register sub-commands
         @agents_app.command("init")
-        def init_workspace(
+        async def init_workspace(
             parent_page_id: str = typer.Option(
                 ...,
                 "--parent-page",
@@ -86,6 +85,12 @@ class AgentsPlugin(CombinedPluginInterface):
                 "--name",
                 "-n",
                 help="Name for the workspace",
+            ),
+            debug: bool = typer.Option(
+                False,
+                "--debug",
+                "-d",
+                help="Enable debug logging",
             ),
         ) -> None:
             """
@@ -104,32 +109,44 @@ class AgentsPlugin(CombinedPluginInterface):
             Example:
                 $ notion agents init --parent-page page123 --name "My Workspace"
             """
-            async def _init() -> str:
-                try:
-                    client = get_client()
-                    initializer = WorkspaceInitializer(client)
+            import logging
+            import sys
 
-                    database_ids = await initializer.initialize_workspace(
-                        parent_page_id=parent_page_id,
-                        workspace_name=workspace_name,
-                    )
+            # Enable debug logging if requested
+            if debug:
+                logging.basicConfig(
+                    level=logging.DEBUG,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    stream=sys.stderr,
+                )
+                # Also enable httpx debug logging
+                logging.getLogger("httpx").setLevel(logging.DEBUG)
 
-                    # Save database IDs
-                    initializer.save_database_ids()
+            try:
+                client = get_client()
+                initializer = WorkspaceInitializer(client)
 
-                    return format_success(
-                        {
-                            "message": "Workspace initialized successfully",
-                            "databases_created": len(database_ids),
-                            "database_ids": database_ids,
-                        }
-                    )
+                database_ids = await initializer.initialize_workspace(
+                    parent_page_id=parent_page_id,
+                    workspace_name=workspace_name,
+                )
 
-                except Exception as e:
-                    return format_error("INIT_ERROR", str(e), retry=False)
+                # Save database IDs
+                initializer.save_database_ids()
 
-            result = asyncio.run(_init())
-            typer.echo(result)
+                result = format_success(
+                    {
+                        "message": "Workspace initialized successfully",
+                        "databases_created": len(database_ids),
+                        "database_ids": database_ids,
+                    }
+                )
+                typer.echo(result)
+
+            except Exception as e:
+                result = format_error("INIT_ERROR", str(e), retry=False)
+                typer.echo(result)
+                raise typer.Exit(code=1)
 
         @agents_app.command("init-project")
         def init_project(

@@ -5,6 +5,7 @@ required databases for the workflow management system.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -21,6 +22,8 @@ from better_notion.utils.agents.schemas import (
     VersionSchema,
     WorkIssueSchema,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceInitializer:
@@ -64,38 +67,48 @@ class WorkspaceInitializer:
             Dict mapping database names to their IDs
 
         Raises:
-            Exception: If database creation fails
+            Exception: If database creation fails with detailed error message
         """
+        logger.info(f"Initializing workspace '{workspace_name}' in page {parent_page_id}")
+
         # Get parent page
-        parent = await Page.get(parent_page_id, client=self._client)
+        try:
+            parent = await Page.get(parent_page_id, client=self._client)
+            logger.info(f"Parent page found: {parent.id}")
+        except Exception as e:
+            error_msg = f"Failed to get parent page '{parent_page_id}': {str(e)}"
+            logger.error(error_msg)
+            raise Exception(error_msg) from e
 
         # Create databases in order (independent first, then dependent)
         self._database_ids = {}
+        databases_order = [
+            ("Organizations", "organizations", self._create_organizations_db),
+            ("Tags", "tags", self._create_tags_db),
+            ("Projects", "projects", self._create_projects_db),
+            ("Versions", "versions", self._create_versions_db),
+            ("Tasks", "tasks", self._create_tasks_db),
+            ("Ideas", "ideas", self._create_ideas_db),
+            ("Work Issues", "work_issues", self._create_work_issues_db),
+            ("Incidents", "incidents", self._create_incidents_db),
+        ]
 
-        # 1. Organizations (independent)
-        await self._create_organizations_db(parent)
+        for display_name, key, create_func in databases_order:
+            try:
+                logger.info(f"Creating {display_name} database...")
+                await create_func(parent)
+                logger.info(f"✓ {display_name} database created: {self._database_ids[key]}")
+            except Exception as e:
+                error_msg = (
+                    f"Failed to create {display_name} database: {str(e)}\n"
+                    f"Databases created so far: {list(self._database_ids.keys())}\n"
+                    f"Parent page: {parent_page_id}\n"
+                    f"Workspace name: {workspace_name}"
+                )
+                logger.error(error_msg)
+                raise Exception(error_msg) from e
 
-        # 2. Tags (independent)
-        await self._create_tags_db(parent)
-
-        # 3. Projects (depends on Organizations)
-        await self._create_projects_db(parent)
-
-        # 4. Versions (depends on Projects)
-        await self._create_versions_db(parent)
-
-        # 5. Tasks (depends on Versions)
-        await self._create_tasks_db(parent)
-
-        # 6. Ideas (depends on Projects)
-        await self._create_ideas_db(parent)
-
-        # 7. Work Issues (depends on Projects, Tasks, Ideas)
-        await self._create_work_issues_db(parent)
-
-        # 8. Incidents (depends on Projects, Versions, Tasks)
-        await self._create_incidents_db(parent)
-
+        logger.info(f"Workspace initialization complete. Created {len(self._database_ids)} databases")
         return self._database_ids
 
     async def _create_organizations_db(self, parent: Page) -> None:
