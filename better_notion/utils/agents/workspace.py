@@ -221,8 +221,8 @@ class WorkspaceInitializer:
         # Update relations
         if "projects" in self._database_ids:
             schema["Project"]["relation"]["database_id"] = self._database_ids["projects"]
-
-        # Related Task will be updated after Tasks DB creation
+        if "tasks" in self._database_ids:
+            schema["Related Task"]["relation"]["database_id"] = self._database_ids["tasks"]
         db = await self._client.databases.create(
             parent=parent,
             title="Ideas",
@@ -247,6 +247,7 @@ class WorkspaceInitializer:
             schema["Project"]["relation"]["database_id"] = self._database_ids["projects"]
         if "tasks" in self._database_ids:
             schema["Task"]["relation"]["database_id"] = self._database_ids["tasks"]
+            schema["Fix Tasks"]["relation"]["database_id"] = self._database_ids["tasks"]
         if "ideas" in self._database_ids:
             schema["Related Idea"]["relation"]["database_id"] = self._database_ids["ideas"]
 
