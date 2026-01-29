@@ -23,7 +23,9 @@ import typer
 
 from better_notion._cli.config import Config
 from better_notion._cli.response import format_error, format_success
+from better_notion._sdk.cache import Cache
 from better_notion._sdk.client import NotionClient
+from better_notion._sdk.plugins import CombinedPluginInterface
 from better_notion.plugins.base import PluginInterface
 from better_notion.utils.agents import (
     DependencyResolver,
@@ -40,17 +42,26 @@ def get_client() -> NotionClient:
     return NotionClient(auth=config.token, timeout=config.timeout)
 
 
-class AgentsPlugin(PluginInterface):
+class AgentsPlugin(CombinedPluginInterface):
     """
     Official agents workflow management plugin.
 
     This plugin provides tools for managing software development workflows
     through Notion databases, enabling AI agents to coordinate work on projects.
 
-    Commands:
-        - init: Initialize a new workspace with all databases
-        - init-project: Initialize a new project with .notion file
-        - role: Manage project role
+    CLI Commands:
+        - agents init: Initialize a new workspace with all databases
+        - agents init-project: Initialize a new project with .notion file
+        - agents role: Manage project role
+        - orgs: Organizations CRUD commands
+        - projects: Projects CRUD commands
+        - versions: Versions CRUD commands
+        - tasks: Tasks CRUD and workflow commands
+
+    SDK Extensions:
+        - Organization, Project, Version, Task models
+        - Dedicated caches for each entity type
+        - Managers for convenient operations
     """
 
     def register_commands(self, app: typer.Typer) -> None:
@@ -334,6 +345,96 @@ class AgentsPlugin(PluginInterface):
 
         # Register agents app to main CLI
         app.add_typer(agents_app)
+
+        # Import and register CRUD commands
+        from better_notion.plugins.official import agents_cli
+
+        # Organizations commands
+        orgs_app = typer.Typer(name="orgs", help="Organizations management commands")
+        orgs_app.command("list")(agents_cli.orgs_list)
+        orgs_app.command("get")(agents_cli.orgs_get)
+        orgs_app.command("create")(agents_cli.orgs_create)
+        app.add_typer(orgs_app)
+
+        # Projects commands
+        projects_app = typer.Typer(name="projects", help="Projects management commands")
+        projects_app.command("list")(projects_list_with_cli := lambda **kwargs: agents_cli.projects_list(**kwargs))
+        projects_app.command("get")(projects_get_with_cli := lambda project_id: agents_cli.projects_get(project_id))
+        projects_app.command("create")(lambda **kwargs: agents_cli.projects_create(**kwargs))
+        app.add_typer(projects_app)
+
+        # Versions commands
+        versions_app = typer.Typer(name="versions", help="Versions management commands")
+        versions_app.command("list")(lambda **kwargs: agents_cli.versions_list(**kwargs))
+        versions_app.command("get")(lambda version_id: agents_cli.versions_get(version_id))
+        versions_app.command("create")(lambda **kwargs: agents_cli.versions_create(**kwargs))
+        app.add_typer(versions_app)
+
+        # Tasks commands
+        tasks_app = typer.Typer(name="tasks", help="Tasks management commands")
+        tasks_app.command("list")(lambda **kwargs: agents_cli.tasks_list(**kwargs))
+        tasks_app.command("get")(lambda task_id: agents_cli.tasks_get(task_id))
+        tasks_app.command("create")(lambda **kwargs: agents_cli.tasks_create(**kwargs))
+        tasks_app.command("next")(lambda **kwargs: agents_cli.tasks_next(**kwargs))
+        tasks_app.command("claim")(lambda task_id: agents_cli.tasks_claim(task_id))
+        tasks_app.command("start")(lambda task_id: agents_cli.tasks_start(task_id))
+        tasks_app.command("complete")(lambda **kwargs: agents_cli.tasks_complete(**kwargs))
+        tasks_app.command("can-start")(lambda task_id: agents_cli.tasks_can_start(task_id))
+        app.add_typer(tasks_app)
+
+    def register_sdk_models(self) -> dict[str, type]:
+        """Register workflow entity models."""
+        from better_notion.plugins.official.agents_sdk.models import (
+            Organization,
+            Project,
+            Task,
+            Version,
+        )
+
+        return {
+            "Organization": Organization,
+            "Project": Project,
+            "Version": Version,
+            "Task": Task,
+        }
+
+    def register_sdk_caches(self, client: NotionClient) -> dict[str, Cache]:
+        """Register dedicated caches for workflow entities."""
+        return {
+            "organizations": Cache(),
+            "projects": Cache(),
+            "versions": Cache(),
+            "tasks": Cache(),
+        }
+
+    def register_sdk_managers(self, client: NotionClient) -> dict:
+        """Register custom managers for workflow entities."""
+        from better_notion.plugins.official.agents_sdk.managers import (
+            OrganizationManager,
+            ProjectManager,
+            TaskManager,
+            VersionManager,
+        )
+
+        return {
+            "organizations": OrganizationManager(client),
+            "projects": ProjectManager(client),
+            "versions": VersionManager(client),
+            "tasks": TaskManager(client),
+        }
+
+    def sdk_initialize(self, client: NotionClient) -> None:
+        """Initialize plugin resources."""
+        import json
+        from pathlib import Path
+
+        config_path = Path.home() / ".notion" / "workspace.json"
+
+        if config_path.exists():
+            with open(config_path) as f:
+                client._workspace_config = json.load(f)
+        else:
+            client._workspace_config = {}
 
     def get_info(self) -> dict[str, str | bool | list]:
         """Return plugin metadata."""
