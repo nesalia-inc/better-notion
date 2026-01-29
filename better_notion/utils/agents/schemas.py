@@ -50,159 +50,174 @@ class SelectOption:
 
 
 class PropertyBuilder:
-    """Helper class for building Notion database properties."""
+    """
+    Helper class for building Notion database properties.
+
+    Notion API create format:
+        "Name": {"title": {}}
+        "Status": {"select": {"options": [...]}}
+    """
 
     @staticmethod
-    def title(name: str = "Name") -> Dict[str, str]:
-        """Create a title property.
+    def title(name: str = "Name") -> Dict[str, Any]:
+        """
+        Create a title property.
 
         Args:
             name: Property name (default: "Name")
 
         Returns:
-            Title property schema
+            Title property schema for Notion API create
         """
-        return {"type": "title", "name": name}
+        return {"title": {}}
 
     @staticmethod
-    def text(name: str) -> Dict[str, str]:
-        """Create a text property.
+    def text(name: str) -> Dict[str, Any]:
+        """
+        Create a text property.
 
         Args:
             name: Property name
 
         Returns:
-            Text property schema
+            Text property schema for Notion API create
         """
-        return {"type": "rich_text", "name": name}
+        return {"rich_text": {}}
 
     @staticmethod
     def number(name: str, format: Optional[str] = None) -> Dict[str, Any]:
-        """Create a number property.
+        """
+        Create a number property.
 
         Args:
             name: Property name
             format: Number format (number, percent, dollar, euro, pound, yen, ruble)
 
         Returns:
-            Number property schema
+            Number property schema for Notion API create
         """
-        prop: Dict[str, Any] = {"type": "number", "name": name}
-
         if format:
-            prop["number"] = {"format": format}
-
-        return prop
+            return {"number": {"format": format}}
+        return {"number": {}}
 
     @staticmethod
     def select(name: str, options: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Create a select property.
+        """
+        Create a select property.
 
         Args:
             name: Property name
             options: List of option dicts from SelectOption.option()
 
         Returns:
-            Select property schema
+            Select property schema for Notion API create
         """
-        return {"type": "select", "name": name, "select": {"options": options}}
+        return {"select": {"options": options}}
 
     @staticmethod
     def multi_select(name: str, options: List[Dict[str, str]]) -> Dict[str, Any]:
-        """Create a multi-select property.
+        """
+        Create a multi-select property.
 
         Args:
             name: Property name
             options: List of option dicts
 
         Returns:
-            Multi-select property schema
+            Multi-select property schema for Notion API create
         """
-        return {"type": "multi_select", "name": name, "multi_select": {"options": options}}
+        return {"multi_select": {"options": options}}
 
     @staticmethod
-    def date(name: str) -> Dict[str, str]:
-        """Create a date property.
+    def date(name: str) -> Dict[str, Any]:
+        """
+        Create a date property.
 
         Args:
             name: Property name
 
         Returns:
-            Date property schema
+            Date property schema for Notion API create
         """
-        return {"type": "date", "name": name}
+        return {"date": {}}
 
     @staticmethod
-    def checkbox(name: str) -> Dict[str, str]:
-        """Create a checkbox property.
+    def checkbox(name: str) -> Dict[str, Any]:
+        """
+        Create a checkbox property.
 
         Args:
             name: Property name
 
         Returns:
-            Checkbox property schema
+            Checkbox property schema for Notion API create
         """
-        return {"type": "checkbox", "name": name}
+        return {"checkbox": {}}
 
     @staticmethod
-    def url(name: str) -> Dict[str, str]:
-        """Create a URL property.
+    def url(name: str) -> Dict[str, Any]:
+        """
+        Create a URL property.
 
         Args:
             name: Property name
 
         Returns:
-            URL property schema
+            URL property schema for Notion API create
         """
-        return {"type": "url", "name": name}
+        return {"url": {}}
 
     @staticmethod
-    def email(name: str) -> Dict[str, str]:
-        """Create an email property.
+    def email(name: str) -> Dict[str, Any]:
+        """
+        Create an email property.
 
         Args:
             name: Property name
 
         Returns:
-            Email property schema
+            Email property schema for Notion API create
         """
-        return {"type": "email", "name": name}
+        return {"email": {}}
 
     @staticmethod
-    def phone(name: str) -> Dict[str, str]:
-        """Create a phone property.
+    def phone(name: str) -> Dict[str, Any]:
+        """
+        Create a phone property.
 
         Args:
             name: Property name
 
         Returns:
-            Phone property schema
+            Phone property schema for Notion API create
         """
-        return {"type": "phone", "name": name}
+        return {"phone_number": {}}
 
     @staticmethod
-    def people(name: str) -> Dict[str, str]:
-        """Create a people property.
+    def people(name: str) -> Dict[str, Any]:
+        """
+        Create a people property.
 
         Args:
             name: Property name
 
         Returns:
-            People property schema
+            People property schema for Notion API create
         """
-        return {"type": "people", "name": name}
+        return {"people": {}}
 
     @staticmethod
-    def files(name: str) -> Dict[str, str]:
-        """Create a files property.
+    def files(name: str) -> Dict[str, Any]:
+        """
+        Create a files property.
 
         Args:
             name: Property name
 
         Returns:
-            Files property schema
+            Files property schema for Notion API create
         """
-        return {"type": "files", "name": name}
+        return {"files": {}}
 
     @staticmethod
     def relation(
@@ -210,7 +225,8 @@ class PropertyBuilder:
         database_id: Optional[str] = None,
         dual_property: bool = True,
     ) -> Dict[str, Any]:
-        """Create a relation property.
+        """
+        Create a relation property.
 
         Args:
             name: Property name
@@ -224,19 +240,22 @@ class PropertyBuilder:
             If database_id is None, it must be set later when the related
             database is created.
         """
-        prop: Dict[str, Any] = {"type": "relation", "name": name, "relation": {}}
+        relation_config: Dict[str, Any] = {}
 
         if database_id:
-            prop["relation"]["database_id"] = database_id
+            relation_config["database_id"] = database_id
 
         if dual_property:
-            prop["relation"]["type"] = "dual_property"
+            relation_config["dual_property"] = {}
+        else:
+            relation_config["single_property"] = {}
 
-        return prop
+        return {"relation": relation_config}
 
     @staticmethod
     def formula(name: str, expression: str) -> Dict[str, Any]:
-        """Create a formula property.
+        """
+        Create a formula property.
 
         Args:
             name: Property name
@@ -245,11 +264,12 @@ class PropertyBuilder:
         Returns:
             Formula property schema
         """
-        return {"type": "formula", "name": name, "formula": {"expression": expression}}
+        return {"formula": {"expression": expression}}
 
     @staticmethod
-    def created_time(name: str = "Created time") -> Dict[str, str]:
-        """Create a created_time property.
+    def created_time(name: str = "Created time") -> Dict[str, Any]:
+        """
+        Create a created_time property.
 
         Args:
             name: Property name (default: "Created time")
@@ -257,11 +277,12 @@ class PropertyBuilder:
         Returns:
             Created time property schema
         """
-        return {"type": "created_time", "name": name}
+        return {"created_time": {}}
 
     @staticmethod
-    def created_by(name: str = "Created by") -> Dict[str, str]:
-        """Create a created_by property.
+    def created_by(name: str = "Created by") -> Dict[str, Any]:
+        """
+        Create a created_by property.
 
         Args:
             name: Property name (default: "Created by")
@@ -269,7 +290,7 @@ class PropertyBuilder:
         Returns:
             Created by property schema
         """
-        return {"type": "created_by", "name": name}
+        return {"created_by": {}}
 
 
 class OrganizationSchema:
@@ -277,7 +298,8 @@ class OrganizationSchema:
 
     @staticmethod
     def get_schema() -> Dict[str, Dict[str, Any]]:
-        """Return Notion database schema for Organizations.
+        """
+        Return Notion database schema for Organizations.
 
         Returns:
             Dict mapping property names to property schemas
@@ -332,7 +354,7 @@ class ProjectSchema:
                     SelectOption.option("React", "blue"),
                     SelectOption.option("Vue", "green"),
                     SelectOption.option("Node.js", "green"),
-                    SelectOption.option("Go", "cyan"),
+                    SelectOption.option("Go", "blue"),
                     SelectOption.option("Rust", "orange"),
                     SelectOption.option("Java", "red"),
                     SelectOption.option("C++", "blue"),
@@ -389,7 +411,8 @@ class VersionSchema:
             "Branch Name": PropertyBuilder.text("Branch Name"),
             "Progress": PropertyBuilder.number("Progress", format="percent"),
             "Release Date": PropertyBuilder.date("Release Date"),
-            "Superseded By": PropertyBuilder.relation("Superseded By", dual_property=False),
+            # Note: "Superseded By" self-referential relation removed because
+            # it can't be created during initial database creation (needs its own ID)
         }
 
 
@@ -435,8 +458,8 @@ class TaskSchema:
                     SelectOption.option("Low", "blue"),
                 ],
             ),
-            "Dependencies": PropertyBuilder.relation("Dependencies", dual_property=False),
-            "Dependent Tasks": PropertyBuilder.relation("Dependent Tasks", dual_property=False),
+            # Note: Self-referential relations (Dependencies, Dependent Tasks) removed because
+            # they can't be created during initial database creation (need the database's own ID)
             "Estimated Hours": PropertyBuilder.number("Estimated Hours"),
             "Actual Hours": PropertyBuilder.number("Actual Hours"),
             "Assignee": PropertyBuilder.people("Assignee"),
