@@ -47,6 +47,69 @@ notion agents schema
 - **Complete context**: Relationships, workflows, error recovery all included
 - **Machine-readable**: JSON format for easy parsing by agents
 
+## Two Layers of Understanding
+
+**Critical Distinction**: The documentation must teach TWO separate layers:
+
+### Layer 1: CLI Mechanics (How to use the tools)
+- Which commands exist
+- What flags are available
+- How to compose commands
+- Error handling
+
+### Layer 2: Agents Workflow Methodology (How to work as an agent)
+This is the **actual methodology** that agents must follow:
+
+```
+1. Workspace Initialization
+   → Initialize with organizations, projects, versions
+
+2. Task Creation Workflow
+   → Create task in database (not just create page)
+   → Set proper relationships (Version, Dependencies)
+   → Set status (Todo → In Progress → Done)
+
+3. Task Management
+   → Query tasks by status
+   → Find next available task (agents next)
+   → Update task progress
+   → Mark dependencies as complete
+
+4. Workflow States
+   → Understanding task lifecycle
+   → Managing version releases
+   → Handling incidents and work issues
+```
+
+### Example: The Difference
+
+**Without workflow training:**
+```bash
+# Agent creates a task page directly (wrong approach)
+notion pages create --parent TASKS_DB --title "Fix bug"
+# Missing: Status, Version, Dependencies properties
+```
+
+**With workflow training:**
+```bash
+# Agent creates a task properly with full context
+notion pages create \
+  --parent TASKS_DB \
+  --title "Fix bug" \
+  --properties '{"Status": "Todo", "Version": "v1.2.0"}'
+# Agent understands: Tasks need properties to work in workflow
+```
+
+**Key Concept**: The documentation must teach **workflow methodology**, not just command syntax:
+
+- ✅ "Tasks belong to Versions" (not just "Tasks are pages")
+- ✅ "Use agents next to find next task" (not just "query database")
+- ✅ "Mark dependencies complete before closing task"
+- ✅ "Create Work Issues when blocking tasks"
+- ✅ "Projects belong to Organizations"
+
+The goal: Enable an AI agent to **work as if trained on the workflow**, not just use CLI commands.
+
 ## Problem Statement
 
 ### Current Limitations
