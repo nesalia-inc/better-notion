@@ -672,6 +672,9 @@ def tasks_next(
                 },
             })
 
+        except ValueError as e:
+            # Specific validation error (e.g., project not found)
+            return format_error("VALIDATION_ERROR", str(e), retry=False)
         except Exception as e:
             return format_error("FIND_NEXT_TASK_ERROR", str(e), retry=False)
 

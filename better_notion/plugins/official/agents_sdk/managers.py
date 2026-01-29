@@ -400,12 +400,40 @@ class TaskManager:
 
         Returns:
             Task instance or None if no tasks available
+
+        Raises:
+            ValueError: If project_id is provided but project doesn't exist
         """
-        from better_notion.plugins.official.agents_sdk.models import Task
+        from better_notion.plugins.official.agents_sdk.models import Task, Project
 
         database_id = self._get_database_id("Tasks")
         if not database_id:
             return None
+
+        # Validate project_id if provided
+        if project_id:
+            # First check if Projects database exists in workspace config
+            projects_db = self._get_database_id("Projects")
+            if not projects_db:
+                # Workspace not initialized, can't validate project
+                pass
+            else:
+                # Check if project exists by querying for it
+                try:
+                    project_response = await self._client._api.databases.query(
+                        database_id=projects_db,
+                        filter={"property": "id", "rich_text": {"equals": project_id}}
+                    )
+                    # If no results, project doesn't exist
+                    if not project_response.get("results"):
+                        raise ValueError(
+                            f"Project '{project_id}' not found. "
+                            f"Please verify the project ID or run 'notion agents projects list' to see available projects."
+                        )
+                except Exception as e:
+                    if "not found" in str(e).lower():
+                        raise
+                    # If query fails for other reasons, continue without validation
 
         # Filter for backlog/claimed tasks
         response = await self._client._api.databases.query(
