@@ -46,10 +46,13 @@ class AgentsSDKPlugin:
             Dictionary mapping model names to model classes
         """
         from better_notion.plugins.official.agents_sdk.models import (
+            Idea,
+            Incident,
             Organization,
             Project,
             Task,
             Version,
+            WorkIssue,
         )
 
         return {
@@ -57,6 +60,9 @@ class AgentsSDKPlugin:
             "Project": Project,
             "Version": Version,
             "Task": Task,
+            "Idea": Idea,
+            "WorkIssue": WorkIssue,
+            "Incident": Incident,
         }
 
     def register_caches(self, client: "NotionClient") -> dict[str, Cache]:
@@ -73,6 +79,9 @@ class AgentsSDKPlugin:
             "projects": Cache(),
             "versions": Cache(),
             "tasks": Cache(),
+            "ideas": Cache(),
+            "work_issues": Cache(),
+            "incidents": Cache(),
         }
 
     def register_managers(self, client: "NotionClient") -> dict[str, Any]:
@@ -85,10 +94,13 @@ class AgentsSDKPlugin:
             Dictionary mapping manager names to manager instances
         """
         from better_notion.plugins.official.agents_sdk.managers import (
+            IdeaManager,
+            IncidentManager,
             OrganizationManager,
             ProjectManager,
             TaskManager,
             VersionManager,
+            WorkIssueManager,
         )
 
         return {
@@ -96,6 +108,9 @@ class AgentsSDKPlugin:
             "projects": ProjectManager(client),
             "versions": VersionManager(client),
             "tasks": TaskManager(client),
+            "ideas": IdeaManager(client),
+            "work_issues": WorkIssueManager(client),
+            "incidents": IncidentManager(client),
         }
 
     def initialize(self, client: "NotionClient") -> None:

@@ -382,13 +382,45 @@ class AgentsPlugin(CombinedPluginInterface):
         tasks_app.command("can-start")(lambda task_id: agents_cli.tasks_can_start(task_id))
         app.add_typer(tasks_app)
 
+        # Ideas commands
+        ideas_app = typer.Typer(name="ideas", help="Ideas management commands")
+        ideas_app.command("list")(lambda **kwargs: agents_cli.ideas_list(**kwargs))
+        ideas_app.command("get")(lambda idea_id: agents_cli.ideas_get(idea_id))
+        ideas_app.command("create")(lambda **kwargs: agents_cli.ideas_create(**kwargs))
+        ideas_app.command("review")(lambda count: agents_cli.ideas_review(count))
+        ideas_app.command("accept")(lambda idea_id: agents_cli.ideas_accept(idea_id))
+        ideas_app.command("reject")(lambda idea_id, reason: agents_cli.ideas_reject(idea_id, reason))
+        app.add_typer(ideas_app)
+
+        # Work Issues commands
+        work_issues_app = typer.Typer(name="work-issues", help="Work Issues management commands")
+        work_issues_app.command("list")(lambda **kwargs: agents_cli.work_issues_list(**kwargs))
+        work_issues_app.command("get")(lambda issue_id: agents_cli.work_issues_get(issue_id))
+        work_issues_app.command("create")(lambda **kwargs: agents_cli.work_issues_create(**kwargs))
+        work_issues_app.command("resolve")(lambda issue_id, resolution: agents_cli.work_issues_resolve(issue_id, resolution))
+        work_issues_app.command("blockers")(lambda project_id: agents_cli.work_issues_blockers(project_id))
+        app.add_typer(work_issues_app)
+
+        # Incidents commands
+        incidents_app = typer.Typer(name="incidents", help="Incidents management commands")
+        incidents_app.command("list")(lambda **kwargs: agents_cli.incidents_list(**kwargs))
+        incidents_app.command("get")(lambda incident_id: agents_cli.incidents_get(incident_id))
+        incidents_app.command("create")(lambda **kwargs: agents_cli.incidents_create(**kwargs))
+        incidents_app.command("resolve")(lambda incident_id, resolution: agents_cli.incidents_resolve(incident_id, resolution))
+        incidents_app.command("mttr")(lambda **kwargs: agents_cli.incidents_mttr(**kwargs))
+        incidents_app.command("sla-violations")(lambda: agents_cli.incidents_sla_violations())
+        app.add_typer(incidents_app)
+
     def register_sdk_models(self) -> dict[str, type]:
         """Register workflow entity models."""
         from better_notion.plugins.official.agents_sdk.models import (
+            Idea,
+            Incident,
             Organization,
             Project,
             Task,
             Version,
+            WorkIssue,
         )
 
         return {
@@ -396,6 +428,9 @@ class AgentsPlugin(CombinedPluginInterface):
             "Project": Project,
             "Version": Version,
             "Task": Task,
+            "Idea": Idea,
+            "WorkIssue": WorkIssue,
+            "Incident": Incident,
         }
 
     def register_sdk_caches(self, client: NotionClient) -> dict[str, Cache]:
@@ -405,15 +440,21 @@ class AgentsPlugin(CombinedPluginInterface):
             "projects": Cache(),
             "versions": Cache(),
             "tasks": Cache(),
+            "ideas": Cache(),
+            "work_issues": Cache(),
+            "incidents": Cache(),
         }
 
     def register_sdk_managers(self, client: NotionClient) -> dict:
         """Register custom managers for workflow entities."""
         from better_notion.plugins.official.agents_sdk.managers import (
+            IdeaManager,
+            IncidentManager,
             OrganizationManager,
             ProjectManager,
             TaskManager,
             VersionManager,
+            WorkIssueManager,
         )
 
         return {
@@ -421,6 +462,9 @@ class AgentsPlugin(CombinedPluginInterface):
             "projects": ProjectManager(client),
             "versions": VersionManager(client),
             "tasks": TaskManager(client),
+            "ideas": IdeaManager(client),
+            "work_issues": WorkIssueManager(client),
+            "incidents": IncidentManager(client),
         }
 
     def sdk_initialize(self, client: NotionClient) -> None:

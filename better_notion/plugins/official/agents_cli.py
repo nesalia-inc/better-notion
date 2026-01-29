@@ -1,6 +1,7 @@
-"""CLI commands for workflow entities (Organizations, Projects, Versions, Tasks).
+"""CLI commands for workflow entities.
 
-This module provides CRUD commands for all Phase 1 workflow entities.
+This module provides CRUD commands for all workflow entities including
+Organizations, Projects, Versions, Tasks, Ideas, Work Issues, and Incidents.
 """
 
 from __future__ import annotations
@@ -879,3 +880,888 @@ def tasks_can_start(task_id: str) -> str:
             return format_error("CAN_START_ERROR", str(e), retry=False)
 
     return asyncio.run(_can_start())
+
+
+# ===== IDEAS =====
+
+def ideas_list(
+    project_id: Optional[str] = None,
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    effort_estimate: Optional[str] = None,
+) -> str:
+    """
+    List ideas with optional filtering.
+
+    Args:
+        project_id: Filter by project ID
+        category: Filter by category
+        status: Filter by status
+        effort_estimate: Filter by effort estimate
+
+    Example:
+        $ notion ideas list --project-id proj_123 --status Proposed
+    """
+    async def _list() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and list
+            manager = client.plugin_manager("ideas")
+            ideas = await manager.list(
+                project_id=project_id,
+                category=category,
+                status=status,
+                effort_estimate=effort_estimate,
+            )
+
+            return format_success({
+                "ideas": [
+                    {
+                        "id": idea.id,
+                        "title": idea.title,
+                        "category": idea.category,
+                        "status": idea.status,
+                        "effort_estimate": idea.effort_estimate,
+                    }
+                    for idea in ideas
+                ],
+                "total": len(ideas),
+            })
+
+        except Exception as e:
+            return format_error("LIST_IDEAS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list())
+
+
+def ideas_get(idea_id: str) -> str:
+    """
+    Get an idea by ID.
+
+    Args:
+        idea_id: Idea page ID
+
+    Example:
+        $ notion ideas get idea_123
+    """
+    async def _get() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get idea
+            from better_notion.plugins.official.agents_sdk.models import Idea
+            idea = await Idea.get(idea_id, client=client)
+
+            return format_success({
+                "id": idea.id,
+                "title": idea.title,
+                "category": idea.category,
+                "status": idea.status,
+                "description": idea.description,
+                "effort_estimate": idea.effort_estimate,
+                "project_id": idea.project_id,
+            })
+
+        except Exception as e:
+            return format_error("GET_IDEA_ERROR", str(e), retry=False)
+
+    return asyncio.run(_get())
+
+
+def ideas_create(
+    title: str,
+    project_id: str,
+    category: str = "enhancement",
+    description: str = "",
+    proposed_solution: str = "",
+    benefits: str = "",
+    effort_estimate: str = "M",
+    context: str = "",
+) -> str:
+    """
+    Create a new idea.
+
+    Args:
+        title: Idea title
+        project_id: Project ID
+        category: Idea category (enhancement, feature, bugfix, optimization, research)
+        description: Detailed description
+        proposed_solution: Proposed solution
+        benefits: Expected benefits
+        effort_estimate: Effort estimate (XS, S, M, L, XL)
+        context: Additional context
+
+    Example:
+        $ notion ideas create "Add caching" --project-id proj_123 \\
+            --category enhancement --effort-estimate M
+    """
+    async def _create() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get workspace config
+            workspace_config = get_workspace_config()
+            database_id = workspace_config.get("Ideas")
+
+            if not database_id:
+                return format_error("NO_DATABASE", "Ideas database not configured", retry=False)
+
+            # Create idea in Notion
+            properties = {
+                "title": {"title": [{"text": {"content": title}}]},
+                "project_id": {"relation": [{"id": project_id}]},
+                "category": {"select": {"name": category}},
+                "status": {"select": {"name": "Proposed"}},
+                "effort_estimate": {"select": {"name": effort_estimate}},
+            }
+
+            if description:
+                properties["description"] = {
+                    "rich_text": [{"text": {"content": description}}]
+                }
+
+            if proposed_solution:
+                properties["proposed_solution"] = {
+                    "rich_text": [{"text": {"content": proposed_solution}}]
+                }
+
+            if benefits:
+                properties["benefits"] = {
+                    "rich_text": [{"text": {"content": benefits}}]
+                }
+
+            if context:
+                properties["context"] = {
+                    "rich_text": [{"text": {"content": context}}]
+                }
+
+            response = await client._api.request(
+                method="POST",
+                path=f"databases/{database_id}",
+                json={"properties": properties},
+            )
+
+            return format_success({
+                "message": "Idea created successfully",
+                "idea_id": response["id"],
+                "title": title,
+                "category": category,
+            })
+
+        except Exception as e:
+            return format_error("CREATE_IDEA_ERROR", str(e), retry=False)
+
+    return asyncio.run(_create())
+
+
+def ideas_review(count: int = 10) -> str:
+    """
+    Get a batch of ideas for review, prioritized by effort.
+
+    Args:
+        count: Maximum number of ideas to return
+
+    Example:
+        $ notion ideas review --count 5
+    """
+    async def _review() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and review batch
+            manager = client.plugin_manager("ideas")
+            ideas = await manager.review_batch(count=count)
+
+            return format_success({
+                "ideas_for_review": [
+                    {
+                        "id": idea.id,
+                        "title": idea.title,
+                        "category": idea.category,
+                        "effort_estimate": idea.effort_estimate,
+                        "status": idea.status,
+                    }
+                    for idea in ideas
+                ],
+                "total": len(ideas),
+            })
+
+        except Exception as e:
+            return format_error("REVIEW_IDEAS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_review())
+
+
+def ideas_accept(idea_id: str) -> str:
+    """
+    Accept an idea (moves to Accepted status).
+
+    Args:
+        idea_id: Idea page ID
+
+    Example:
+        $ notion ideas accept idea_123
+    """
+    async def _accept() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get idea and accept
+            from better_notion.plugins.official.agents_sdk.models import Idea
+            idea = await Idea.get(idea_id, client=client)
+            await idea.accept()
+
+            return format_success({
+                "message": "Idea accepted successfully",
+                "idea_id": idea.id,
+                "status": idea.status,
+            })
+
+        except Exception as e:
+            return format_error("ACCEPT_IDEA_ERROR", str(e), retry=False)
+
+    return asyncio.run(_accept())
+
+
+def ideas_reject(idea_id: str, reason: str = "") -> str:
+    """
+    Reject an idea (moves to Rejected status).
+
+    Args:
+        idea_id: Idea page ID
+        reason: Reason for rejection
+
+    Example:
+        $ notion ideas reject idea_123 --reason "Out of scope"
+    """
+    async def _reject() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get idea and reject
+            from better_notion.plugins.official.agents_sdk.models import Idea
+            idea = await Idea.get(idea_id, client=client)
+            await idea.reject()
+
+            return format_success({
+                "message": "Idea rejected successfully",
+                "idea_id": idea.id,
+                "status": idea.status,
+                "reason": reason,
+            })
+
+        except Exception as e:
+            return format_error("REJECT_IDEA_ERROR", str(e), retry=False)
+
+    return asyncio.run(_reject())
+
+
+# ===== WORK ISSUES =====
+
+def work_issues_list(
+    project_id: Optional[str] = None,
+    task_id: Optional[str] = None,
+    type: Optional[str] = None,
+    severity: Optional[str] = None,
+    status: Optional[str] = None,
+) -> str:
+    """
+    List work issues with optional filtering.
+
+    Args:
+        project_id: Filter by project ID
+        task_id: Filter by task ID
+        type: Filter by type
+        severity: Filter by severity
+        status: Filter by status
+
+    Example:
+        $ notion work-issues list --project-id proj_123 --severity High
+    """
+    async def _list() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and list
+            manager = client.plugin_manager("work_issues")
+            issues = await manager.list(
+                project_id=project_id,
+                task_id=task_id,
+                type_=type,
+                severity=severity,
+                status=status,
+            )
+
+            return format_success({
+                "work_issues": [
+                    {
+                        "id": issue.id,
+                        "title": issue.title,
+                        "type": issue.type,
+                        "severity": issue.severity,
+                        "status": issue.status,
+                    }
+                    for issue in issues
+                ],
+                "total": len(issues),
+            })
+
+        except Exception as e:
+            return format_error("LIST_WORK_ISSUES_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list())
+
+
+def work_issues_get(issue_id: str) -> str:
+    """
+    Get a work issue by ID.
+
+    Args:
+        issue_id: Work issue page ID
+
+    Example:
+        $ notion work-issues get issue_123
+    """
+    async def _get() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get issue
+            from better_notion.plugins.official.agents_sdk.models import WorkIssue
+            issue = await WorkIssue.get(issue_id, client=client)
+
+            return format_success({
+                "id": issue.id,
+                "title": issue.title,
+                "type": issue.type,
+                "severity": issue.severity,
+                "status": issue.status,
+                "description": issue.description,
+                "project_id": issue.project_id,
+                "task_id": issue.task_id,
+            })
+
+        except Exception as e:
+            return format_error("GET_WORK_ISSUE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_get())
+
+
+def work_issues_create(
+    title: str,
+    project_id: str,
+    type: str = "Technical",
+    severity: str = "Medium",
+    description: str = "",
+    context: str = "",
+    task_id: Optional[str] = None,
+) -> str:
+    """
+    Create a new work issue.
+
+    Args:
+        title: Issue title
+        project_id: Project ID
+        type: Issue type (Technical, Process, Resource, Other)
+        severity: Issue severity (Low, Medium, High, Critical)
+        description: Detailed description
+        context: Additional context
+        task_id: Related task ID (optional)
+
+    Example:
+        $ notion work-issues create "API error" --project-id proj_123 \\
+            --type Technical --severity High
+    """
+    async def _create() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get workspace config
+            workspace_config = get_workspace_config()
+            database_id = workspace_config.get("Work Issues")
+
+            if not database_id:
+                return format_error("NO_DATABASE", "Work Issues database not configured", retry=False)
+
+            # Create issue in Notion
+            properties = {
+                "title": {"title": [{"text": {"content": title}}]},
+                "project_id": {"relation": [{"id": project_id}]},
+                "type": {"select": {"name": type}},
+                "severity": {"select": {"name": severity}},
+                "status": {"select": {"name": "Open"}},
+            }
+
+            if description:
+                properties["description"] = {
+                    "rich_text": [{"text": {"content": description}}]
+                }
+
+            if context:
+                properties["context"] = {
+                    "rich_text": [{"text": {"content": context}}]
+                }
+
+            if task_id:
+                properties["task_id"] = {"relation": [{"id": task_id}]}
+
+            response = await client._api.request(
+                method="POST",
+                path=f"databases/{database_id}",
+                json={"properties": properties},
+            )
+
+            return format_success({
+                "message": "Work issue created successfully",
+                "issue_id": response["id"],
+                "title": title,
+                "type": type,
+                "severity": severity,
+            })
+
+        except Exception as e:
+            return format_error("CREATE_WORK_ISSUE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_create())
+
+
+def work_issues_resolve(issue_id: str, resolution: str = "") -> str:
+    """
+    Resolve a work issue.
+
+    Args:
+        issue_id: Work issue page ID
+        resolution: Resolution description
+
+    Example:
+        $ notion work-issues resolve issue_123 --resolution "Fixed dependency version"
+    """
+    async def _resolve() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get issue and resolve
+            from better_notion.plugins.official.agents_sdk.models import WorkIssue
+            issue = await WorkIssue.get(issue_id, client=client)
+            await issue.resolve()
+
+            return format_success({
+                "message": "Work issue resolved successfully",
+                "issue_id": issue.id,
+                "status": issue.status,
+                "resolution": resolution,
+            })
+
+        except Exception as e:
+            return format_error("RESOLVE_WORK_ISSUE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_resolve())
+
+
+def work_issues_blockers(project_id: str) -> str:
+    """
+    Find all blocking work issues for a project.
+
+    Args:
+        project_id: Project ID
+
+    Example:
+        $ notion work-issues blockers proj_123
+    """
+    async def _blockers() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and find blockers
+            manager = client.plugin_manager("work_issues")
+            blockers = await manager.find_blockers(project_id)
+
+            return format_success({
+                "blocking_issues": [
+                    {
+                        "id": issue.id,
+                        "title": issue.title,
+                        "type": issue.type,
+                        "severity": issue.severity,
+                        "status": issue.status,
+                    }
+                    for issue in blockers
+                ],
+                "total": len(blockers),
+            })
+
+        except Exception as e:
+            return format_error("FIND_BLOCKERS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_blockers())
+
+
+# ===== INCIDENTS =====
+
+def incidents_list(
+    project_id: Optional[str] = None,
+    version_id: Optional[str] = None,
+    severity: Optional[str] = None,
+    status: Optional[str] = None,
+) -> str:
+    """
+    List incidents with optional filtering.
+
+    Args:
+        project_id: Filter by project ID
+        version_id: Filter by affected version ID
+        severity: Filter by severity
+        status: Filter by status
+
+    Example:
+        $ notion incidents list --project-id proj_123 --severity Critical
+    """
+    async def _list() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and list
+            manager = client.plugin_manager("incidents")
+            incidents = await manager.list(
+                project_id=project_id,
+                version_id=version_id,
+                severity=severity,
+                status=status,
+            )
+
+            return format_success({
+                "incidents": [
+                    {
+                        "id": incident.id,
+                        "title": incident.title,
+                        "severity": incident.severity,
+                        "status": incident.status,
+                        "type": incident.type,
+                    }
+                    for incident in incidents
+                ],
+                "total": len(incidents),
+            })
+
+        except Exception as e:
+            return format_error("LIST_INCIDENTS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list())
+
+
+def incidents_get(incident_id: str) -> str:
+    """
+    Get an incident by ID.
+
+    Args:
+        incident_id: Incident page ID
+
+    Example:
+        $ notion incidents get incident_123
+    """
+    async def _get() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get incident
+            from better_notion.plugins.official.agents_sdk.models import Incident
+            incident = await Incident.get(incident_id, client=client)
+
+            return format_success({
+                "id": incident.id,
+                "title": incident.title,
+                "severity": incident.severity,
+                "status": incident.status,
+                "type": incident.type,
+                "project_id": incident.project_id,
+                "affected_version_id": incident.affected_version_id,
+                "discovery_date": str(incident.discovery_date) if incident.discovery_date else None,
+                "resolved_date": str(incident.resolved_date) if incident.resolved_date else None,
+            })
+
+        except Exception as e:
+            return format_error("GET_INCIDENT_ERROR", str(e), retry=False)
+
+    return asyncio.run(_get())
+
+
+def incidents_create(
+    title: str,
+    project_id: str,
+    severity: str = "Medium",
+    type: str = "Bug",
+    affected_version_id: Optional[str] = None,
+    root_cause: str = "",
+) -> str:
+    """
+    Create a new incident.
+
+    Args:
+        title: Incident title
+        project_id: Project ID
+        severity: Incident severity (Low, Medium, High, Critical)
+        type: Incident type (Bug, Performance, Security, Data, Other)
+        affected_version_id: Affected version ID
+        root_cause: Root cause analysis
+
+    Example:
+        $ notion incidents create "Production outage" --project-id proj_123 \\
+            --severity Critical --type Bug
+    """
+    async def _create() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get workspace config
+            workspace_config = get_workspace_config()
+            database_id = workspace_config.get("Incidents")
+
+            if not database_id:
+                return format_error("NO_DATABASE", "Incidents database not configured", retry=False)
+
+            # Create incident in Notion
+            from datetime import datetime, timezone
+
+            properties = {
+                "title": {"title": [{"text": {"content": title}}]},
+                "project_id": {"relation": [{"id": project_id}]},
+                "severity": {"select": {"name": severity}},
+                "type": {"select": {"name": type}},
+                "status": {"select": {"name": "Active"}},
+                "discovery_date": {
+                    "date": {"start": datetime.now(timezone.utc).isoformat()}
+                },
+            }
+
+            if affected_version_id:
+                properties["affected_version_id"] = {"relation": [{"id": affected_version_id}]}
+
+            if root_cause:
+                properties["root_cause"] = {
+                    "rich_text": [{"text": {"content": root_cause}}]
+                }
+
+            response = await client._api.request(
+                method="POST",
+                path=f"databases/{database_id}",
+                json={"properties": properties},
+            )
+
+            return format_success({
+                "message": "Incident created successfully",
+                "incident_id": response["id"],
+                "title": title,
+                "severity": severity,
+            })
+
+        except Exception as e:
+            return format_error("CREATE_INCIDENT_ERROR", str(e), retry=False)
+
+    return asyncio.run(_create())
+
+
+def incidents_resolve(incident_id: str, resolution: str = "") -> str:
+    """
+    Resolve an incident.
+
+    Args:
+        incident_id: Incident page ID
+        resolution: Resolution description
+
+    Example:
+        $ notion incidents resolve incident_123 --resolution "Hotfix deployed"
+    """
+    async def _resolve() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get incident and resolve
+            from better_notion.plugins.official.agents_sdk.models import Incident
+            incident = await Incident.get(incident_id, client=client)
+            await incident.resolve()
+
+            return format_success({
+                "message": "Incident resolved successfully",
+                "incident_id": incident.id,
+                "status": incident.status,
+                "resolution": resolution,
+            })
+
+        except Exception as e:
+            return format_error("RESOLVE_INCIDENT_ERROR", str(e), retry=False)
+
+    return asyncio.run(_resolve())
+
+
+def incidents_mttr(project_id: Optional[str] = None, within_days: int = 30) -> str:
+    """
+    Calculate Mean Time To Resolve (MTTR) for incidents.
+
+    Args:
+        project_id: Filter by project ID (optional)
+        within_days: Only consider incidents from last N days
+
+    Example:
+        $ notion incidents mttr --project-id proj_123 --within-days 30
+    """
+    async def _mttr() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and calculate MTTR
+            manager = client.plugin_manager("incidents")
+            mttr = await manager.calculate_mttr(
+                project_id=project_id,
+                within_days=within_days,
+            )
+
+            return format_success({
+                "mttr_hours": mttr,
+                "within_days": within_days,
+                "project_id": project_id,
+            })
+
+        except Exception as e:
+            return format_error("CALCULATE_MTTR_ERROR", str(e), retry=False)
+
+    return asyncio.run(_mttr())
+
+
+def incidents_sla_violations() -> str:
+    """
+    Find all incidents that violated SLA.
+
+    SLA: Critical incidents should be resolved within 4 hours.
+
+    Example:
+        $ notion incidents sla-violations
+    """
+    async def _sla_violations() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            from better_notion.plugins.official.agents_sdk.plugin import AgentsSDKPlugin
+            plugin = AgentsSDKPlugin()
+            plugin.initialize(client)
+            client.register_sdk_plugin(plugin)
+
+            # Get manager and find violations
+            manager = client.plugin_manager("incidents")
+            violations = await manager.find_sla_violations()
+
+            return format_success({
+                "sla_violations": [
+                    {
+                        "id": incident.id,
+                        "title": incident.title,
+                        "severity": incident.severity,
+                        "discovery_date": str(incident.discovery_date) if incident.discovery_date else None,
+                        "resolved_date": str(incident.resolved_date) if incident.resolved_date else None,
+                    }
+                    for incident in violations
+                ],
+                "total": len(violations),
+            })
+
+        except Exception as e:
+            return format_error("SLA_VIOLATIONS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_sla_violations())

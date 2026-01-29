@@ -1,15 +1,19 @@
 """Tests for Agents SDK Plugin managers.
 
-Tests OrganizationManager, ProjectManager, VersionManager, and TaskManager.
+Tests OrganizationManager, ProjectManager, VersionManager, TaskManager,
+IdeaManager, WorkIssueManager, and IncidentManager.
 """
 
 import pytest
 
 from better_notion.plugins.official.agents_sdk.managers import (
+    IdeaManager,
+    IncidentManager,
     OrganizationManager,
     ProjectManager,
     TaskManager,
     VersionManager,
+    WorkIssueManager,
 )
 
 
@@ -261,6 +265,195 @@ class TestTaskManager:
         assert len(ready_tasks) == 2
 
 
+@pytest.mark.unit
+class TestIdeaManager:
+    """Test IdeaManager."""
+
+    def test_init(self, mock_client):
+        """Test manager initialization."""
+        manager = IdeaManager(mock_client)
+        assert manager._client == mock_client
+
+    @pytest.mark.asyncio
+    async def test_list_filtered(self, mock_client):
+        """Test listing ideas with filters."""
+        mock_client._workspace_config = {"Ideas": "db-123"}
+
+        mock_client._api.request.return_value = {
+            "results": [
+                {
+                    "id": "idea-1",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Idea 1"}]},
+                        "Category": {"type": "select", "select": {"name": "enhancement"}},
+                        "Status": {"type": "select", "select": {"name": "Proposed"}},
+                        "Effort Estimate": {"type": "select", "select": {"name": "M"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                    },
+                },
+            ],
+        }
+
+        manager = IdeaManager(mock_client)
+        ideas = await manager.list(project_id="proj-1", category="enhancement")
+
+        assert len(ideas) == 1
+        assert ideas[0].id == "idea-1"
+
+    @pytest.mark.asyncio
+    async def test_review_batch(self, mock_client):
+        """Test getting a batch of ideas for review."""
+        mock_client._workspace_config = {"Ideas": "db-123"}
+
+        mock_client._api.request.return_value = {
+            "results": [
+                {
+                    "id": "idea-1",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Small Idea"}]},
+                        "Status": {"type": "select", "select": {"name": "Proposed"}},
+                        "Effort Estimate": {"type": "select", "select": {"name": "S"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                    },
+                },
+                {
+                    "id": "idea-2",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Large Idea"}]},
+                        "Status": {"type": "select", "select": {"name": "Proposed"}},
+                        "Effort Estimate": {"type": "select", "select": {"name": "L"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                    },
+                },
+            ],
+        }
+
+        manager = IdeaManager(mock_client)
+        ideas = await manager.review_batch(count=10)
+
+        assert len(ideas) == 2
+        # Should be sorted by effort (S before L)
+        assert ideas[0].id == "idea-1"
+
+
+@pytest.mark.unit
+class TestWorkIssueManager:
+    """Test WorkIssueManager."""
+
+    def test_init(self, mock_client):
+        """Test manager initialization."""
+        manager = WorkIssueManager(mock_client)
+        assert manager._client == mock_client
+
+    @pytest.mark.asyncio
+    async def test_list_filtered(self, mock_client):
+        """Test listing work issues with filters."""
+        mock_client._workspace_config = {"Work Issues": "db-123"}
+
+        mock_client._api.request.return_value = {
+            "results": [
+                {
+                    "id": "issue-1",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Issue 1"}]},
+                        "Type": {"type": "select", "select": {"name": "Technical"}},
+                        "Severity": {"type": "select", "select": {"name": "High"}},
+                        "Status": {"type": "select", "select": {"name": "Open"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                        "Task": {"type": "relation", "relation": [{"id": "task-1"}]},
+                    },
+                },
+            ],
+        }
+
+        manager = WorkIssueManager(mock_client)
+        issues = await manager.list(project_id="proj-1", severity="High")
+
+        assert len(issues) == 1
+        assert issues[0].id == "issue-1"
+
+    @pytest.mark.asyncio
+    async def test_find_blockers(self, mock_client):
+        """Test finding blocking issues."""
+        mock_client._workspace_config = {"Work Issues": "db-123"}
+
+        mock_client._api.request.return_value = {
+            "results": [
+                {
+                    "id": "issue-1",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Blocker"}]},
+                        "Severity": {"type": "select", "select": {"name": "Critical"}},
+                        "Status": {"type": "select", "select": {"name": "Open"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                    },
+                },
+                {
+                    "id": "issue-2",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Minor"}]},
+                        "Severity": {"type": "select", "select": {"name": "Low"}},
+                        "Status": {"type": "select", "select": {"name": "Open"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                    },
+                },
+            ],
+        }
+
+        manager = WorkIssueManager(mock_client)
+        blockers = await manager.find_blockers(project_id="proj-1")
+
+        # Should only return High/Critical severity issues
+        assert len(blockers) == 1
+        assert blockers[0].id == "issue-1"
+
+
+@pytest.mark.unit
+class TestIncidentManager:
+    """Test IncidentManager."""
+
+    def test_init(self, mock_client):
+        """Test manager initialization."""
+        manager = IncidentManager(mock_client)
+        assert manager._client == mock_client
+
+    @pytest.mark.asyncio
+    async def test_list_filtered(self, mock_client):
+        """Test listing incidents with filters."""
+        mock_client._workspace_config = {"Incidents": "db-123"}
+
+        mock_client._api.request.return_value = {
+            "results": [
+                {
+                    "id": "incident-1",
+                    "object": "page",
+                    "properties": {
+                        "Title": {"type": "title", "title": [{"plain_text": "Incident 1"}]},
+                        "Severity": {"type": "select", "select": {"name": "Critical"}},
+                        "Status": {"type": "select", "select": {"name": "Active"}},
+                        "Type": {"type": "select", "select": {"name": "Bug"}},
+                        "Project": {"type": "relation", "relation": [{"id": "proj-1"}]},
+                        "Affected Version": {"type": "relation", "relation": [{"id": "ver-1"}]},
+                        "Discovery Date": {"type": "date", "date": {"start": "2025-01-01"}},
+                        "Resolved Date": {"type": "date", "date": None},
+                    },
+                },
+            ],
+        }
+
+        manager = IncidentManager(mock_client)
+        incidents = await manager.list(project_id="proj-1", severity="Critical")
+
+        assert len(incidents) == 1
+        assert incidents[0].id == "incident-1"
+
+
 @pytest.fixture
 def mock_client():
     """Create a mock NotionClient."""
@@ -271,5 +464,6 @@ def mock_client():
     client = MagicMock(spec=NotionClient)
     client._api = MagicMock()
     client._workspace_config = {}
+    client._plugin_caches = {}
 
     return client
