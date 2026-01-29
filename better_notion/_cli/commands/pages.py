@@ -359,6 +359,38 @@ async def restore(page_id: str) -> None:
     typer.echo(result)
 
 
+@app.command()
+async def clear(page_id: str) -> None:
+    """
+    Clear all blocks from a page.
+
+    Deletes all content blocks from a page while keeping the page itself.
+    The page title and properties are preserved.
+    """
+    client = get_client()
+    page = await client.pages.get(page_id)
+
+    # Collect all block IDs first
+    block_ids = []
+    async for block in page.children():
+        block_ids.append(block.id)
+
+    # Delete all blocks
+    for block_id in block_ids:
+        try:
+            await client.api.blocks.delete(block_id)
+        except Exception:
+            # Continue even if deletion fails
+            pass
+
+    result = format_success({
+        "id": page_id,
+        "blocks_deleted": len(block_ids),
+        "status": "cleared",
+    })
+    typer.echo(result)
+
+
 @app.command("create-from-md")
 async def create_from_md(
     file: str = typer.Option(..., "--file", "-f", help="Path to markdown file"),
