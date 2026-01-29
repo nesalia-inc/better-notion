@@ -6,12 +6,14 @@ required databases for the workflow management system.
 
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from better_notion._cli.config import Config
 from better_notion._sdk.client import NotionClient
 from better_notion._sdk.models.page import Page
+from better_notion.utils.agents.metadata import WorkspaceMetadata
 from better_notion.utils.agents.schemas import (
     IncidentSchema,
     IdeaSchema,
@@ -48,11 +50,15 @@ class WorkspaceInitializer:
         """
         self._client = client
         self._database_ids: Dict[str, str] = {}
+        self._workspace_id: Optional[str] = None
+        self._parent_page_id: Optional[str] = None
+        self._workspace_name: Optional[str] = None
 
     async def initialize_workspace(
         self,
         parent_page_id: str,
         workspace_name: str = "Agents Workspace",
+        skip_detection: bool = False,
     ) -> Dict[str, str]:
         """Initialize a complete workspace with all databases.
 
@@ -62,14 +68,21 @@ class WorkspaceInitializer:
         Args:
             parent_page_id: ID of the parent page where databases will be created
             workspace_name: Name for the workspace (used for database titles)
+            skip_detection: If True, skip duplicate detection (for reset operation)
 
         Returns:
             Dict mapping database names to their IDs
 
         Raises:
             Exception: If database creation fails with detailed error message
+            Exception: If workspace already exists (and skip_detection is False)
         """
         logger.info(f"Initializing workspace '{workspace_name}' in page {parent_page_id}")
+
+        # Store workspace info
+        self._parent_page_id = parent_page_id
+        self._workspace_name = workspace_name
+        self._workspace_id = WorkspaceMetadata.generate_workspace_id()
 
         # Get parent page
         try:
@@ -79,6 +92,26 @@ class WorkspaceInitializer:
             error_msg = f"Failed to get parent page '{parent_page_id}': {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg) from e
+
+        # Check for existing workspace unless skipped
+        if not skip_detection:
+            existing = await WorkspaceMetadata.detect_workspace(parent, self._client)
+            if existing:
+                workspace_info = {
+                    "workspace_id": existing.get("workspace_id", "unknown"),
+                    "workspace_name": existing.get("workspace_name", workspace_name),
+                    "initialized_at": existing.get("initialized_at", "unknown"),
+                    "databases": existing.get("database_ids", {})
+                }
+                error_msg = (
+                    f"Workspace already initialized in this page\n"
+                    f"Workspace ID: {workspace_info['workspace_id']}\n"
+                    f"Initialized: {workspace_info['initialized_at']}\n"
+                    f"Databases: {len(workspace_info.get('databases', {}))} created\n"
+                    f"Use --reset to reinitialize or --skip to keep existing"
+                )
+                logger.error(error_msg)
+                raise Exception(error_msg) from None
 
         # Create databases in order (independent first, then dependent)
         self._database_ids = {}
@@ -108,7 +141,11 @@ class WorkspaceInitializer:
                 logger.error(error_msg)
                 raise Exception(error_msg) from e
 
+        # Save workspace metadata
+        self.save_database_ids()
+
         logger.info(f"Workspace initialization complete. Created {len(self._database_ids)} databases")
+        logger.info(f"Workspace ID: {self._workspace_id}")
         return self._database_ids
 
     async def _create_organizations_db(self, parent: Page) -> None:
@@ -312,7 +349,7 @@ class WorkspaceInitializer:
         pass
 
     def save_database_ids(self, path: Optional[Path] = None) -> None:
-        """Save database IDs to a config file.
+        """Save workspace metadata (database IDs and workspace info) to config file.
 
         Args:
             path: Path to save config file (default: ~/.notion/workspace.json)
@@ -322,8 +359,18 @@ class WorkspaceInitializer:
 
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Save full workspace metadata
+        config = {
+            "workspace_id": self._workspace_id,
+            "workspace_name": self._workspace_name,
+            "parent_page": self._parent_page_id,
+            "initialized_at": datetime.now(timezone.utc).isoformat(),
+            "version": "1.5.4",
+            "database_ids": self._database_ids
+        }
+
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self._database_ids, f, indent=2)
+            json.dump(config, f, indent=2)
 
     @classmethod
     def load_database_ids(cls, path: Optional[Path] = None) -> Dict[str, str]:
