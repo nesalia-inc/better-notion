@@ -73,3 +73,35 @@ class DatabaseCollection:
         # Ensure parent is set to the database
         page_data = {"parent": {"database_id": database_id}, **kwargs}
         return await self._api._request("POST", "/pages", json=page_data)
+
+    async def create(
+        self,
+        parent: dict[str, Any],
+        title: str,
+        properties: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Create a new database.
+
+        Args:
+            parent: Parent object (e.g., {"type": "page_id", "page_id": "..."})
+            title: Database title
+            properties: Database schema/properties configuration
+
+        Returns:
+            Raw database data dict from Notion API.
+
+        Raises:
+            ValidationError: If the database configuration is invalid.
+            NotFoundError: If the parent page does not exist.
+        """
+        # Build title array
+        title_array = [{"type": "text", "text": {"content": title}}]
+
+        # Create database request
+        database_data = {
+            "parent": parent,
+            "title": title_array,
+            "properties": properties
+        }
+
+        return await self._api._request("POST", "/databases", json=database_data)
