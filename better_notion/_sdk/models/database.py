@@ -94,7 +94,8 @@ class Database(BaseEntity):
         *,
         client: "NotionClient",
         title: str,
-        properties: dict[str, Any]
+        properties: dict[str, Any] | None = None,
+        schema: dict[str, Any] | None = None,
     ) -> "Database":
         """Create a new database.
 
@@ -102,7 +103,8 @@ class Database(BaseEntity):
             parent: Parent Page
             client: NotionClient instance
             title: Database title
-            properties: Property schema configuration
+            properties: Property schema configuration (alias for schema)
+            schema: Property schema configuration
 
         Returns:
             Newly created Database object
@@ -112,7 +114,7 @@ class Database(BaseEntity):
             ...     parent=page,
             ...     client=client,
             ...     title="Tasks",
-            ...     properties={
+            ...     schema={
             ...         "Name": {"type": "title"},
             ...         "Status": {"type": "select"}
             ...     }
@@ -120,13 +122,16 @@ class Database(BaseEntity):
         """
         from better_notion._api.properties import Title
 
-        # Build title array
-        title_array = [{"type": "text", "text": {"content": title}}]
+        # Support both properties and schema as parameter names
+        if schema is not None and properties is None:
+            properties = schema
+        elif properties is None:
+            properties = {}
 
-        # Create database via API
+        # Create database via API (pass title string - API layer will build the array)
         data = await client.api.databases.create(
             parent={"type": "page_id", "page_id": parent.id},
-            title=title_array,
+            title=title,
             properties=properties
         )
 
