@@ -156,12 +156,23 @@ class AgentsPlugin(CombinedPluginInterface):
 
                             if existing:
                                 database_ids = existing.get("database_ids", {})
+
+                                # Save workspace config for subsequent commands
+                                # This fixes the bug where --skip detected workspace but didn't save config,
+                                # causing subsequent commands (agents orgs create, etc.) to fail
+                                initializer._database_ids = database_ids
+                                initializer._parent_page_id = parent_page_id
+                                initializer._workspace_id = existing.get("workspace_id")
+                                initializer._workspace_name = existing.get("workspace_name", workspace_name)
+                                initializer.save_database_ids()
+
                                 return format_success(
                                     {
                                         "message": "Workspace already exists, skipping initialization",
                                         "workspace_id": existing.get("workspace_id"),
                                         "databases_found": len(database_ids),
                                         "database_ids": database_ids,
+                                        "config_saved": True,
                                     },
                                     meta={
                                         "command": "agents init",

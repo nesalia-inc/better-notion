@@ -351,6 +351,9 @@ class WorkspaceInitializer:
     def save_database_ids(self, path: Optional[Path] = None) -> None:
         """Save workspace metadata (database IDs and workspace info) to config file.
 
+        Saves database IDs at top level with capitalized keys (e.g., "Organizations", "Projects")
+        to match what SDK managers expect. Also saves under "database_ids" for compatibility.
+
         Args:
             path: Path to save config file (default: ~/.notion/workspace.json)
         """
@@ -359,14 +362,21 @@ class WorkspaceInitializer:
 
         path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Map lowercase keys to capitalized keys for SDK manager compatibility
+        database_ids_capitalized = {
+            key.capitalize(): value for key, value in self._database_ids.items()
+        }
+
         # Save full workspace metadata
+        # Database IDs are saved at top level with capitalized keys for SDK managers
         config = {
             "workspace_id": self._workspace_id,
             "workspace_name": self._workspace_name,
             "parent_page": self._parent_page_id,
             "initialized_at": datetime.now(timezone.utc).isoformat(),
             "version": "1.5.4",
-            "database_ids": self._database_ids
+            **database_ids_capitalized,  # Save at top level: "Organizations", "Projects", etc.
+            "database_ids": self._database_ids,  # Also save under database_ids for compatibility
         }
 
         with open(path, "w", encoding="utf-8") as f:

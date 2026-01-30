@@ -203,18 +203,24 @@ class Organization(BaseEntity):
         }
 
         if slug:
-            properties["Slug"] = RichText(slug)
+            properties["Slug"] = RichText(name="Slug", content=slug)
         if description:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if repository_url:
-            properties["Repository URL"] = URL(repository_url)
+            properties["Repository URL"] = URL(name="Repository URL", url=repository_url)
         if status:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Create page
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         org = cls(client, data)
@@ -490,24 +496,30 @@ class Project(BaseEntity):
         properties: dict[str, Any] = {
             "Name": Title(name),
             "Organization": Relation([organization_id]),
-            "Role": Select(role),
+            "Role": Select(name="Role", value=role),
         }
 
         if slug:
-            properties["Slug"] = RichText(slug)
+            properties["Slug"] = RichText(name="Slug", content=slug)
         if description:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if repository:
-            properties["Repository"] = URL(repository)
+            properties["Repository"] = URL(name="Repository", url=repository)
         if status:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if tech_stack:
-            properties["Tech Stack"] = MultiSelect(tech_stack)
+            properties["Tech Stack"] = MultiSelect(name="Tech Stack", values=tech_stack)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Create page
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         project = cls(client, data)
