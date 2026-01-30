@@ -180,11 +180,22 @@ class Page(BaseEntity):
                 if title_prop:
                     props[title_prop] = Title(name=title_prop, content=title).to_dict()
 
+            # Merge additional kwargs into properties (except for special keys)
+            # Special keys that belong at root level: icon, cover, children
+            root_level_keys = {"icon", "cover", "children"}
+            api_kwargs = {}
+            for key, value in kwargs.items():
+                if key in root_level_keys:
+                    api_kwargs[key] = value
+                else:
+                    # Everything else goes into properties
+                    props[key] = value
+
         # Create page via API
         data = await client.api.pages.create(
             parent=parent_ref,
             properties=props,
-            **kwargs
+            **api_kwargs
         )
 
         page = cls(client, data)
