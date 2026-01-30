@@ -10,6 +10,7 @@ from better_notion._api.properties.number import Number
 from better_notion._api.properties.url import URL
 from better_notion._api.properties.email import Email
 from better_notion._api.properties.phone import Phone
+from better_notion._api.properties.relation import Relation
 
 __all__ = [
     "Property",
@@ -27,4 +28,5 @@ __all__ = [
     "URL",
     "Email",
     "Phone",
+    "Relation",
 ]

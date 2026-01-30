@@ -61,15 +61,20 @@ class RichText(Property):
         if self._code:
             annotations["code"] = True
 
-        rich_text_obj: dict[str, Any] = {
+        # Build the inner text object
+        inner_text_obj: dict[str, Any] = {
             "type": "text",
             "text": text_obj,
         }
 
         if annotations:
-            rich_text_obj["annotations"] = annotations
+            inner_text_obj["annotations"] = annotations
 
-        return rich_text_obj
+        # Return proper rich_text property format
+        return {
+            "type": "rich_text",
+            "rich_text": [inner_text_obj]
+        }
 
 
 class Text(Property):
