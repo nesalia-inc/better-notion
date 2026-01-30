@@ -13,7 +13,7 @@ import typer
 
 from better_notion._cli.response import format_error, format_success
 from better_notion._sdk.client import NotionClient
-from better_notion.utils.agents import ProjectContext, get_or_create_agent_id
+from better_notion.utils.agents import get_or_create_agent_id
 
 
 def get_client() -> NotionClient:
@@ -1034,10 +1034,13 @@ def ideas_create(
                     "rich_text": [{"text": {"content": context}}]
                 }
 
-            response = await client._api.request(
-                method="POST",
-                path=f"databases/{database_id}",
-                json={"properties": properties},
+            response = await client._api._request(
+                "POST",
+                "/pages",
+                json={
+                    "parent": {"database_id": database_id},
+                    "properties": properties
+                },
             )
 
             return format_success({
@@ -1329,10 +1332,13 @@ def work_issues_create(
             if task_id:
                 properties["task_id"] = {"relation": [{"id": task_id}]}
 
-            response = await client._api.request(
-                method="POST",
-                path=f"databases/{database_id}",
-                json={"properties": properties},
+            response = await client._api._request(
+                "POST",
+                "/pages",
+                json={
+                    "parent": {"database_id": database_id},
+                    "properties": properties
+                },
             )
 
             return format_success({
@@ -1580,10 +1586,13 @@ def incidents_create(
                     "rich_text": [{"text": {"content": root_cause}}]
                 }
 
-            response = await client._api.request(
-                method="POST",
-                path=f"databases/{database_id}",
-                json={"properties": properties},
+            response = await client._api._request(
+                "POST",
+                "/pages",
+                json={
+                    "parent": {"database_id": database_id},
+                    "properties": properties
+                },
             )
 
             return format_success({
