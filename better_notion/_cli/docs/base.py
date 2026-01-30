@@ -138,6 +138,7 @@ class Command:
         workflow: Which workflow this command belongs to
         when_to_use: When this command should be used
         error_recovery: Error handling strategies
+        subcommands: Dict of subcommand name -> subcommand documentation
     """
 
     name: str
@@ -147,10 +148,11 @@ class Command:
     workflow: str | None = None
     when_to_use: list[str] = field(default_factory=list)
     error_recovery: dict[str, dict[str, Any]] = field(default_factory=dict)
+    subcommands: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "name": self.name,
             "purpose": self.purpose,
             "description": self.description,
@@ -159,6 +161,12 @@ class Command:
             "when_to_use": self.when_to_use,
             "error_recovery": self.error_recovery,
         }
+
+        # Add subcommands if present
+        if self.subcommands:
+            result["subcommands"] = self.subcommands
+
+        return result
 
 
 @dataclass

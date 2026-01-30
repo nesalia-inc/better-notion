@@ -169,22 +169,93 @@ class AgentsPlugin(CombinedPluginInterface):
                                             "state": "already_initialized",
                                             "description": "Agents workspace already exists in this page",
                                         },
+                                        "hierarchy": {
+                                            "description": "Agents workflow hierarchy",
+                                            "levels": [
+                                                {
+                                                    "level": 1,
+                                                    "entity": "Organization",
+                                                    "database": "organizations",
+                                                    "required_before": ["Projects"]
+                                                },
+                                                {
+                                                    "level": 2,
+                                                    "entity": "Project",
+                                                    "database": "projects",
+                                                    "required_before": ["Versions", "Tasks"],
+                                                    "requires": ["Organization"]
+                                                },
+                                                {
+                                                    "level": 3,
+                                                    "entity": "Version",
+                                                    "database": "versions",
+                                                    "required_before": ["Tasks"],
+                                                    "requires": ["Project"]
+                                                },
+                                                {
+                                                    "level": 4,
+                                                    "entity": "Task",
+                                                    "database": "tasks",
+                                                    "requires": ["Version"]
+                                                }
+                                            ]
+                                        },
                                         "next_steps": [
                                             {
-                                                "action": "query_tasks",
-                                                "command": f"notion databases query --database {database_ids.get('tasks', 'TASKS_DB_ID')}",
-                                                "purpose": "List all tasks in workspace",
+                                                "action": "check_organizations",
+                                                "command": "notion agents orgs list",
+                                                "purpose": "Check if organizations exist",
+                                                "why": "Organizations are the starting point - create them first"
+                                            },
+                                            {
+                                                "action": "create_organization",
+                                                "command": "notion agents orgs create --name 'Organization Name'",
+                                                "purpose": "Create a new organization",
+                                                "when": "If no organizations exist",
+                                                "examples": [
+                                                    "notion agents orgs create --name 'WareflowX'",
+                                                    "notion agents orgs create --name 'WareflowX' --slug 'wareflowx'"
+                                                ]
+                                            },
+                                            {
+                                                "action": "create_project",
+                                                "command": "notion agents projects create --org 'Org Name' --name 'Project Name'",
+                                                "purpose": "Create a project in an organization",
+                                                "requires": ["organization_exists"],
+                                                "examples": [
+                                                        "notion agents projects create --org 'WareflowX' --name 'Website Redesign'"
+                                                ]
+                                            },
+                                            {
+                                                "action": "create_version",
+                                                "command": "notion agents versions create --project 'Project' --name 'v1.0.0'",
+                                                "purpose": "Create a version in a project",
+                                                "requires": ["project_exists"],
                                             },
                                             {
                                                 "action": "create_task",
-                                                "description": "To create a new task, use pages create with Version relation",
+                                                "command": "notion agents tasks create --version 'v1.0.0' --name 'Task Name'",
+                                                "purpose": "Create a task in a version",
+                                                "requires": ["version_exists"],
                                             },
                                         ],
                                         "capabilities": [
+                                            "create_organizations",
+                                            "create_projects",
+                                            "create_versions",
                                             "create_tasks",
-                                            "manage_versions",
-                                            "track_projects",
+                                            "manage_ideas",
+                                            "track_work_issues",
+                                            "manage_incidents",
                                         ],
+                                        "quick_reference": {
+                                            "lifecycle": "Organization → Project → Version → Task",
+                                            "create_org": "notion agents orgs create --name NAME",
+                                            "list_orgs": "notion agents orgs list",
+                                            "create_project": "notion agents projects create --org ORG --name NAME",
+                                            "create_version": "notion agents versions create --project PROJECT --name VERSION",
+                                            "create_task": "notion agents tasks create --version VERSION --name TASK",
+                                        }
                                     }
                                 )
                         except Exception:
@@ -212,40 +283,107 @@ class AgentsPlugin(CombinedPluginInterface):
                                 "description": "Agents workspace ready for task management",
                                 "workspace_name": workspace_name,
                             },
+                            "hierarchy": {
+                                "description": "Agents workflow hierarchy - follow this order",
+                                "lifecycle": "Organization → Project → Version → Task",
+                                "levels": [
+                                    {
+                                        "level": 1,
+                                        "entity": "Organization",
+                                        "database": "organizations",
+                                        "command": "notion agents orgs create --name 'Org Name'",
+                                        "next": "Projects"
+                                    },
+                                    {
+                                        "level": 2,
+                                        "entity": "Project",
+                                        "database": "projects",
+                                        "command": "notion agents projects create --org 'Org' --name 'Project'",
+                                        "requires": ["Organization"],
+                                        "next": "Versions"
+                                    },
+                                    {
+                                        "level": 3,
+                                        "entity": "Version",
+                                        "database": "versions",
+                                        "command": "notion agents versions create --project 'Project' --name 'v1.0.0'",
+                                        "requires": ["Project"],
+                                        "next": "Tasks"
+                                    },
+                                    {
+                                        "level": 4,
+                                        "entity": "Task",
+                                        "database": "tasks",
+                                        "command": "notion agents tasks create --version 'v1.0.0' --name 'Task'",
+                                        "requires": ["Version"]
+                                    }
+                                ]
+                            },
                             "next_steps": [
                                 {
-                                    "command": "agents info --parent-page " + parent_page_id,
-                                    "purpose": "View workspace status and database IDs",
-                                    "when": "To verify workspace setup",
+                                    "action": "first_create_organization",
+                                    "priority": 1,
+                                    "command": "notion agents orgs create --name 'Your Organization Name'",
+                                    "purpose": "Create your first organization (required before projects)",
+                                    "why": "Organizations are the top-level entity - all projects belong to an organization",
+                                    "examples": [
+                                        "notion agents orgs create --name 'WareflowX'",
+                                        "notion agents orgs create --name 'WareflowX' --slug 'wareflowx'"
+                                    ]
                                 },
                                 {
-                                    "command": f"notion databases query --database {database_ids.get('tasks', 'TASKS_DB_ID')}",
-                                    "purpose": "List all tasks in workspace",
-                                    "when": "To see existing tasks",
+                                    "action": "then_create_project",
+                                    "priority": 2,
+                                    "command": "notion agents projects create --org 'Org Name' --name 'Project Name'",
+                                    "purpose": "Create a project in the organization",
+                                    "requires": ["organization_exists"],
+                                },
+                                {
+                                    "action": "then_create_version",
+                                    "priority": 3,
+                                    "command": "notion agents versions create --project 'Project' --name 'v1.0.0'",
+                                    "purpose": "Create a version in the project",
+                                    "requires": ["project_exists"],
+                                },
+                                {
+                                    "action": "then_create_tasks",
+                                    "priority": 4,
+                                    "command": "notion agents tasks create --version 'v1.0.0' --name 'Task Name'",
+                                    "purpose": "Create tasks in the version",
+                                    "requires": ["version_exists"],
+                                },
+                                {
+                                    "action": "verify_setup",
+                                    "command": "agents info --parent-page " + parent_page_id,
+                                    "purpose": "View workspace status and database IDs",
+                                    "when": "Anytime to verify setup",
                                 },
                             ],
                             "capabilities": [
+                                "create_organizations",
+                                "create_projects",
+                                "create_versions",
                                 "create_tasks",
-                                "manage_versions",
-                                "track_projects",
                                 "manage_ideas",
-                                "track_incidents",
+                                "track_work_issues",
+                                "manage_incidents",
                             ],
-                            "common_workflows": [
-                                {
-                                    "name": "create_organization",
-                                    "description": "Create a new organization in the workspace",
-                                    "command": f"notion pages create --parent {database_ids.get('organizations', 'ORGANIZATIONS_DB_ID')} --title 'Organization Name'",
-                                },
-                                {
-                                    "name": "create_task",
-                                    "description": "Create a task in the workspace",
-                                    "steps": [
-                                        f"agents info --parent-page {parent_page_id}",
-                                        f"notion pages create --parent {database_ids.get('tasks', 'TASKS_DB_ID')} --title 'Task Name' --properties '{{\"Status\": \"Todo\", \"Version\": \"VERSION_ID\"}}'",
-                                    ],
-                                },
-                            ],
+                            "quick_start": {
+                                "description": "Quick start guide - create your first workflow",
+                                "steps": [
+                                    "1. Create organization: notion agents orgs create --name 'WareflowX'",
+                                    "2. Create project: notion agents projects create --org 'WareflowX' --name 'Website Redesign'",
+                                    "3. Create version: notion agents versions create --project 'Website Redesign' --name 'v1.0.0'",
+                                    "4. Create task: notion agents tasks create --version 'v1.0.0' --name 'Fix login bug'"
+                                ]
+                            },
+                            "quick_reference": {
+                                "list_orgs": "notion agents orgs list",
+                                "list_projects": "notion agents projects list",
+                                "list_versions": "notion agents versions list --project 'Project'",
+                                "list_tasks": "notion agents tasks list --version 'v1.0.0'",
+                                "find_next_task": "notion agents tasks next --version 'v1.0.0'"
+                            }
                         }
                     )
 
