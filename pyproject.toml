@@ -1,6 +1,6 @@
 [project]
 name = "better-notion"
-version = "1.8.9"
+version = "1.9.0"
 description = "A high-level Python SDK for the Notion API with developer experience in mind."
 readme = "README.md"
 requires-python = ">=3.10"
