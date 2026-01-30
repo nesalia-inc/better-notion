@@ -604,7 +604,7 @@ class IdeaManager:
                     "and": filters
                 }
 
-        response = await self._client._api.request(
+        response = await self._client._api._request(
             method="POST",
             path=f"databases/{database_id}/query",
             json=query,
@@ -733,7 +733,7 @@ class WorkIssueManager:
                     "and": filters
                 }
 
-        response = await self._client._api.request(
+        response = await self._client._api._request(
             method="POST",
             path=f"databases/{database_id}/query",
             json=query,
@@ -815,7 +815,7 @@ class WorkIssueManager:
                 "rich_text": [{"text": {"content": context}}]
             }
 
-        response = await self._client._api.request(
+        response = await self._client._api._request(
             method="POST",
             path=f"databases/{database_id}",
             json={"properties": properties},
@@ -909,7 +909,7 @@ class IncidentManager:
                     "and": filters
                 }
 
-        response = await self._client._api.request(
+        response = await self._client._api._request(
             method="POST",
             path=f"databases/{database_id}/query",
             json=query,
