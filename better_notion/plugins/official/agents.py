@@ -162,6 +162,29 @@ class AgentsPlugin(CombinedPluginInterface):
                                         "workspace_id": existing.get("workspace_id"),
                                         "databases_found": len(database_ids),
                                         "database_ids": database_ids,
+                                    },
+                                    meta={
+                                        "command": "agents init",
+                                        "context": {
+                                            "state": "already_initialized",
+                                            "description": "Agents workspace already exists in this page",
+                                        },
+                                        "next_steps": [
+                                            {
+                                                "action": "query_tasks",
+                                                "command": f"notion databases query --database {database_ids.get('tasks', 'TASKS_DB_ID')}",
+                                                "purpose": "List all tasks in workspace",
+                                            },
+                                            {
+                                                "action": "create_task",
+                                                "description": "To create a new task, use pages create with Version relation",
+                                            },
+                                        ],
+                                        "capabilities": [
+                                            "create_tasks",
+                                            "manage_versions",
+                                            "track_projects",
+                                        ],
                                     }
                                 )
                         except Exception:
@@ -181,6 +204,48 @@ class AgentsPlugin(CombinedPluginInterface):
                             "workspace_id": initializer._workspace_id,
                             "databases_created": len(database_ids),
                             "database_ids": database_ids,
+                        },
+                        meta={
+                            "command": "agents init",
+                            "context": {
+                                "state": "initialized",
+                                "description": "Agents workspace ready for task management",
+                                "workspace_name": workspace_name,
+                            },
+                            "next_steps": [
+                                {
+                                    "command": "agents info --parent-page " + parent_page_id,
+                                    "purpose": "View workspace status and database IDs",
+                                    "when": "To verify workspace setup",
+                                },
+                                {
+                                    "command": f"notion databases query --database {database_ids.get('tasks', 'TASKS_DB_ID')}",
+                                    "purpose": "List all tasks in workspace",
+                                    "when": "To see existing tasks",
+                                },
+                            ],
+                            "capabilities": [
+                                "create_tasks",
+                                "manage_versions",
+                                "track_projects",
+                                "manage_ideas",
+                                "track_incidents",
+                            ],
+                            "common_workflows": [
+                                {
+                                    "name": "create_organization",
+                                    "description": "Create a new organization in the workspace",
+                                    "command": f"notion pages create --parent {database_ids.get('organizations', 'ORGANIZATIONS_DB_ID')} --title 'Organization Name'",
+                                },
+                                {
+                                    "name": "create_task",
+                                    "description": "Create a task in the workspace",
+                                    "steps": [
+                                        f"agents info --parent-page {parent_page_id}",
+                                        f"notion pages create --parent {database_ids.get('tasks', 'TASKS_DB_ID')} --title 'Task Name' --properties '{{\"Status\": \"Todo\", \"Version\": \"VERSION_ID\"}}'",
+                                    ],
+                                },
+                            ],
                         }
                     )
 
@@ -234,6 +299,32 @@ class AgentsPlugin(CombinedPluginInterface):
                                 "databases_count": len(database_ids),
                                 "database_ids": database_ids,
                                 "detection_method": existing.get("detection_method", "config_file"),
+                            },
+                            meta={
+                                "command": "agents info",
+                                "context": {
+                                    "state": "workspace_found",
+                                    "description": "Workspace is ready for use",
+                                },
+                                "available_databases": list(database_ids.keys()),
+                                "next_steps": [
+                                    {
+                                        "action": "query_tasks",
+                                        "command": f"notion databases query --database {database_ids.get('tasks', 'TASKS_DB_ID')}",
+                                        "purpose": "List all tasks in workspace",
+                                    },
+                                    {
+                                        "action": "create_task",
+                                        "command": f"notion pages create --parent {database_ids.get('tasks', 'TASKS_DB_ID')} --title 'Task Name' --properties '{{\"Status\": \"Todo\"}}'",
+                                        "purpose": "Create a new task",
+                                        "note": "Make sure to set Version relation",
+                                    },
+                                    {
+                                        "action": "list_projects",
+                                        "command": f"notion databases query --database {database_ids.get('projects', 'PROJECTS_DB_ID')}",
+                                        "purpose": "List all projects",
+                                    },
+                                ],
                             }
                         )
                     else:
@@ -256,6 +347,25 @@ class AgentsPlugin(CombinedPluginInterface):
                                 "parent_title": page.title,
                                 "workspace_initialized": False,
                                 "other_databases": len(databases_in_page),
+                            },
+                            meta={
+                                "command": "agents info",
+                                "context": {
+                                    "state": "no_workspace",
+                                    "description": "No agents workspace detected in this page",
+                                },
+                                "next_steps": [
+                                    {
+                                        "action": "initialize_workspace",
+                                        "command": f"notion agents init --parent-page {parent_page_id}",
+                                        "purpose": "Initialize a new agents workspace",
+                                        "note": "This will create 8 databases for workflow management",
+                                    },
+                                ],
+                                "error_recovery": {
+                                    "message": "Workspace must be initialized before managing tasks",
+                                    "solution": "Run 'agents init' to create the workspace",
+                                },
                             }
                         )
 
