@@ -400,7 +400,7 @@ class AgentsPlugin(CombinedPluginInterface):
                 $ notion agents schema --format yaml
                 $ notion agents schema --format pretty
             """
-            from better_notion.plugins.official.agents.schema import AGENTS_SCHEMA
+            from better_notion.plugins.official.agents_schema import AGENTS_SCHEMA
             from better_notion._cli.docs.formatters import (
                 format_schema_json,
                 format_schema_yaml,
