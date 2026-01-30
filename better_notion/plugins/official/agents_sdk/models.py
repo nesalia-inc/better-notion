@@ -199,7 +199,7 @@ class Organization(BaseEntity):
 
         # Build properties
         properties: dict[str, Any] = {
-            "Name": Title(name),
+            "Name": Title(content=name),
         }
 
         if slug:
@@ -263,20 +263,26 @@ class Organization(BaseEntity):
         properties: dict[str, Any] = {}
 
         if name is not None:
-            properties["Name"] = Title(name)
+            properties["Name"] = Title(content=name)
         if slug is not None:
-            properties["Slug"] = RichText(slug)
+            properties["Slug"] = RichText(name="Slug", content=slug)
         if description is not None:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if repository_url is not None:
-            properties["Repository URL"] = URL(repository_url)
+            properties["Repository URL"] = URL(name="Repository URL", url=repository_url)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Update page
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         # Update instance
@@ -494,7 +500,7 @@ class Project(BaseEntity):
 
         # Build properties
         properties: dict[str, Any] = {
-            "Name": Title(name),
+            "Name": Title(content=name),
             "Organization": Relation([organization_id]),
             "Role": Select(name="Role", value=role),
         }
@@ -549,24 +555,30 @@ class Project(BaseEntity):
         properties: dict[str, Any] = {}
 
         if name is not None:
-            properties["Name"] = Title(name)
+            properties["Name"] = Title(content=name)
         if slug is not None:
-            properties["Slug"] = RichText(slug)
+            properties["Slug"] = RichText(name="Slug", content=slug)
         if description is not None:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if repository is not None:
-            properties["Repository"] = URL(repository)
+            properties["Repository"] = URL(name="Repository", url=repository)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if tech_stack is not None:
-            properties["Tech Stack"] = MultiSelect(tech_stack)
+            properties["Tech Stack"] = MultiSelect(name="Tech Stack", values=tech_stack)
         if role is not None:
-            properties["Role"] = Select(role)
+            properties["Role"] = Select(name="Role", value=role)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Update page
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         # Update instance
@@ -746,15 +758,15 @@ class Version(BaseEntity):
 
         # Build properties
         properties: dict[str, Any] = {
-            "Version": Title(name),
+            "Version": Title(content=name),
             "Project": Relation([project_id]),
-            "Status": Select(status),
-            "Type": Select(version_type),
-            "Progress": Number(progress),
+            "Status": Select(name="Status", value=status),
+            "Type": Select(name="Type", value=version_type),
+            "Progress": Number(name="Progress", value=progress),
         }
 
         if branch_name:
-            properties["Branch Name"] = RichText(branch_name)
+            properties["Branch Name"] = RichText(name="Branch Name", content=branch_name)
 
         # Create page
         data = await client._api.pages.create(
@@ -787,20 +799,26 @@ class Version(BaseEntity):
         properties: dict[str, Any] = {}
 
         if name is not None:
-            properties["Version"] = Title(name)
+            properties["Version"] = Title(content=name)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if version_type is not None:
-            properties["Type"] = Select(version_type)
+            properties["Type"] = Select(name="Type", value=version_type)
         if branch_name is not None:
-            properties["Branch Name"] = RichText(branch_name)
+            properties["Branch Name"] = RichText(name="Branch Name", content=branch_name)
         if progress is not None:
-            properties["Progress"] = Number(progress)
+            properties["Progress"] = Number(name="Progress", value=progress)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Update page
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         # Update instance
@@ -1001,22 +1019,28 @@ class Task(BaseEntity):
 
         # Build properties
         properties: dict[str, Any] = {
-            "Title": Title(title),
+            "Title": Title(content=title),
             "Version": Relation([version_id]),
-            "Status": Select(status),
-            "Type": Select(task_type),
-            "Priority": Select(priority),
+            "Status": Select(name="Status", value=status),
+            "Type": Select(name="Type", value=task_type),
+            "Priority": Select(name="Priority", value=priority),
         }
 
         if dependency_ids:
             properties["Dependencies"] = Relation(dependency_ids)
         if estimated_hours is not None:
-            properties["Estimated Hours"] = Number(estimated_hours)
+            properties["Estimated Hours"] = Number(name="Estimated Hours", value=estimated_hours)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Create page
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         task = cls(client, data)
@@ -1046,24 +1070,30 @@ class Task(BaseEntity):
         properties: dict[str, Any] = {}
 
         if title is not None:
-            properties["Title"] = Title(title)
+            properties["Title"] = Title(content=title)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if task_type is not None:
-            properties["Type"] = Select(task_type)
+            properties["Type"] = Select(name="Type", value=task_type)
         if priority is not None:
-            properties["Priority"] = Select(priority)
+            properties["Priority"] = Select(name="Priority", value=priority)
         if dependency_ids is not None:
             properties["Dependencies"] = Relation(dependency_ids)
         if estimated_hours is not None:
-            properties["Estimated Hours"] = Number(estimated_hours)
+            properties["Estimated Hours"] = Number(name="Estimated Hours", value=estimated_hours)
         if actual_hours is not None:
-            properties["Actual Hours"] = Number(actual_hours)
+            properties["Actual Hours"] = Number(name="Actual Hours", value=actual_hours)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         # Update page
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         # Update instance
@@ -1336,26 +1366,32 @@ class Idea(BaseEntity):
         from better_notion._api.properties import Title, RichText, Select, Relation
 
         properties: dict[str, Any] = {
-            "Title": Title(title),
-            "Category": Select(category),
-            "Status": Select(status),
-            "Effort Estimate": Select(effort_estimate),
+            "Title": Title(content=title),
+            "Category": Select(name="Category", value=category),
+            "Status": Select(name="Status", value=status),
+            "Effort Estimate": Select(name="Effort Estimate", value=effort_estimate),
         }
 
         if description:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if proposed_solution:
-            properties["Proposed Solution"] = RichText(proposed_solution)
+            properties["Proposed Solution"] = RichText(name="Proposed Solution", content=proposed_solution)
         if benefits:
-            properties["Benefits"] = RichText(benefits)
+            properties["Benefits"] = RichText(name="Benefits", content=benefits)
         if context:
-            properties["Context"] = RichText(context)
+            properties["Context"] = RichText(name="Context", content=context)
         if project_id:
             properties["Project"] = Relation([project_id])
 
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
+
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         idea = cls(client, data)
@@ -1384,25 +1420,31 @@ class Idea(BaseEntity):
         properties: dict[str, Any] = {}
 
         if title is not None:
-            properties["Title"] = Title(title)
+            properties["Title"] = Title(content=title)
         if category is not None:
-            properties["Category"] = Select(category)
+            properties["Category"] = Select(name="Category", value=category)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if description is not None:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if proposed_solution is not None:
-            properties["Proposed Solution"] = RichText(proposed_solution)
+            properties["Proposed Solution"] = RichText(name="Proposed Solution", content=proposed_solution)
         if benefits is not None:
-            properties["Benefits"] = RichText(benefits)
+            properties["Benefits"] = RichText(name="Benefits", content=benefits)
         if effort_estimate is not None:
-            properties["Effort Estimate"] = Select(effort_estimate)
+            properties["Effort Estimate"] = Select(name="Effort Estimate", value=effort_estimate)
         if context is not None:
-            properties["Context"] = RichText(context)
+            properties["Context"] = RichText(name="Context", content=context)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         self._data = data
@@ -1712,25 +1754,31 @@ class WorkIssue(BaseEntity):
         from better_notion._api.properties import Title, RichText, Select, Relation
 
         properties: dict[str, Any] = {
-            "Title": Title(title),
+            "Title": Title(content=title),
             "Project": Relation([project_id]),
-            "Type": Select(type),
-            "Severity": Select(severity),
-            "Status": Select(status),
+            "Type": Select(name="Type", value=type),
+            "Severity": Select(name="Severity", value=severity),
+            "Status": Select(name="Status", value=status),
         }
 
         if task_id:
             properties["Task"] = Relation([task_id])
         if description:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if context:
-            properties["Context"] = RichText(context)
+            properties["Context"] = RichText(name="Context", content=context)
         if proposed_solution:
-            properties["Proposed Solution"] = RichText(proposed_solution)
+            properties["Proposed Solution"] = RichText(name="Proposed Solution", content=proposed_solution)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         issue = cls(client, data)
@@ -1758,23 +1806,29 @@ class WorkIssue(BaseEntity):
         properties: dict[str, Any] = {}
 
         if title is not None:
-            properties["Title"] = Title(title)
+            properties["Title"] = Title(content=title)
         if type is not None:
-            properties["Type"] = Select(type)
+            properties["Type"] = Select(name="Type", value=type)
         if severity is not None:
-            properties["Severity"] = Select(severity)
+            properties["Severity"] = Select(name="Severity", value=severity)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if description is not None:
-            properties["Description"] = RichText(description)
+            properties["Description"] = RichText(name="Description", content=description)
         if context is not None:
-            properties["Context"] = RichText(context)
+            properties["Context"] = RichText(name="Context", content=context)
         if proposed_solution is not None:
-            properties["Proposed Solution"] = RichText(proposed_solution)
+            properties["Proposed Solution"] = RichText(name="Proposed Solution", content=proposed_solution)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         self._data = data
@@ -2062,18 +2116,24 @@ class Incident(BaseEntity):
         from better_notion._api.properties import Title, Date, Select, Relation
 
         properties: dict[str, Any] = {
-            "Title": Title(title),
+            "Title": Title(content=title),
             "Project": Relation([project_id]),
             "Affected Version": Relation([affected_version_id]),
-            "Severity": Select(severity),
-            "Type": Select(type),
-            "Status": Select(status),
-            "Discovery Date": Date(discovery_date or datetime.now().isoformat()),
+            "Severity": Select(name="Severity", value=severity),
+            "Type": Select(name="Type", value=type),
+            "Status": Select(name="Status", value=status),
+            "Discovery Date": Date(name="Discovery Date", value=discovery_date or datetime.now().isoformat()),
+        }
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
         }
 
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         incident = cls(client, data)
@@ -2099,19 +2159,25 @@ class Incident(BaseEntity):
         properties: dict[str, Any] = {}
 
         if title is not None:
-            properties["Title"] = Title(title)
+            properties["Title"] = Title(content=title)
         if severity is not None:
-            properties["Severity"] = Select(severity)
+            properties["Severity"] = Select(name="Severity", value=severity)
         if status is not None:
-            properties["Status"] = Select(status)
+            properties["Status"] = Select(name="Status", value=status)
         if root_cause is not None:
-            properties["Root Cause"] = RichText(root_cause)
+            properties["Root Cause"] = RichText(name="Root Cause", content=root_cause)
         if resolved_date is not None:
-            properties["Resolved Date"] = Date(resolved_date)
+            properties["Resolved Date"] = Date(name="Resolved Date", value=resolved_date)
+
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
 
         data = await self._client._api.pages.update(
             page_id=self.id,
-            properties=properties,
+            properties=serialized_properties,
         )
 
         self._data = data
@@ -2162,8 +2228,8 @@ class Incident(BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Fix Task": Relation([task_id]),
-                "Status": Select("Fix in Progress"),
+                "Fix Task": Relation([task_id]).to_dict(),
+                "Status": Select(name="Status", value="Fix in Progress").to_dict(),
             },
         )
 
