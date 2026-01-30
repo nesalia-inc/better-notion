@@ -882,7 +882,13 @@ class AgentsPlugin(CombinedPluginInterface):
             priority: str = typer.Option("Medium", "--priority"),
             estimated_hours: float = typer.Option(0, "--estimated-hours"),
         ):
-            typer.echo(agents_cli.tasks_create(title, version_id, type_, priority, estimated_hours))
+            typer.echo(agents_cli.tasks_create(
+                title=title,
+                version_id=version_id,
+                task_type=type_,
+                priority=priority,
+                estimated_hours=int(estimated_hours) if estimated_hours else None,
+            ))
 
         @tasks_app.command("next")
         def tasks_next_cmd(project_id: str = typer.Option(None, "--project-id", "-p")):
