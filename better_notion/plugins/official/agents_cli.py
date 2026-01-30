@@ -280,12 +280,12 @@ def projects_get(project_id: str) -> str:
 def projects_create(
     name: str,
     organization_id: str,
-    slug: Optional[str] = typer.Option(None, "--slug", "-s", help="URL-safe identifier"),
-    description: Optional[str] = typer.Option(None, "--description", "-d", help="Project description"),
-    repository: Optional[str] = typer.Option(None, "--repository", "-r", help="Git repository URL"),
-    status: str = typer.Option("Active", "--status", help="Project status"),
-    tech_stack: Optional[str] = typer.Option(None, "--tech-stack", "-t", help="Comma-separated tech stack"),
-    role: str = typer.Option("Developer", "--role", help="Project role"),
+    slug: Optional[str] = None,
+    description: Optional[str] = None,
+    repository: Optional[str] = None,
+    status: str = "Active",
+    tech_stack: Optional[str] = None,
+    role: str = "Developer",
 ) -> str:
     """
     Create a new project.
@@ -427,10 +427,10 @@ def versions_get(version_id: str) -> str:
 def versions_create(
     name: str,
     project_id: str,
-    status: str = typer.Option("Planning", "--status", help="Version status"),
-    version_type: str = typer.Option("Minor", "--type", help="Version type"),
-    branch_name: Optional[str] = typer.Option(None, "--branch", "-b", help="Git branch name"),
-    progress: int = typer.Option(0, "--progress", "-p", help="Progress percentage (0-100)"),
+    status: str = "Planning",
+    version_type: str = "Minor",
+    branch_name: Optional[str] = None,
+    progress: int = 0,
 ) -> str:
     """
     Create a new version.
@@ -568,11 +568,11 @@ def tasks_get(task_id: str) -> str:
 def tasks_create(
     title: str,
     version_id: str,
-    status: str = typer.Option("Backlog", "--status", help="Task status"),
-    task_type: str = typer.Option("New Feature", "--type", help="Task type"),
-    priority: str = typer.Option("Medium", "--priority", "-p", help="Task priority"),
-    dependencies: Optional[str] = typer.Option(None, "--dependencies", "-d", help="Comma-separated dependency task IDs"),
-    estimated_hours: Optional[int] = typer.Option(None, "--estimate", "-e", help="Estimated hours"),
+    status: str = "Backlog",
+    task_type: str = "New Feature",
+    priority: str = "Medium",
+    dependencies: Optional[str] = None,
+    estimated_hours: Optional[int] = None,
 ) -> str:
     """
     Create a new task.
