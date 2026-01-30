@@ -12,15 +12,82 @@ with caching support through the plugin system.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from better_notion._sdk.base.entity import BaseEntity
 
 if TYPE_CHECKING:
     from better_notion._sdk.client import NotionClient
+    from better_notion._sdk.models.block import Block
+    from better_notion._sdk.models.database import Database
+    from better_notion._sdk.models.page import Page
 
 
-class Organization(BaseEntity):
+class DatabasePageEntityMixin:
+    """Mixin providing BaseEntity abstract method implementations for database pages.
+
+    This mixin provides parent() and children() implementations for entities
+    that are pages in databases (like Organization, Project, etc.).
+    """
+
+    async def parent(self) -> "Database | Page | None":
+        """Get parent object (database for entity pages).
+
+        Returns:
+            Parent Database or Page or None
+        """
+        from better_notion._sdk.models.database import Database
+
+        # Get parent from data
+        parent_data = self._data.get("parent")
+        if not parent_data:
+            return None
+
+        # Check cache
+        cached = self._cache_get("parent")
+        if cached:
+            return cached
+
+        # Database parent
+        if parent_data.get("type") == "database_id":
+            db_id = parent_data.get("database_id")
+            parent = await Database.get(db_id, client=self._client)
+            self._cache_set("parent", parent)
+            return parent
+
+        # Page parent
+        if parent_data.get("type") == "page_id":
+            from better_notion._sdk.models.page import Page
+            page_id = parent_data.get("page_id")
+            parent = await Page.get(page_id, client=self._client)
+            self._cache_set("parent", parent)
+            return parent
+
+        return None
+
+    async def children(self) -> AsyncIterator["Block"]:
+        """Iterate over child blocks.
+
+        Yields:
+            Block objects that are direct children
+        """
+        from better_notion._api.utils.pagination import AsyncPaginatedIterator
+        from better_notion._sdk.models.block import Block
+
+        async def _get_blocks(offset: str | None = None) -> dict[str, Any]:
+            return await self._client._request(
+                "GET",
+                f"/blocks/{self.id}/children",
+                params={"start_cursor": offset} if offset else None
+            )
+
+        iterator = AsyncPaginatedIterator(_get_blocks, lambda data: data.get("results", []))
+
+        async for block_data in iterator:
+            yield Block(self._client, block_data)
+
+
+class Organization(DatabasePageEntityMixin, BaseEntity):
     """
     Organization entity representing a company or team.
 
@@ -348,7 +415,7 @@ class Organization(BaseEntity):
         return [Project(self._client, page_data) for page_data in response.get("results", [])]
 
 
-class Project(BaseEntity):
+class Project(DatabasePageEntityMixin, BaseEntity):
     """
     Project entity representing a software project.
 
@@ -634,7 +701,7 @@ class Project(BaseEntity):
         return [Version(self._client, page_data) for page_data in response.get("results", [])]
 
 
-class Version(BaseEntity):
+class Version(DatabasePageEntityMixin, BaseEntity):
     """
     Version entity representing a project version/release.
 
@@ -874,7 +941,7 @@ class Version(BaseEntity):
         return [Task(self._client, page_data) for page_data in response.get("results", [])]
 
 
-class Task(BaseEntity):
+class Task(DatabasePageEntityMixin, BaseEntity):
     """
     Task entity representing a work task.
 
@@ -1190,7 +1257,7 @@ class Task(BaseEntity):
         return True
 
 
-class Idea(BaseEntity):
+class Idea(DatabasePageEntityMixin, BaseEntity):
     """
     Idea entity representing an improvement opportunity discovered during work.
 
@@ -1577,7 +1644,7 @@ class Idea(BaseEntity):
         )
 
 
-class WorkIssue(BaseEntity):
+class WorkIssue(DatabasePageEntityMixin, BaseEntity):
     """
     Work Issue entity representing a development-time problem.
 
@@ -1938,7 +2005,7 @@ class WorkIssue(BaseEntity):
         return idea
 
 
-class Incident(BaseEntity):
+class Incident(DatabasePageEntityMixin, BaseEntity):
     """
     Incident entity representing a production incident.
 
