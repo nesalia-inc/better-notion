@@ -266,6 +266,52 @@ class AgentsPlugin(CombinedPluginInterface):
             result = asyncio.run(_info())
             typer.echo(result)
 
+        @agents_app.command("schema")
+        def agents_schema(
+            format: str = typer.Option(
+                "json",
+                "--format",
+                "-f",
+                help="Output format (json, yaml, pretty)",
+            ),
+        ) -> None:
+            """
+            Get agents plugin schema for AI agents.
+
+            Returns comprehensive documentation about the agents system including:
+            - Concepts (workspace, task, project, version)
+            - Workflows (initialize, create_task, query_tasks)
+            - Commands documentation (init, info)
+            - Best practices and usage examples
+
+            Example:
+                $ notion agents schema
+                $ notion agents schema --format json
+                $ notion agents schema --format yaml
+                $ notion agents schema --format pretty
+            """
+            from better_notion.plugins.official.agents.schema import AGENTS_SCHEMA
+            from better_notion._cli.docs.formatters import (
+                format_schema_json,
+                format_schema_yaml,
+                format_schema_pretty,
+            )
+
+            if format == "json":
+                typer.echo(format_schema_json(AGENTS_SCHEMA))
+            elif format == "yaml":
+                typer.echo(format_schema_yaml(AGENTS_SCHEMA))
+            elif format == "pretty":
+                typer.echo(format_schema_pretty(AGENTS_SCHEMA))
+            else:
+                result = format_error(
+                    "INVALID_FORMAT",
+                    f"Unknown format: {format}. Supported formats: json, yaml, pretty",
+                    retry=False,
+                )
+                typer.echo(result)
+                raise typer.Exit(code=1)
+
         @agents_app.command("init-project")
         def init_project(
             project_id: str = typer.Option(
