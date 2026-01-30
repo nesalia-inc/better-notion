@@ -5,6 +5,15 @@ system that AI agents can consume to understand how to work with the system.
 
 This is the SINGLE SOURCE OF TRUTH for agents documentation. All other
 documentation (CLI help, website, etc.) should be derived from this schema.
+
+IMPORTANT - Command signatures use IDs not names:
+- Organization creation: --name (name), --slug (optional)
+- Project creation: --name, --org-id (requires organization PAGE ID)
+- Version creation: --name, --project-id (requires project PAGE ID)
+- Task creation: --title, --version-id (requires version PAGE ID)
+
+You must get entity IDs from previous command responses before creating
+child entities.
 """
 
 from better_notion._cli.docs.base import (
@@ -45,7 +54,7 @@ ORGANIZATIONS_DB_SCHEMA = {
         }
     },
     "example_creation": {
-        "command": "notion pages create --parent ORG_DB_ID --title 'WareflowX'",
+        "command": "notion agents orgs create --name 'WareflowX' --slug 'wareflowx'",
         "properties": {
             "Name": "WareflowX",
             "Slug": "wareflowx",
@@ -66,7 +75,7 @@ PROJECTS_DB_SCHEMA = {
             "type": "relation",
             "required": True,
             "target": "Organizations",
-            "description": "Organization this project belongs to"
+            "description": "Organization this project belongs to (requires org PAGE ID)"
         },
         "Status": {
             "type": "select",
@@ -81,12 +90,13 @@ PROJECTS_DB_SCHEMA = {
         }
     },
     "example_creation": {
-        "command": "notion pages create --parent PROJECTS_DB_ID --title 'Website Redesign'",
+        "command": "notion agents projects create --name 'Website Redesign' --org-id ORG_PAGE_ID",
         "properties": {
             "Name": "Website Redesign",
             "Organization": "ORG_PAGE_ID",
             "Status": "Active"
-        }
+        },
+        "note": "ORG_PAGE_ID comes from 'notion agents orgs create' response (id field)"
     }
 }
 
@@ -102,13 +112,13 @@ VERSIONS_DB_SCHEMA = {
             "type": "relation",
             "required": True,
             "target": "Projects",
-            "description": "Project this version belongs to"
+            "description": "Project this version belongs to (requires project PAGE ID)"
         },
         "Status": {
             "type": "select",
             "required": False,
-            "options": ["Planned", "In Progress", "Released", "Archived"],
-            "default": "Planned"
+            "options": ["Planning", "In Progress", "Released", "Archived"],
+            "default": "Planning"
         },
         "Release Date": {
             "type": "date",
@@ -117,12 +127,13 @@ VERSIONS_DB_SCHEMA = {
         }
     },
     "example_creation": {
-        "command": "notion pages create --parent VERSIONS_DB_ID --title 'v1.0.0'",
+        "command": "notion agents versions create --name 'v1.0.0' --project-id PROJECT_PAGE_ID",
         "properties": {
             "Name": "v1.0.0",
             "Project": "PROJECT_PAGE_ID",
-            "Status": "Planned"
-        }
+            "Status": "Planning"
+        },
+        "note": "PROJECT_PAGE_ID comes from 'notion agents projects create' response (id field)"
     }
 }
 
@@ -137,20 +148,14 @@ TASKS_DB_SCHEMA = {
         "Status": {
             "type": "select",
             "required": True,
-            "options": ["Todo", "In Progress", "Done", "Cancelled"],
-            "default": "Todo"
+            "options": ["Backlog", "Claimed", "In Progress", "Completed", "Cancelled"],
+            "default": "Backlog"
         },
         "Version": {
             "type": "relation",
             "required": True,
             "target": "Versions",
-            "description": "Version this task belongs to (REQUIRED)"
-        },
-        "Target Version": {
-            "type": "relation",
-            "required": False,
-            "target": "Versions",
-            "description": "Version where task should be implemented"
+            "description": "Version this task belongs to (requires version PAGE ID)"
         },
         "Dependencies": {
             "type": "relation",
@@ -174,13 +179,14 @@ TASKS_DB_SCHEMA = {
         }
     },
     "example_creation": {
-        "command": "notion pages create --parent TASKS_DB_ID --title 'Fix login bug'",
+        "command": "notion agents tasks create --title 'Fix login bug' --version-id VERSION_PAGE_ID",
         "properties": {
             "Name": "Fix login bug",
-            "Status": "Todo",
+            "Status": "Backlog",
             "Version": "VERSION_PAGE_ID",
             "Priority": "High"
-        }
+        },
+        "note": "VERSION_PAGE_ID comes from 'notion agents versions create' response (id field)"
     }
 }
 
@@ -229,23 +235,24 @@ ORGANIZATION_CONCEPT = Concept(
         "database_schema": ORGANIZATIONS_DB_SCHEMA,
         "creation": {
             "command": "notion agents orgs create --name 'Org Name' --slug 'org-slug'",
-            "alternative": "notion pages create --parent ORG_DB_ID --title 'Org Name' --properties '{...}'",
-            "required_properties": ["Name"],
-            "property_types": {
-                "Name": "title (required)",
-                "Slug": "rich_text (optional, URL-friendly identifier)",
-                "Status": "select [Active, Inactive] (optional, default: Active)",
-                "Website": "url (optional)"
+            "returns": "JSON with 'id' field containing organization PAGE ID",
+            "required_flags": {"--name": "Organization name (required)"},
+            "optional_flags": {
+                "--slug": "URL-friendly identifier (optional)",
+                "--description": "Organization description (optional)",
+                "--repository-url": "Git repository URL (optional)",
+                "--status": "Active or Inactive (default: Active)"
             }
         },
         "listing": {
             "command": "notion agents orgs list",
-            "description": "List all organizations in workspace"
+            "description": "List all organizations in workspace",
+            "returns": "JSON array of organizations with id, name, slug, status"
         }
     },
     relationships={
         "Projects": "One-to-many - organization contains multiple projects",
-        "description": "All projects must belong to an organization"
+        "description": "All projects must belong to an organization",
     },
 )
 
@@ -253,21 +260,22 @@ TASK_CONCEPT = Concept(
     name="task",
     description=(
         "A task represents a unit of work that needs to be completed as part of "
-        "a project version. Tasks have states (Todo, In Progress, Done, Cancelled) "
+        "a project version. Tasks have states (Backlog, Claimed, In Progress, Completed) "
         "and can depend on other tasks."
     ),
     properties={
         "required_properties": {
             "Title": "Task name (title property)",
-            "Status": "Current state: Todo, In Progress, Done, Cancelled",
-            "Version": "Relation to Version database (required)",
+            "Status": "Current state: Backlog, Claimed, In Progress, Completed, Cancelled",
+            "Version": "Relation to Version database (requires version PAGE ID)",
         },
         "optional_properties": {
-            "Target Version": "Version where task should be implemented",
-            "Dependencies": "Other tasks this task depends on",
-            "Dependent Tasks": "Tasks that depend on this task",
+            "Type": "Task type: New Feature, Bug Fix, Refactor, Documentation, Testing, Other",
+            "Priority": "Low, Medium, High, Critical",
+            "Dependencies": "Other tasks this task depends on (comma-separated task IDs)",
+            "Estimated Hours": "Time estimate in hours",
         },
-        "workflow": "Todo → In Progress → Done",
+        "workflow": "Backlog → Claimed → In Progress → Completed",
     },
     relationships={
         "Version": "Required - each task must belong to one version",
@@ -284,13 +292,20 @@ PROJECT_CONCEPT = Concept(
     ),
     properties={
         "required_properties": {
-            "Title": "Project name",
-            "Organization": "Relation to organization (required)",
+            "Name": "Project name",
+            "Organization ID": "Organization PAGE ID from 'agents orgs create' response",
+        },
+        "optional_properties": {
+            "Slug": "URL-friendly identifier",
+            "Description": "Project description",
+            "Repository": "Git repository URL",
+            "Tech Stack": "Comma-separated technologies",
+            "Role": "Project role: Developer, Designer, PM, QA, DevOps (default: Developer)",
         },
         "contains": ["Versions", "Tasks", "Ideas", "Work Issues", "Incidents"],
     },
     relationships={
-        "Organization": "Required - each project belongs to one organization",
+        "Organization": "Required - each project belongs to one organization (via org-id)",
         "Versions": "One-to-many - project contains multiple versions",
     },
 )
@@ -303,14 +318,20 @@ VERSION_CONCEPT = Concept(
     ),
     properties={
         "required_properties": {
-            "Title": "Version name (e.g., v1.0.0)",
-            "Project": "Relation to project (required)",
+            "Name": "Version name (e.g., v1.0.0)",
+            "Project ID": "Project PAGE ID from 'agents projects create' response",
+        },
+        "optional_properties": {
+            "Status": "Planning, In Progress, Released, Archived (default: Planning)",
+            "Type": "Major, Minor, Patch, Hotfix (default: Minor)",
+            "Branch": "Git branch name",
+            "Progress": "Progress percentage 0-100 (default: 0)",
         },
         "contains": ["Tasks"],
         "examples": ["v1.0.0", "v1.1.0", "v2.0.0-beta", "sprint-1"],
     },
     relationships={
-        "Project": "Required - each version belongs to one project",
+        "Project": "Required - each version belongs to one project (via project-id)",
         "Tasks": "One-to-many - version contains multiple tasks",
     },
 )
@@ -439,20 +460,20 @@ CREATE_PROJECT_WORKFLOW = Workflow(
             purpose="Get database IDs and verify workspace exists",
         ),
         WorkflowStep(
-            description="List organizations to find target",
+            description="List organizations to get organization ID",
             command="notion agents orgs list",
-            purpose="Identify which organization the project belongs to",
+            purpose="Get the organization PAGE ID from the response",
         ),
         WorkflowStep(
-            description="Create project with organization relation",
-            command="notion agents projects create --org 'Org Name/Slug' --name 'Project Name'",
-            purpose="Create project with Organization relation (required)",
+            description="Create project with organization ID",
+            command="notion agents projects create --name 'Project Name' --org-id ORG_PAGE_ID",
+            purpose="Create project with Organization relation (requires org PAGE ID, not name)",
         ),
     ],
     commands=[
         "agents info --parent-page PAGE_ID",
         "notion agents orgs list",
-        "notion agents projects create --org 'WareflowX' --name 'Website Redesign'",
+        "notion agents projects create --name 'Website Redesign' --org-id ORG_PAGE_ID",
     ],
     prerequisites=["workspace_initialized", "organization_exists"],
     error_recovery={
@@ -461,12 +482,12 @@ CREATE_PROJECT_WORKFLOW = Workflow(
             "solution": "Run 'agents init --parent-page PAGE_ID' first to create workspace",
         },
         "organization_not_found": {
-            "message": "Organization not found",
-            "solution": "Create organization first with 'agents orgs create --name NAME'",
+            "message": "Organization ID not found",
+            "solution": "Run 'agents orgs list' to get valid organization IDs, or create org first with 'agents orgs create --name NAME'",
         },
-        "missing_org_relation": {
-            "message": "Project must have Organization relation",
-            "solution": "Always specify --org flag when creating project",
+        "missing_org_id": {
+            "message": "Project requires --org-id (organization PAGE ID), not name",
+            "solution": "Use --org-id with the ID from 'agents orgs list' response",
         },
     },
 )
@@ -481,20 +502,20 @@ CREATE_VERSION_WORKFLOW = Workflow(
             purpose="Get database IDs and verify workspace exists",
         ),
         WorkflowStep(
-            description="List projects to find target",
+            description="List projects to get project ID",
             command="notion agents projects list",
-            purpose="Identify which project the version belongs to",
+            purpose="Get the project PAGE ID from the response",
         ),
         WorkflowStep(
-            description="Create version with project relation",
-            command="notion agents versions create --project 'Project Name' --name 'v1.0.0'",
-            purpose="Create version with Project relation (required)",
+            description="Create version with project ID",
+            command="notion agents versions create --name 'v1.0.0' --project-id PROJECT_PAGE_ID",
+            purpose="Create version with Project relation (requires project PAGE ID, not name)",
         ),
     ],
     commands=[
         "agents info --parent-page PAGE_ID",
         "notion agents projects list",
-        "notion agents versions create --project 'Website Redesign' --name 'v1.0.0'",
+        "notion agents versions create --name 'v1.0.0' --project-id PROJECT_PAGE_ID",
     ],
     prerequisites=["workspace_initialized", "organization_exists", "project_exists"],
     error_recovery={
@@ -503,12 +524,12 @@ CREATE_VERSION_WORKFLOW = Workflow(
             "solution": "Run 'agents init --parent-page PAGE_ID' first to create workspace",
         },
         "project_not_found": {
-            "message": "Project not found",
-            "solution": "Create project first with 'agents projects create --org ORG --name NAME'",
+            "message": "Project ID not found",
+            "solution": "Run 'agents projects list' to get valid project IDs, or create project first with 'agents projects create --name NAME --org-id ORG_ID'",
         },
-        "missing_project_relation": {
-            "message": "Version must have Project relation",
-            "solution": "Always specify --project flag when creating version",
+        "missing_project_id": {
+            "message": "Version requires --project-id (project PAGE ID), not name",
+            "solution": "Use --project-id with the ID from 'agents projects list' response",
         },
     },
 )
@@ -523,18 +544,20 @@ CREATE_TASK_WORKFLOW = Workflow(
             purpose="Get database IDs and verify workspace exists",
         ),
         WorkflowStep(
-            description="Identify target Version",
-            purpose="Tasks must belong to a Version (required relation)",
+            description="List versions to get version ID",
+            command="notion agents versions list",
+            purpose="Get the version PAGE ID from the response",
         ),
         WorkflowStep(
-            description="Create task page with proper properties",
-            command="notion pages create --parent TASKS_DB_ID --title 'Task Name' --properties '{...}'",
-            purpose="Create task with Status and Version relation",
+            description="Create task with version ID",
+            command="notion agents tasks create --title 'Task Name' --version-id VERSION_PAGE_ID",
+            purpose="Create task with Version relation (requires version PAGE ID, not name)",
         ),
     ],
     commands=[
         "agents info --parent-page PAGE_ID",
-        "notion pages create --parent TASKS_DB_ID --title 'Task' --properties '{\"Status\": \"Todo\", \"Version\": \"VERSION_ID\"}'",
+        "notion agents versions list",
+        "notion agents tasks create --title 'Fix login bug' --version-id VERSION_PAGE_ID",
     ],
     prerequisites=["workspace_initialized"],
     error_recovery={
@@ -542,9 +565,13 @@ CREATE_TASK_WORKFLOW = Workflow(
             "message": "No workspace detected in page",
             "solution": "Run 'agents init' first to create workspace",
         },
-        "missing_version_relation": {
-            "message": "Task must have a Version relation",
-            "solution": "Always specify Version property when creating task",
+        "version_not_found": {
+            "message": "Version ID not found",
+            "solution": "Run 'agents versions list' to get valid version IDs, or create version first with 'agents versions create --name NAME --project-id PROJECT_ID'",
+        },
+        "missing_version_id": {
+            "message": "Task requires --version-id (version PAGE ID), not name",
+            "solution": "Use --version-id with the ID from 'agents versions list' response",
         },
     },
 )
@@ -638,27 +665,30 @@ ORGS_COMMAND = Command(
         "list": {
             "purpose": "List all organizations in workspace",
             "usage": "notion agents orgs list",
-            "output": "Returns list of organizations with their IDs and properties"
+            "output": "Returns JSON array with organization objects containing id, name, slug, status"
+        },
+        "get": {
+            "purpose": "Get organization by ID",
+            "usage": "notion agents orgs get ORG_PAGE_ID",
+            "output": "Returns organization details"
         },
         "create": {
             "purpose": "Create a new organization",
-            "usage": "notion agents orgs create --name NAME [--slug SLUG] [--status STATUS]",
+            "usage": "notion agents orgs create --name NAME [--slug SLUG] [--description DESC] [--repository-url URL] [--status STATUS]",
             "required_flags": {
                 "--name": "Organization name (required)"
             },
             "optional_flags": {
                 "--slug": "URL-friendly identifier (optional)",
+                "--description": "Organization description (optional)",
+                "--repository-url": "Git repository URL (optional)",
                 "--status": "Active or Inactive (default: Active)"
             },
+            "returns": "JSON with 'id' field containing organization PAGE ID (needed for creating projects)",
             "examples": [
                 "notion agents orgs create --name 'WareflowX'",
                 "notion agents orgs create --name 'WareflowX' --slug 'wareflowx' --status 'Active'"
             ]
-        },
-        "info": {
-            "purpose": "Get organization details",
-            "usage": "notion agents orgs info --org ORG_NAME_OR_SLUG",
-            "output": "Returns organization details with projects count"
         }
     }
 )
@@ -669,28 +699,39 @@ PROJECTS_COMMAND = Command(
     purpose="Projects management - belongs to organizations",
     description=(
         "Projects represent software development efforts. "
-        "Every project must belong to an organization."
+        "Every project must belong to an organization (requires org PAGE ID)."
     ),
     subcommands={
         "list": {
             "purpose": "List all projects (optionally filtered by organization)",
-            "usage": "notion agents projects list [--org ORG_NAME]",
-            "output": "Returns list of projects with their organizations"
+            "usage": "notion agents projects list [--org-id ORG_PAGE_ID]",
+            "output": "Returns JSON array with project objects containing id, name, slug, status, organization_id"
+        },
+        "get": {
+            "purpose": "Get project by ID",
+            "usage": "notion agents projects get PROJECT_PAGE_ID",
+            "output": "Returns project details"
         },
         "create": {
             "purpose": "Create a new project in an organization",
-            "usage": "notion agents projects create --org ORG_NAME --name NAME",
+            "usage": "notion agents projects create --name NAME --org-id ORG_PAGE_ID [--slug SLUG] [--description DESC] [--repository REPO] [--tech-stack STACK]",
             "required_flags": {
-                "--org": "Organization name or slug (required)",
-                "--name": "Project name (required)"
+                "--name": "Project name (required)",
+                "--org-id": "Organization PAGE ID (required) - use ID from 'agents orgs list' or 'agents orgs create' response"
             },
+            "optional_flags": {
+                "--slug": "URL-friendly identifier (optional)",
+                "--description": "Project description (optional)",
+                "--repository": "Git repository URL (optional)",
+                "--tech-stack": "Comma-separated tech stack (optional)",
+                "--status": "Active, On Hold, Completed, Archived (default: Active)",
+                "--role": "Developer, Designer, PM, QA, DevOps (default: Developer)"
+            },
+            "returns": "JSON with 'id' field containing project PAGE ID (needed for creating versions)",
             "examples": [
-                "notion agents projects create --org 'WareflowX' --name 'Website Redesign'"
-            ]
-        },
-        "info": {
-            "purpose": "Get project details",
-            "usage": "notion agents projects info --project PROJECT_NAME"
+                "notion agents projects create --name 'Website Redesign' --org-id org_12345"
+            ],
+            "note": "IMPORTANT: Use --org-id with organization PAGE ID, not organization name"
         }
     }
 )
@@ -701,25 +742,37 @@ VERSIONS_COMMAND = Command(
     purpose="Versions management - releases and milestones",
     description=(
         "Versions represent releases or milestones. "
-        "Every version must belong to a project."
+        "Every version must belong to a project (requires project PAGE ID)."
     ),
     subcommands={
         "list": {
             "purpose": "List all versions (optionally filtered by project)",
-            "usage": "notion agents versions list [--project PROJECT_NAME]",
-            "output": "Returns list of versions with their projects"
+            "usage": "notion agents versions list [--project-id PROJECT_PAGE_ID]",
+            "output": "Returns JSON array with version objects containing id, name, status, type, project_id"
+        },
+        "get": {
+            "purpose": "Get version by ID",
+            "usage": "notion agents versions get VERSION_PAGE_ID",
+            "output": "Returns version details"
         },
         "create": {
             "purpose": "Create a new version in a project",
-            "usage": "notion agents versions create --project PROJECT_NAME --name VERSION",
+            "usage": "notion agents versions create --name NAME --project-id PROJECT_PAGE_ID [--type TYPE] [--status STATUS]",
             "required_flags": {
-                "--project": "Project name (required)",
-                "--name": "Version name e.g. v1.0.0 (required)"
+                "--name": "Version name e.g. v1.0.0 (required)",
+                "--project-id": "Project PAGE ID (required) - use ID from 'agents projects list' or 'agents projects create' response"
             },
+            "optional_flags": {
+                "--status": "Planning, In Progress, Released, Archived (default: Planning)",
+                "--type": "Major, Minor, Patch, Hotfix (default: Minor)",
+                "--branch": "Git branch name (optional)",
+                "--progress": "Progress percentage 0-100 (default: 0)"
+            },
+            "returns": "JSON with 'id' field containing version PAGE ID (needed for creating tasks)",
             "examples": [
-                "notion agents versions create --project 'Website Redesign' --name 'v1.0.0'",
-                "notion agents versions create --project 'Website Redesign' --name 'sprint-1'"
-            ]
+                "notion agents versions create --name 'v1.0.0' --project-id proj_12345"
+            ],
+            "note": "IMPORTANT: Use --project-id with project PAGE ID, not project name"
         }
     }
 )
@@ -729,35 +782,67 @@ TASKS_COMMAND = Command(
     name="tasks",
     purpose="Tasks management - units of work in versions",
     description=(
-        "Tasks represent work items. Every task must belong to a version. "
+        "Tasks represent work items. Every task must belong to a version (requires version PAGE ID). "
         "Tasks can have dependencies on other tasks."
     ),
     subcommands={
         "list": {
             "purpose": "List all tasks (optionally filtered by version or status)",
-            "usage": "notion agents tasks list [--version VERSION] [--status STATUS]",
-            "output": "Returns list of tasks with their versions and status"
+            "usage": "notion agents tasks list [--version-id VERSION_PAGE_ID] [--status STATUS]",
+            "output": "Returns JSON array with task objects containing id, title, status, type, priority, version_id"
+        },
+        "get": {
+            "purpose": "Get task by ID",
+            "usage": "notion agents tasks get TASK_PAGE_ID",
+            "output": "Returns task details"
         },
         "create": {
             "purpose": "Create a new task in a version",
-            "usage": "notion agents tasks create --version VERSION_NAME --name TASK_NAME",
+            "usage": "notion agents tasks create --title TITLE --version-id VERSION_PAGE_ID [--type TYPE] [--priority PRIORITY] [--dependencies DEP_IDS]",
             "required_flags": {
-                "--version": "Version name (required)",
-                "--name": "Task name (required)"
+                "--title": "Task name (required)",
+                "--version-id": "Version PAGE ID (required) - use ID from 'agents versions list' or 'agents versions create' response"
             },
             "optional_flags": {
-                "--status": "Todo, In Progress, Done (default: Todo)",
-                "--priority": "Low, Medium, High, Critical (default: Medium)"
+                "--status": "Backlog, Claimed, In Progress, Completed, Cancelled (default: Backlog)",
+                "--type": "New Feature, Bug Fix, Refactor, Documentation, Testing, Other (default: New Feature)",
+                "--priority": "Low, Medium, High, Critical (default: Medium)",
+                "--dependencies": "Comma-separated dependency task IDs (optional)",
+                "--estimate": "Estimated hours (optional)"
             },
+            "returns": "JSON with 'id' field containing task PAGE ID",
             "examples": [
-                "notion agents tasks create --version 'v1.0.0' --name 'Fix login bug'",
-                "notion agents tasks create --version 'v1.0.0' --name 'Add feature' --status 'Todo' --priority 'High'"
-            ]
+                "notion agents tasks create --title 'Fix login bug' --version-id ver_12345",
+                "notion agents tasks create --title 'Add feature' --version-id ver_12345 --priority 'High' --type 'New Feature'"
+            ],
+            "note": "IMPORTANT: Use --version-id with version PAGE ID, not version name"
         },
         "next": {
             "purpose": "Find next available task to work on",
-            "usage": "notion agents tasks next [--version VERSION]",
-            "description": "Finds tasks with status 'Todo' and no incomplete dependencies"
+            "usage": "notion agents tasks next [--project-id PROJECT_PAGE_ID]",
+            "description": "Finds tasks with status 'Backlog' or 'Claimed' and no incomplete dependencies",
+            "output": "Returns task object or message if no tasks available"
+        },
+        "claim": {
+            "purpose": "Claim a task (transition to Claimed status)",
+            "usage": "notion agents tasks claim TASK_PAGE_ID",
+            "output": "Returns updated task with agent ID"
+        },
+        "start": {
+            "purpose": "Start working on a task (transition to In Progress)",
+            "usage": "notion agents tasks start TASK_PAGE_ID",
+            "output": "Returns updated task with agent ID",
+            "note": "Will fail if task has incomplete dependencies"
+        },
+        "complete": {
+            "purpose": "Complete a task (transition to Completed)",
+            "usage": "notion agents tasks complete TASK_PAGE_ID [--actual-hours HOURS]",
+            "output": "Returns completed task with actual hours"
+        },
+        "can-start": {
+            "purpose": "Check if a task can start (all dependencies completed)",
+            "usage": "notion agents tasks can-start TASK_PAGE_ID",
+            "output": "Returns boolean and lists incomplete dependencies if any"
         }
     }
 )
@@ -802,11 +887,14 @@ AGENTS_SCHEMA = Schema(
         "Always run 'agents info' before operations to verify workspace state",
         "Use --skip flag to safely check for existing workspaces (prevents duplicates)",
         "Use --reset flag only when you need to recreate workspace (causes data loss)",
+        "IMPORTANT: Child entities require parent PAGE IDs, not names",
+        "Save the 'id' field from create responses - you need it for creating child entities",
+        "Use 'agents orgs/projects/versions list' to get valid entity IDs",
         "Create organization before creating projects",
         "Create project before creating versions",
         "Create version before creating tasks",
-        "Tasks must have a Version relation (required)",
-        "Projects must have an Organization relation (required)",
+        "Tasks must have a Version relation (required via --version-id)",
+        "Projects must have an Organization relation (required via --org-id)",
         "Use 'agents tasks next' to find next available task",
     ],
     examples={
@@ -823,38 +911,70 @@ notion agents init --parent-page PAGE_ID --skip""",
 notion agents init --parent-page PAGE_ID --reset""",
 
         "complete_lifecycle": """# Complete workflow: Org → Project → Version → Task
+# IMPORTANT: Each command returns an ID that the next command needs!
 
-# 1. Create organization
+# 1. Create organization - SAVE THE ID from response!
 notion agents orgs create --name "WareflowX" --slug "wareflowx"
+# Response: {id: "org_abc123", "name": "WareflowX", ...}
+# Save: ORG_ID="org_abc123"
 
-# 2. Create project in organization
-notion agents projects create --org "WareflowX" --name "Website Redesign"
+# 2. Create project - requires org PAGE ID, not name!
+notion agents projects create --name "Website Redesign" --org-id "org_abc123"
+# Response: {id: "proj_def456", "name": "Website Redesign", ...}
+# Save: PROJECT_ID="proj_def456"
 
-# 3. Create version in project
-notion agents versions create --project "Website Redesign" --name "v1.0.0"
+# 3. Create version - requires project PAGE ID, not name!
+notion agents versions create --name "v1.0.0" --project-id "proj_def456"
+# Response: {id: "ver_ghi789", "name": "v1.0.0", ...}
+# Save: VERSION_ID="ver_ghi789"
 
-# 4. Create task in version
-notion agents tasks create --version "v1.0.0" --name "Fix login bug" --priority "High".""",
+# 4. Create task - requires version PAGE ID, not name!
+notion agents tasks create --title "Fix login bug" --version-id "ver_ghi789" --priority "High\"""",
 
-        "query_and_create": """# List existing organizations
+        "list_and_filter": """# List all organizations
 notion agents orgs list
 
-# List projects in organization
-notion agents projects list --org "WareflowX"
+# List all projects (unfiltered)
+notion agents projects list
 
-# List tasks in version
-notion agents tasks list --version "v1.0.0"
+# List all versions (unfiltered)
+notion agents versions list
+
+# List tasks in a specific version
+notion agents tasks list --version-id "ver_ghi789"
 
 # Find next task to work on
-notion agents tasks next --version "v1.0.0\"""",
+notion agents tasks next""",
 
-        "create_task": """# Create task using agents command (recommended)
-notion agents tasks create --version "v1.0.0" --name "Fix login bug"
+        "task_workflow": """# Find a task
+notion agents tasks next
 
-# Alternative: Create task directly with pages command
-notion pages create \\
-  --parent TASKS_DB_ID \\
-  --title "Fix login bug" \\
-  --properties '{"Status": "Todo", "Version": "VERSION_ID", "Priority": "High"}'""",
+# Claim a task (uses task ID from list or next)
+notion agents tasks claim task_xyz123
+
+# Start working on task (fails if dependencies not complete)
+notion agents tasks start task_xyz123
+
+# Complete task
+notion agents tasks complete task_xyz123 --actual-hours 3.5""",
+
+        "get_entity_by_id": """# Get organization details
+notion agents orgs get org_abc123
+
+# Get project details
+notion agents projects get proj_def456
+
+# Get version details
+notion agents versions get ver_ghi789
+
+# Get task details
+notion agents tasks get task_xyz123""",
+
+        "check_dependencies": """# Check if task can start (all deps complete?)
+notion agents tasks can-start task_xyz123
+# Returns: {can_start: false, incomplete_dependencies: [...]}
+
+# List tasks with dependencies
+notion agents tasks list --version-id ver_ghi789""",
     },
 )
