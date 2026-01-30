@@ -835,10 +835,16 @@ class Version(DatabasePageEntityMixin, BaseEntity):
         if branch_name:
             properties["Branch Name"] = RichText(name="Branch Name", content=branch_name)
 
+        # Convert Property objects to dicts for API
+        serialized_properties = {
+            key: prop.to_dict() if hasattr(prop, 'to_dict') else prop
+            for key, prop in properties.items()
+        }
+
         # Create page
         data = await client._api.pages.create(
             parent={"database_id": database_id},
-            properties=properties,
+            properties=serialized_properties,
         )
 
         version = cls(client, data)
