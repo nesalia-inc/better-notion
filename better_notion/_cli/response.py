@@ -21,6 +21,7 @@ def format_response(
     data: Any = None,
     error: dict[str, Any] | None = None,
     rate_limit: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> str:
     """
     Format CLI response as JSON.
@@ -33,6 +34,7 @@ def format_response(
         data: Response data (for successful operations)
         error: Error information (for failed operations)
         rate_limit: Rate limit information from API response
+        meta: Additional metadata for AI agents (context, next_steps, etc.)
 
     Returns:
         JSON-formatted response string
@@ -50,6 +52,28 @@ def format_response(
           }
         }
 
+        Response with AI metadata:
+        >>> format_response(
+        ...     success=True,
+        ...     data={"workspace_id": "abc123"},
+        ...     meta={
+        ...         "command": "agents init",
+        ...         "context": {"state": "initialized"},
+        ...         "next_steps": [{"command": "agents info"}]
+        ...     }
+        ... )
+        {
+          "success": true,
+          "data": {"workspace_id": "abc123"},
+          "meta": {
+            "version": "0.4.0",
+            "timestamp": "2025-01-26T10:00:00Z",
+            "command": "agents init",
+            "context": {"state": "initialized"},
+            "next_steps": [{"command": "agents info"}]
+          }
+        }
+
         Error response:
         >>> format_response(
         ...     success=False,
@@ -58,11 +82,7 @@ def format_response(
         {
           "success": false,
           "error": {"code": "NOT_FOUND", "message": "Page not found", "retry": false},
-          "meta": {
-            "version": "0.4.0",
-            "timestamp": "2025-01-26T10:00:00Z",
-            "rate_limit": {"remaining": null, "reset_at": null}
-          }
+          "meta": {...}
         }
     """
     response: dict[str, Any] = {
@@ -81,6 +101,10 @@ def format_response(
         if error is not None:
             response["error"] = error
 
+    # Add custom metadata for AI agents
+    if meta:
+        response["meta"].update(meta)
+
     return json.dumps(response, indent=2)
 
 
@@ -90,6 +114,7 @@ def format_error(
     *,
     retry: bool = False,
     details: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
 ) -> str:
     """
     Format an error response.
@@ -101,6 +126,7 @@ def format_error(
         message: Human-readable error message
         retry: Whether the operation should be retried
         details: Additional error details
+        meta: Additional metadata for AI agents (recovery strategies, etc.)
 
     Returns:
         JSON-formatted error response string
@@ -116,6 +142,20 @@ def format_error(
           },
           "meta": {...}
         }
+
+        With error recovery metadata:
+        >>> format_error(
+        ...     "WORKSPACE_EXISTS",
+        ...     "Workspace already initialized",
+        ...     meta={
+        ...         "error_recovery": {
+        ...             "solutions": [
+        ...                 {"flag": "--skip", "action": "use_existing"},
+        ...                 {"flag": "--reset", "action": "recreate"}
+        ...             ]
+        ...         }
+        ...     }
+        ... )
     """
     error_info: dict[str, Any] = {
         "code": code,
@@ -126,10 +166,15 @@ def format_error(
     if details:
         error_info["details"] = details
 
-    return format_response(success=False, error=error_info)
+    return format_response(success=False, error=error_info, meta=meta)
 
 
-def format_success(data: Any, *, rate_limit: dict[str, Any] | None = None) -> str:
+def format_success(
+    data: Any,
+    *,
+    rate_limit: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> str:
     """
     Format a success response.
 
@@ -138,6 +183,7 @@ def format_success(data: Any, *, rate_limit: dict[str, Any] | None = None) -> st
     Args:
         data: Response data
         rate_limit: Rate limit information from API response
+        meta: Additional metadata for AI agents (context, next_steps, etc.)
 
     Returns:
         JSON-formatted success response string
@@ -149,5 +195,15 @@ def format_success(data: Any, *, rate_limit: dict[str, Any] | None = None) -> st
           "data": {"id": "page_123", "title": "My Page"},
           "meta": {...}
         }
+
+        With contextual metadata:
+        >>> format_success(
+        ...     {"workspace_id": "abc123"},
+        ...     meta={
+        ...         "command": "agents init",
+        ...         "context": {"state": "initialized"},
+        ...         "next_steps": [{"command": "agents info"}]
+        ...     }
+        ... )
     """
-    return format_response(success=True, data=data, rate_limit=rate_limit)
+    return format_response(success=True, data=data, rate_limit=rate_limit, meta=meta)
