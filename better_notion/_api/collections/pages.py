@@ -74,7 +74,22 @@ class PageCollection:
         )
         return data.get("results", [])
 
-    def iterate(self, database_id: str, **kwargs: Any) -> AsyncPaginatedIterator[dict[str, Any]]:
+    async def update(self, page_id: str, **kwargs: Any) -> dict[str, Any]:
+        """Update a page.
+
+        Args:
+            page_id: The page ID.
+            **kwargs: Page properties to update.
+
+        Returns:
+            Raw page data dict from Notion API.
+
+        Raises:
+            NotFoundError: If the page does not exist.
+            BadRequestError: If the request is invalid.
+        """
+        return await self._api._request("PATCH", f"/pages/{page_id}", json=kwargs)
+
         """Iterate over all pages in a database with automatic pagination.
 
         Args:
