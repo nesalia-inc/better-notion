@@ -686,7 +686,7 @@ class WorkIssueManager:
         """
         from better_notion.plugins.official.agents_sdk.models import WorkIssue
 
-        database_id = self._get_database_id("Work Issues")
+        database_id = self._get_database_id("Work_issues")
         if not database_id:
             return []
 
@@ -787,7 +787,7 @@ class WorkIssueManager:
         """
         from better_notion.plugins.official.agents_sdk.models import WorkIssue
 
-        database_id = self._get_database_id("Work Issues")
+        database_id = self._get_database_id("Work_issues")
         if not database_id:
             raise ValueError("Work Issues database not configured")
 

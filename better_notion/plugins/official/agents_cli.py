@@ -1305,7 +1305,7 @@ def work_issues_create(
 
             # Get workspace config
             workspace_config = get_workspace_config()
-            database_id = workspace_config.get("Work Issues")
+            database_id = workspace_config.get("Work_issues")
 
             if not database_id:
                 return format_error("NO_DATABASE", "Work Issues database not configured", retry=False)
