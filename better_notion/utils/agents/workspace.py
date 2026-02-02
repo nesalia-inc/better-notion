@@ -141,6 +141,9 @@ class WorkspaceInitializer:
                 logger.error(error_msg)
                 raise Exception(error_msg) from e
 
+        # Update cross-database relations that require both databases to exist
+        await self._update_cross_database_relations()
+
         # Save workspace metadata
         self.save_database_ids()
 
@@ -340,13 +343,95 @@ class WorkspaceInitializer:
         Note: The database was created with placeholder relations.
         This method updates them to point to themselves.
         """
-        # Get the database
+        # Get the current database schema
         db = await self._client.databases.get(database_id)
 
-        # Update Dependencies and Dependent Tasks to point to self
-        # Note: This would require updating the database schema
-        # via the Notion API, which may not support all updates
-        pass
+        # Update the Dependencies relation to point to itself
+        schema = db.schema
+        if "Dependencies" in schema:
+            schema["Dependencies"]["relation"]["database_id"] = database_id
+
+        # Update the database schema via API
+        await self._client._api._request(
+            "PATCH",
+            f"/databases/{database_id}",
+            json={"properties": schema}
+        )
+
+        logger.info(f"Updated self-referential relations for Tasks database {database_id}")
+
+    async def _update_cross_database_relations(self) -> None:
+        """Update cross-database relations after all databases are created.
+
+        This updates:
+        - Tasks: Related Work Issue -> Work Issues
+        - Work Issues: Blocking Tasks -> Tasks
+        - Work Issues: Caused Incidents -> Incidents
+        - Incidents: Root Cause Work Issue -> Work Issues
+        """
+        if "tasks" in self._database_ids:
+            await self._update_relation(
+                self._database_ids["tasks"],
+                "Related Work Issue",
+                self._database_ids.get("work_issues")
+            )
+
+        if "work_issues" in self._database_ids:
+            await self._update_relation(
+                self._database_ids["work_issues"],
+                "Blocking Tasks",
+                self._database_ids.get("tasks")
+            )
+            await self._update_relation(
+                self._database_ids["work_issues"],
+                "Caused Incidents",
+                self._database_ids.get("incidents")
+            )
+
+        if "incidents" in self._database_ids:
+            await self._update_relation(
+                self._database_ids["incidents"],
+                "Root Cause Work Issue",
+                self._database_ids.get("work_issues")
+            )
+
+        logger.info("Updated all cross-database relations")
+
+    async def _update_relation(
+        self,
+        database_id: str,
+        property_name: str,
+        target_database_id: Optional[str],
+    ) -> None:
+        """Update a relation property to point to the target database.
+
+        Args:
+            database_id: Database to update
+            property_name: Name of the relation property
+            target_database_id: Target database ID (if None, skip update)
+        """
+        if not target_database_id:
+            logger.warning(f"Skipping {property_name} update: target database not found")
+            return
+
+        # Get the current database schema
+        db = await self._client.databases.get(database_id)
+        schema = db.schema
+
+        # Update the relation property
+        if property_name in schema:
+            schema[property_name]["relation"]["database_id"] = target_database_id
+
+            # Update the database schema via API
+            await self._client._api._request(
+                "PATCH",
+                f"/databases/{database_id}",
+                json={"properties": schema}
+            )
+
+            logger.info(f"Updated {property_name} relation to {target_database_id}")
+        else:
+            logger.warning(f"Property {property_name} not found in database {database_id}")
 
     def save_database_ids(self, path: Optional[Path] = None) -> None:
         """Save workspace metadata (database IDs and workspace info) to config file.

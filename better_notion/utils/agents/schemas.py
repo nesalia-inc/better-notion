@@ -458,8 +458,10 @@ class TaskSchema:
                     SelectOption.option("Low", "blue"),
                 ],
             ),
-            # Note: Self-referential relations (Dependencies, Dependent Tasks) removed because
-            # they can't be created during initial database creation (need the database's own ID)
+            # Dependencies: Self-referential relation (will be updated after database creation)
+            "Dependencies": PropertyBuilder.relation("Dependencies", dual_property=False),
+            # Related Work Issue: Relation to Work Issues (will be updated after database creation)
+            "Related Work Issue": PropertyBuilder.relation("Related Work Issue", dual_property=False),
             "Estimated Hours": PropertyBuilder.number("Estimated Hours"),
             "Actual Hours": PropertyBuilder.number("Actual Hours"),
             "Assignee": PropertyBuilder.people("Assignee"),
@@ -557,6 +559,10 @@ class WorkIssueSchema:
             "Proposed Solution": PropertyBuilder.text("Proposed Solution"),
             "Related Idea": PropertyBuilder.relation("Related Idea", dual_property=False),
             "Fix Tasks": PropertyBuilder.relation("Fix Tasks", dual_property=False),
+            # Blocking Tasks: Tasks blocked by this work issue (will be updated after database creation)
+            "Blocking Tasks": PropertyBuilder.relation("Blocking Tasks", dual_property=False),
+            # Caused Incidents: Incidents caused by this work issue (will be updated after database creation)
+            "Caused Incidents": PropertyBuilder.relation("Caused Incidents", dual_property=False),
         }
 
 
@@ -599,6 +605,8 @@ class IncidentSchema:
                 ],
             ),
             "Fix Task": PropertyBuilder.relation("Fix Task", dual_property=False),
+            # Root Cause Work Issue: Relation to Work Issues (will be updated after database creation)
+            "Root Cause Work Issue": PropertyBuilder.relation("Root Cause Work Issue", dual_property=False),
             "Root Cause": PropertyBuilder.text("Root Cause"),
             "Detected Date": PropertyBuilder.date("Detected Date"),
             "Resolved Date": PropertyBuilder.date("Resolved Date"),
