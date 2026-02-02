@@ -474,18 +474,19 @@ class WorkspaceInitializer:
         db = await self._client.databases.get(database_id)
         schema = db.schema
 
-        # Add or update the relation property
-        # Some properties (like Dependencies, Related Work Issue) are added AFTER
-        # database creation, so they may not exist in the initial schema
+        # Prepare the new property schema
+        new_property_schema = None
+
         if property_name in schema:
             # Property exists, just update the database_id
-            schema[property_name]["relation"]["database_id"] = target_database_id
+            new_property_schema = schema[property_name]
+            new_property_schema["relation"]["database_id"] = target_database_id
         else:
-            # Property doesn't exist, ADD it
+            # Property doesn't exist, CREATE it
             # This handles cases where the property couldn't be in the initial schema
             if property_name == "Dependencies":
                 # Self-referential relation
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": database_id,  # Self-reference
                         "type": "dual_property",
@@ -497,7 +498,7 @@ class WorkspaceInitializer:
                 }
             elif property_name == "Related Work Issue":
                 # Relation to Work Issues database
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": target_database_id,
                         "type": "dual_property",
@@ -509,7 +510,7 @@ class WorkspaceInitializer:
                 }
             elif property_name == "Blocking Tasks":
                 # Relation from Work Issues to Tasks
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": target_database_id,
                         "type": "dual_property",
@@ -521,7 +522,7 @@ class WorkspaceInitializer:
                 }
             elif property_name == "Caused Incidents":
                 # Relation from Work Issues to Incidents
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": target_database_id,
                         "type": "dual_property",
@@ -533,7 +534,7 @@ class WorkspaceInitializer:
                 }
             elif property_name == "Root Cause Work Issue":
                 # Relation from Incidents to Work Issues
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": target_database_id,
                         "type": "dual_property",
@@ -545,21 +546,37 @@ class WorkspaceInitializer:
                 }
             else:
                 # Generic relation
-                schema[property_name] = {
+                new_property_schema = {
                     "relation": {
                         "database_id": target_database_id,
                         "dual_property": {}
                     }
                 }
 
-        # Update the database schema via API
-        await self._client._api._request(
-            "PATCH",
-            f"/databases/{database_id}",
-            json={"properties": schema}
-        )
+        # Send ONLY the new/updated property, not the entire schema
+        # This is the key fix - Notion API expects only the changed properties
+        update_payload = {"properties": {property_name: new_property_schema}}
 
-        logger.info(f"Added/Updated {property_name} relation to {target_database_id}")
+        # Update the database schema via API
+        try:
+            await self._client._api._request(
+                "PATCH",
+                f"/databases/{database_id}",
+                json=update_payload
+            )
+            logger.info(f"Added/Updated {property_name} relation to {target_database_id}")
+        except Exception as e:
+            # Debug: Print schema details to see what's wrong
+            import sys
+            print(f"\n{'='*60}", file=sys.stderr)
+            print(f"❌ FAILED TO ADD PROPERTY: {property_name}", file=sys.stderr)
+            print(f"Database ID: {database_id}", file=sys.stderr)
+            print(f"Target: {target_database_id}", file=sys.stderr)
+            print(f"Payload being sent:", file=sys.stderr)
+            import json
+            print(json.dumps(update_payload, indent=2), file=sys.stderr)
+            print(f"{'='*60}\n", file=sys.stderr)
+            raise e
 
     def save_database_ids(self, path: Optional[Path] = None) -> None:
         """Save workspace metadata (database IDs and workspace info) to config file.
