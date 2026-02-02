@@ -423,8 +423,10 @@ class TaskSchema:
     def get_schema() -> Dict[str, Dict[str, Any]]:
         """Return Notion database schema for Tasks.
 
-        Note: "Dependencies" self-referential relation is NOT included here.
-        It will be added after the database is created via database.update().
+        Note: The following properties are NOT included here and will be added
+        after database creation via database.update():
+        - "Dependencies": Self-referential relation (requires database's own ID)
+        - "Related Work Issue": Relation to Work Issues (Work Issues created after Tasks)
         """
         return {
             "Title": PropertyBuilder.title("Title"),
@@ -462,8 +464,6 @@ class TaskSchema:
                     SelectOption.option("Low", "blue"),
                 ],
             ),
-            # Related Work Issue: Relation to Work Issues (will be updated after database creation)
-            "Related Work Issue": PropertyBuilder.relation("Related Work Issue", dual_property=False),
             "Estimated Hours": PropertyBuilder.number("Estimated Hours"),
             "Actual Hours": PropertyBuilder.number("Actual Hours"),
             "Assignee": PropertyBuilder.people("Assignee"),

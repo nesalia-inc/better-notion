@@ -169,6 +169,14 @@ class WorkspaceInitializer:
         # Update cross-database relations that require both databases to exist
         await self._update_cross_database_relations()
 
+        # Add self-referential Dependencies relation to Tasks database
+        if "tasks" in self._database_ids:
+            await self._update_relation(
+                self._database_ids["tasks"],
+                "Dependencies",
+                self._database_ids["tasks"]  # Self-reference
+            )
+
         # Save workspace metadata
         self.save_database_ids()
 
@@ -249,7 +257,7 @@ class WorkspaceInitializer:
         )
 
     async def _create_tasks_db(self, parent: Page) -> None:
-        """Create Tasks database with relations to Versions (self-referencing for dependencies)."""
+        """Create Tasks database with relations to Versions."""
         schema = TaskSchema.get_schema()
 
         # Update relations with Versions database ID
@@ -259,8 +267,6 @@ class WorkspaceInitializer:
                 "versions"
             ]
 
-        # Tasks reference themselves for dependencies
-        # Will be updated after database creation
         db = await self._client.databases.create(
             parent=parent,
             title="Tasks",
@@ -268,9 +274,6 @@ class WorkspaceInitializer:
         )
 
         self._database_ids["tasks"] = db.id
-
-        # Update self-referential relations
-        await self._update_self_relations(db.id)
 
         # Update Versions database with reverse relation
         await self._add_reverse_relation(
@@ -397,42 +400,6 @@ class WorkspaceInitializer:
             logger.warning(f"Failed to delete database {database_id}: {str(e)}")
             # Continue with other deletions even if this one fails
 
-    async def _update_self_relations(self, database_id: str) -> None:
-        """Add self-referential Dependencies relation to Tasks database.
-
-        The Dependencies property cannot be included in the initial schema
-        because it requires the database's own ID. This method adds it
-        after the database is created.
-
-        Args:
-            database_id: ID of the Tasks database
-        """
-        # Get the current database schema
-        db = await self._client.databases.get(database_id)
-        schema = db.schema
-
-        # Add the Dependencies self-referential relation
-        # This creates a relation from Tasks to Tasks itself
-        schema["Dependencies"] = {
-            "relation": {
-                "database_id": database_id,  # Self-reference
-                "type": "dual_property",
-                "dual_property": {
-                    "synced_property_name": "Dependent Tasks",
-                    "synced_property_type": "relation"
-                }
-            }
-        }
-
-        # Update the database schema via API
-        await self._client._api._request(
-            "PATCH",
-            f"/databases/{database_id}",
-            json={"properties": schema}
-        )
-
-        logger.info(f"Added Dependencies self-referential relation to Tasks database {database_id}")
-
     async def _update_cross_database_relations(self) -> None:
         """Update cross-database relations after all databases are created.
 
@@ -476,7 +443,7 @@ class WorkspaceInitializer:
         property_name: str,
         target_database_id: Optional[str],
     ) -> None:
-        """Update a relation property to point to the target database.
+        """Add or update a relation property to point to the target database.
 
         Args:
             database_id: Database to update
@@ -491,20 +458,56 @@ class WorkspaceInitializer:
         db = await self._client.databases.get(database_id)
         schema = db.schema
 
-        # Update the relation property
+        # Add or update the relation property
+        # Some properties (like Dependencies, Related Work Issue) are added AFTER
+        # database creation, so they may not exist in the initial schema
         if property_name in schema:
+            # Property exists, just update the database_id
             schema[property_name]["relation"]["database_id"] = target_database_id
-
-            # Update the database schema via API
-            await self._client._api._request(
-                "PATCH",
-                f"/databases/{database_id}",
-                json={"properties": schema}
-            )
-
-            logger.info(f"Updated {property_name} relation to {target_database_id}")
         else:
-            logger.warning(f"Property {property_name} not found in database {database_id}")
+            # Property doesn't exist, ADD it
+            # This handles cases where the property couldn't be in the initial schema
+            if property_name == "Dependencies":
+                # Self-referential relation
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": database_id,  # Self-reference
+                        "type": "dual_property",
+                        "dual_property": {
+                            "synced_property_name": "Dependent Tasks",
+                            "synced_property_type": "relation"
+                        }
+                    }
+                }
+            elif property_name == "Related Work Issue":
+                # Relation to Work Issues database
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": target_database_id,
+                        "type": "dual_property",
+                        "dual_property": {
+                            "synced_property_name": "Related Tasks",
+                            "synced_property_type": "relation"
+                        }
+                    }
+                }
+            else:
+                # Generic relation
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": target_database_id,
+                        "dual_property": {}
+                    }
+                }
+
+        # Update the database schema via API
+        await self._client._api._request(
+            "PATCH",
+            f"/databases/{database_id}",
+            json={"properties": schema}
+        )
+
+        logger.info(f"Added/Updated {property_name} relation to {target_database_id}")
 
     def save_database_ids(self, path: Optional[Path] = None) -> None:
         """Save workspace metadata (database IDs and workspace info) to config file.
