@@ -93,10 +93,17 @@ class WorkspaceInitializer:
             logger.error(error_msg)
             raise Exception(error_msg) from e
 
-        # Check for existing workspace unless skipped
-        if not skip_detection:
-            existing = await WorkspaceMetadata.detect_workspace(parent, self._client)
-            if existing:
+        # Check for existing workspace
+        existing = await WorkspaceMetadata.detect_workspace(parent, self._client)
+
+        if existing:
+            if skip_detection:
+                # --reset flag: Delete all existing databases first
+                logger.warning(f"Reset mode: Deleting {len(existing.get('database_ids', {}))} existing databases...")
+                await self._delete_existing_databases(parent, existing.get("database_ids", {}))
+                logger.info("All existing databases deleted")
+            else:
+                # Normal mode: Raise error if workspace exists
                 workspace_info = {
                     "workspace_id": existing.get("workspace_id", "unknown"),
                     "workspace_name": existing.get("workspace_name", workspace_name),
@@ -126,20 +133,28 @@ class WorkspaceInitializer:
             ("Incidents", "incidents", self._create_incidents_db),
         ]
 
-        for display_name, key, create_func in databases_order:
-            try:
-                logger.info(f"Creating {display_name} database...")
-                await create_func(parent)
-                logger.info(f"✓ {display_name} database created: {self._database_ids[key]}")
-            except Exception as e:
-                error_msg = (
-                    f"Failed to create {display_name} database: {str(e)}\n"
-                    f"Databases created so far: {list(self._database_ids.keys())}\n"
-                    f"Parent page: {parent_page_id}\n"
-                    f"Workspace name: {workspace_name}"
-                )
-                logger.error(error_msg)
-                raise Exception(error_msg) from e
+        try:
+            for display_name, key, create_func in databases_order:
+                try:
+                    logger.info(f"Creating {display_name} database...")
+                    await create_func(parent)
+                    logger.info(f"✓ {display_name} database created: {self._database_ids[key]}")
+                except Exception as e:
+                    # Clean up databases created so far
+                    logger.error(f"Failed to create {display_name} database: {str(e)}")
+                    logger.warning(f"Cleaning up {len(self._database_ids)} databases that were created...")
+                    await self._delete_existing_databases(parent, self._database_ids)
+                    error_msg = (
+                        f"Failed to create {display_name} database: {str(e)}\n"
+                        f"All partially created databases have been deleted.\n"
+                        f"Parent page: {parent_page_id}\n"
+                        f"Workspace name: {workspace_name}"
+                    )
+                    logger.error(error_msg)
+                    raise Exception(error_msg) from e
+        except Exception as e:
+            # Re-raise the exception
+            raise e
 
         # Update cross-database relations that require both databases to exist
         await self._update_cross_database_relations()
@@ -336,6 +351,41 @@ class WorkspaceInitializer:
         # Notion API handles dual_property relations automatically
         # This is a no-op but documents the intent
         pass
+
+    async def _delete_existing_databases(self, parent: Page, database_ids: dict) -> None:
+        """Delete all existing databases in the parent page.
+
+        Args:
+            parent: Parent page
+            database_ids: Dict of database IDs to delete
+        """
+        import asyncio
+
+        deletion_tasks = []
+        for db_name, db_id in database_ids.items():
+            if db_id:
+                logger.info(f"Deleting {db_name} database ({db_id})...")
+                deletion_tasks.append(self._delete_database(db_id))
+
+        # Delete all databases concurrently
+        if deletion_tasks:
+            await asyncio.gather(*deletion_tasks, return_exceptions=True)
+
+    async def _delete_database(self, database_id: str) -> None:
+        """Delete a single database.
+
+        Args:
+            database_id: ID of the database to delete
+        """
+        try:
+            await self._client._api._request(
+                "DELETE",
+                f"/blocks/{database_id}"
+            )
+            logger.info(f"Deleted database {database_id}")
+        except Exception as e:
+            logger.warning(f"Failed to delete database {database_id}: {str(e)}")
+            # Continue with other deletions even if this one fails
 
     async def _update_self_relations(self, database_id: str) -> None:
         """Update self-referential relations in Tasks database.
