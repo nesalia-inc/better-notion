@@ -910,8 +910,51 @@ class AgentsPlugin(CombinedPluginInterface):
             typer.echo(agents_cli.tasks_complete(task_id, actual_hours))
 
         @tasks_app.command("can-start")
-        def tasks_can_start_cmd(task_id: str):
-            typer.echo(agents_cli.tasks_can_start(task_id))
+        def tasks_can_start_cmd(
+            task_id: str,
+            explain: bool = typer.Option(False, "--explain", help="Show detailed explanation of blocking tasks")
+        ):
+            typer.echo(agents_cli.tasks_can_start(task_id, explain))
+
+        @tasks_app.command("deps")
+        def tasks_deps_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_deps(task_id))
+
+        @tasks_app.command("ready")
+        def tasks_ready_cmd(
+            version_id: str = typer.Option(None, "--version-id", "-v", help="Filter by version ID")
+        ):
+            typer.echo(agents_cli.tasks_ready(version_id))
+
+        @tasks_app.command("assign")
+        def tasks_assign_cmd(
+            task_id: str,
+            to: str = typer.Option(..., "--to", help="Person to assign to")
+        ):
+            typer.echo(agents_cli.tasks_assign(task_id, to))
+
+        @tasks_app.command("unassign")
+        def tasks_unassign_cmd(task_id: str):
+            typer.echo(agents_cli.tasks_unassign(task_id))
+
+        @tasks_app.command("reassign")
+        def tasks_reassign_cmd(
+            task_id: str,
+            from_: str = typer.Option(..., "--from", help="Current assignee (for validation)"),
+            to: str = typer.Option(..., "--to", help="New assignee")
+        ):
+            typer.echo(agents_cli.tasks_reassign(task_id, from_, to))
+
+        @tasks_app.command("list-by-assignee")
+        def tasks_list_by_assignee_cmd(
+            assignee: str,
+            status: str = typer.Option(None, "--status", "-s", help="Filter by status")
+        ):
+            typer.echo(agents_cli.tasks_list_by_assignee(assignee, status))
+
+        @tasks_app.command("list-unassigned")
+        def tasks_list_unassigned_cmd():
+            typer.echo(agents_cli.tasks_list_unassigned())
 
         agents_app.add_typer(tasks_app)
 
@@ -997,6 +1040,10 @@ class AgentsPlugin(CombinedPluginInterface):
         def work_issues_blockers_cmd(project_id: str):
             typer.echo(agents_cli.work_issues_blockers(project_id))
 
+        @work_issues_app.command("list-blocked-by")
+        def work_issues_list_blocked_by_cmd(work_issue_id: str):
+            typer.echo(agents_cli.work_issues_list_blocked_by(work_issue_id))
+
         agents_app.add_typer(work_issues_app)
 
         # Incidents commands (under agents)
@@ -1040,6 +1087,21 @@ class AgentsPlugin(CombinedPluginInterface):
         @incidents_app.command("sla-violations")
         def incidents_sla_violations_cmd():
             typer.echo(agents_cli.incidents_sla_violations())
+
+        @incidents_app.command("link-to-work-issue")
+        def incidents_link_to_work_issue_cmd(
+            incident_id: str,
+            work_issue_id: str
+        ):
+            typer.echo(agents_cli.incidents_link_to_work_issue(incident_id, work_issue_id))
+
+        @incidents_app.command("unlink-work-issue")
+        def incidents_unlink_work_issue_cmd(incident_id: str):
+            typer.echo(agents_cli.incidents_unlink_work_issue(incident_id))
+
+        @incidents_app.command("list-caused-by")
+        def incidents_list_caused_by_cmd(work_issue_id: str):
+            typer.echo(agents_cli.incidents_list_caused_by(work_issue_id))
 
         agents_app.add_typer(incidents_app)
 
