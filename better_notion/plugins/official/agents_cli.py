@@ -820,15 +820,17 @@ def tasks_complete(
     return asyncio.run(_complete())
 
 
-def tasks_can_start(task_id: str) -> str:
+def tasks_can_start(task_id: str, explain: bool = False) -> str:
     """
     Check if a task can start (all dependencies completed).
 
     Args:
         task_id: Task page ID
+        explain: Show detailed explanation of blocking tasks
 
     Example:
         $ notion tasks can-start task_123
+        $ notion tasks can-start task_123 --explain
     """
     async def _can_start() -> str:
         try:
@@ -837,38 +839,264 @@ def tasks_can_start(task_id: str) -> str:
             # Register SDK plugin
             register_agents_sdk_plugin(client)
 
-            # Get task and check
+            # Use manager method for detailed info
             manager = client.plugin_manager("tasks")
-            task = await manager.get(task_id)
-            can_start = await task.can_start()
+            result = await manager.can_start(task_id)
 
-            if not can_start:
-                # Get incomplete dependencies
-                incomplete = []
-                for dep in await task.dependencies():
-                    if dep.status != "Completed":
-                        incomplete.append({
-                            "id": dep.id,
-                            "title": dep.title,
-                            "status": dep.status,
-                        })
+            if explain and not result["can_start"]:
+                result["explanation"] = {
+                    "blocking_tasks": result["incomplete_dependencies"],
+                    "suggestion": "Wait for dependencies to complete before starting"
+                }
 
-                return format_success({
-                    "task_id": task.id,
-                    "can_start": False,
-                    "incomplete_dependencies": incomplete,
-                })
-
-            return format_success({
-                "task_id": task.id,
-                "can_start": True,
-                "message": "All dependencies are completed",
-            })
+            return format_success(result)
 
         except Exception as e:
             return format_error("CAN_START_ERROR", str(e), retry=False)
 
     return asyncio.run(_can_start())
+
+
+def tasks_deps(task_id: str) -> str:
+    """
+    List all dependencies of a task.
+
+    Args:
+        task_id: Task page ID
+
+    Example:
+        $ notion tasks deps task_123
+    """
+    async def _deps() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            result = await manager.deps(task_id)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("DEPS_ERROR", str(e), retry=False)
+
+    return asyncio.run(_deps())
+
+
+def tasks_ready(version_id: Optional[str] = None) -> str:
+    """
+    List all tasks ready to start (dependencies completed).
+
+    Args:
+        version_id: Filter by version ID
+
+    Example:
+        $ notion tasks ready
+        $ notion tasks ready --version-id ver_123
+    """
+    async def _ready() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            tasks = await manager.ready(version_id)
+
+            return format_success({
+                "ready_tasks": [
+                    {
+                        "id": task.id,
+                        "title": task.title,
+                        "status": task.status,
+                        "priority": task.priority,
+                    }
+                    for task in tasks
+                ],
+                "total": len(tasks)
+            })
+
+        except Exception as e:
+            return format_error("READY_ERROR", str(e), retry=False)
+
+    return asyncio.run(_ready())
+
+
+def tasks_assign(task_id: str, to: str) -> str:
+    """
+    Assign a task to a person.
+
+    Args:
+        task_id: Task page ID
+        to: Name of the person to assign to
+
+    Example:
+        $ notion tasks assign task_123 --to "Alice Chen"
+    """
+    async def _assign() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            result = await manager.assign(task_id, to)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("ASSIGN_ERROR", str(e), retry=False)
+
+    return asyncio.run(_assign())
+
+
+def tasks_unassign(task_id: str) -> str:
+    """
+    Unassign a task.
+
+    Args:
+        task_id: Task page ID
+
+    Example:
+        $ notion tasks unassign task_123
+    """
+    async def _unassign() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            result = await manager.unassign(task_id)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("UNASSIGN_ERROR", str(e), retry=False)
+
+    return asyncio.run(_unassign())
+
+
+def tasks_reassign(task_id: str, from_: str, to: str) -> str:
+    """
+    Reassign a task from one person to another.
+
+    Args:
+        task_id: Task page ID
+        from_: Current assignee (for validation)
+        to: New assignee
+
+    Example:
+        $ notion tasks reassign task_123 --from "Alice" --to "Bob"
+    """
+    async def _reassign() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            result = await manager.reassign(task_id, from_, to)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("REASSIGN_ERROR", str(e), retry=False)
+
+    return asyncio.run(_reassign())
+
+
+def tasks_list_by_assignee(
+    assignee: str,
+    status: Optional[str] = None
+) -> str:
+    """
+    List tasks assigned to a person.
+
+    Args:
+        assignee: Name of the assignee
+        status: Optional status filter
+
+    Example:
+        $ notion tasks list-by-assignee "Alice Chen"
+        $ notion tasks list-by-assignee "Alice" --status "In Progress"
+    """
+    async def _list_by_assignee() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            tasks = await manager.list_by_assignee(assignee, status)
+
+            return format_success({
+                "tasks": [
+                    {
+                        "id": task.id,
+                        "title": task.title,
+                        "status": task.status,
+                        "priority": task.priority,
+                    }
+                    for task in tasks
+                ],
+                "total": len(tasks)
+            })
+
+        except Exception as e:
+            return format_error("LIST_BY_ASSIGNEE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list_by_assignee())
+
+
+def tasks_list_unassigned() -> str:
+    """
+    List unassigned tasks.
+
+    Example:
+        $ notion tasks list-unassigned
+    """
+    async def _list_unassigned() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("tasks")
+            tasks = await manager.list_unassigned()
+
+            return format_success({
+                "unassigned_tasks": [
+                    {
+                        "id": task.id,
+                        "title": task.title,
+                        "status": task.status,
+                        "priority": task.priority,
+                    }
+                    for task in tasks
+                ],
+                "total": len(tasks)
+            })
+
+        except Exception as e:
+            return format_error("LIST_UNASSIGNED_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list_unassigned())
 
 
 # ===== IDEAS =====
@@ -1432,6 +1660,46 @@ def work_issues_blockers(project_id: str) -> str:
     return asyncio.run(_blockers())
 
 
+def work_issues_list_blocked_by(work_issue_id: str) -> str:
+    """
+    List tasks blocked by a work issue.
+
+    Args:
+        work_issue_id: Work issue page ID
+
+    Example:
+        $ notion work-issues list-blocked-by issue_456
+    """
+    async def _list_blocked_by() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("work_issues")
+            tasks = await manager.list_blocked_by(work_issue_id)
+
+            return format_success({
+                "blocked_tasks": [
+                    {
+                        "id": task.id,
+                        "title": task.title,
+                        "status": task.status,
+                        "priority": task.priority,
+                    }
+                    for task in tasks
+                ],
+                "total": len(tasks)
+            })
+
+        except Exception as e:
+            return format_error("LIST_BLOCKED_BY_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list_blocked_by())
+
+
 # ===== INCIDENTS =====
 
 def incidents_list(
@@ -1726,3 +1994,102 @@ def incidents_sla_violations() -> str:
             return format_error("SLA_VIOLATIONS_ERROR", str(e), retry=False)
 
     return asyncio.run(_sla_violations())
+
+
+def incidents_link_to_work_issue(incident_id: str, work_issue_id: str) -> str:
+    """
+    Link an incident to a work issue (root cause).
+
+    Args:
+        incident_id: Incident page ID
+        work_issue_id: Work issue page ID
+
+    Example:
+        $ notion incidents link-to-work-issue inc_123 issue_456
+    """
+    async def _link_to_work_issue() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("incidents")
+            result = await manager.link_to_work_issue(incident_id, work_issue_id)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("LINK_TO_WORK_ISSUE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_link_to_work_issue())
+
+
+def incidents_unlink_work_issue(incident_id: str) -> str:
+    """
+    Unlink an incident from its work issue.
+
+    Args:
+        incident_id: Incident page ID
+
+    Example:
+        $ notion incidents unlink-work-issue inc_123
+    """
+    async def _unlink_work_issue() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("incidents")
+            result = await manager.unlink_work_issue(incident_id)
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("UNLINK_WORK_ISSUE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_unlink_work_issue())
+
+
+def incidents_list_caused_by(work_issue_id: str) -> str:
+    """
+    List all incidents caused by a work issue.
+
+    Args:
+        work_issue_id: Work issue page ID
+
+    Example:
+        $ notion incidents list-caused-by issue_456
+    """
+    async def _list_caused_by() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Use manager method
+            manager = client.plugin_manager("incidents")
+            incidents = await manager.list_caused_by(work_issue_id)
+
+            return format_success({
+                "incidents": [
+                    {
+                        "id": incident.id,
+                        "title": incident.title,
+                        "severity": incident.severity,
+                        "status": incident.status,
+                    }
+                    for incident in incidents
+                ],
+                "total": len(incidents)
+            })
+
+        except Exception as e:
+            return format_error("LIST_CAUSED_BY_ERROR", str(e), retry=False)
+
+    return asyncio.run(_list_caused_by())
