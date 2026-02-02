@@ -514,6 +514,7 @@ def tasks_list(
                         "priority": t.priority,
                         "version_id": t.version_id,
                         "estimated_hours": t.estimated_hours,
+                        "assignee": t.assignee,
                     }
                     for t in tasks
                 ],
@@ -557,6 +558,7 @@ def tasks_get(task_id: str) -> str:
                 "dependency_ids": task.dependency_ids,
                 "estimated_hours": task.estimated_hours,
                 "actual_hours": task.actual_hours,
+                "assignee": task.assignee,
             })
 
         except Exception as e:
