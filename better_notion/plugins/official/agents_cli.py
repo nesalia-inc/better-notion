@@ -1572,8 +1572,8 @@ def incidents_create(
                 "Project": {"relation": [{"id": project_id}]},
                 "Severity": {"select": {"name": severity}},
                 "Type": {"select": {"name": type}},
-                "Status": {"select": {"name": "Active"}},
-                "Discovery Date": {
+                "Status": {"select": {"name": "Open"}},
+                "Detected Date": {
                     "date": {"start": datetime.now(timezone.utc).isoformat()}
                 },
             }
