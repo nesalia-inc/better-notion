@@ -522,7 +522,13 @@ class WorkIssueSchema:
 
     @staticmethod
     def get_schema() -> Dict[str, Dict[str, Any]]:
-        """Return Notion database schema for Work Issues."""
+        """Return Notion database schema for Work Issues.
+
+        Note: The following properties are NOT included here and will be added
+        after database creation via database.update():
+        - "Blocking Tasks": Relation to Tasks (added in post-processing)
+        - "Caused Incidents": Relation to Incidents (Incidents created after Work Issues)
+        """
         return {
             "Title": PropertyBuilder.title("Title"),
             "Project": PropertyBuilder.relation("Project"),
@@ -561,10 +567,6 @@ class WorkIssueSchema:
             "Proposed Solution": PropertyBuilder.text("Proposed Solution"),
             "Related Idea": PropertyBuilder.relation("Related Idea", dual_property=False),
             "Fix Tasks": PropertyBuilder.relation("Fix Tasks", dual_property=False),
-            # Blocking Tasks: Tasks blocked by this work issue (will be updated after database creation)
-            "Blocking Tasks": PropertyBuilder.relation("Blocking Tasks", dual_property=False),
-            # Caused Incidents: Incidents caused by this work issue (will be updated after database creation)
-            "Caused Incidents": PropertyBuilder.relation("Caused Incidents", dual_property=False),
         }
 
 
@@ -573,7 +575,11 @@ class IncidentSchema:
 
     @staticmethod
     def get_schema() -> Dict[str, Dict[str, Any]]:
-        """Return Notion database schema for Incidents."""
+        """Return Notion database schema for Incidents.
+
+        Note: "Root Cause Work Issue" is NOT included here and will be added
+        after database creation via database.update() for consistency.
+        """
         return {
             "Title": PropertyBuilder.title("Title"),
             "Project": PropertyBuilder.relation("Project"),
@@ -607,8 +613,6 @@ class IncidentSchema:
                 ],
             ),
             "Fix Task": PropertyBuilder.relation("Fix Task", dual_property=False),
-            # Root Cause Work Issue: Relation to Work Issues (will be updated after database creation)
-            "Root Cause Work Issue": PropertyBuilder.relation("Root Cause Work Issue", dual_property=False),
             "Root Cause": PropertyBuilder.text("Root Cause"),
             "Detected Date": PropertyBuilder.date("Detected Date"),
             "Resolved Date": PropertyBuilder.date("Resolved Date"),

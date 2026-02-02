@@ -403,11 +403,13 @@ class WorkspaceInitializer:
     async def _update_cross_database_relations(self) -> None:
         """Update cross-database relations after all databases are created.
 
-        This updates:
-        - Tasks: Related Work Issue -> Work Issues
-        - Work Issues: Blocking Tasks -> Tasks
-        - Work Issues: Caused Incidents -> Incidents
+        This adds:
+        - Tasks: Dependencies (self-referential), Related Work Issue -> Work Issues
+        - Work Issues: Blocking Tasks -> Tasks, Caused Incidents -> Incidents
         - Incidents: Root Cause Work Issue -> Work Issues
+
+        All these properties are added AFTER database creation because they
+        reference databases that may not exist yet during initial creation.
         """
         if "tasks" in self._database_ids:
             await self._update_relation(
@@ -487,6 +489,42 @@ class WorkspaceInitializer:
                         "type": "dual_property",
                         "dual_property": {
                             "synced_property_name": "Related Tasks",
+                            "synced_property_type": "relation"
+                        }
+                    }
+                }
+            elif property_name == "Blocking Tasks":
+                # Relation from Work Issues to Tasks
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": target_database_id,
+                        "type": "dual_property",
+                        "dual_property": {
+                            "synced_property_name": "Blocked By Work Issue",
+                            "synced_property_type": "relation"
+                        }
+                    }
+                }
+            elif property_name == "Caused Incidents":
+                # Relation from Work Issues to Incidents
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": target_database_id,
+                        "type": "dual_property",
+                        "dual_property": {
+                            "synced_property_name": "Root Cause Work Issue",
+                            "synced_property_type": "relation"
+                        }
+                    }
+                }
+            elif property_name == "Root Cause Work Issue":
+                # Relation from Incidents to Work Issues
+                schema[property_name] = {
+                    "relation": {
+                        "database_id": target_database_id,
+                        "type": "dual_property",
+                        "dual_property": {
+                            "synced_property_name": "Caused Incidents",
                             "synced_property_type": "relation"
                         }
                     }
