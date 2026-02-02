@@ -525,6 +525,241 @@ class TaskManager:
 
         return blocked_tasks
 
+    async def assign(self, task_id: str, assignee: str) -> dict:
+        """
+        Assign a task to a person.
+
+        Args:
+            task_id: Task ID to assign
+            assignee: Name of the person to assign to
+
+        Returns:
+            Dict with task_id, assigned_to, and previous assignee
+
+        Example:
+            >>> result = await manager.assign("task_123", "Alice Chen")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        previous = task.assignee
+
+        await task.assign_to(assignee)
+
+        return {
+            "task_id": task_id,
+            "assigned_to": assignee,
+            "previous": previous
+        }
+
+    async def unassign(self, task_id: str) -> dict:
+        """
+        Unassign a task.
+
+        Args:
+            task_id: Task ID to unassign
+
+        Returns:
+            Dict with task_id, assigned_to (None), and previous assignee
+
+        Example:
+            >>> result = await manager.unassign("task_123")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        previous = task.assignee
+
+        await task.unassign()
+
+        return {
+            "task_id": task_id,
+            "assigned_to": None,
+            "previous": previous
+        }
+
+    async def reassign(self, task_id: str, from_assignee: str, to_assignee: str) -> dict:
+        """
+        Reassign a task from one person to another.
+
+        Args:
+            task_id: Task ID to reassign
+            from_assignee: Current assignee (for validation)
+            to_assignee: New assignee
+
+        Returns:
+            Dict with task_id, from, and to
+
+        Raises:
+            ValueError: If task is not assigned to from_assignee
+
+        Example:
+            >>> result = await manager.reassign("task_123", "Alice", "Bob")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+
+        if task.assignee != from_assignee:
+            raise ValueError(f"Task is not assigned to {from_assignee}")
+
+        await task.assign_to(to_assignee)
+
+        return {
+            "task_id": task_id,
+            "from": from_assignee,
+            "to": to_assignee
+        }
+
+    async def list_by_assignee(
+        self,
+        assignee: str,
+        status: str | None = None
+    ) -> list:
+        """
+        List tasks assigned to a person.
+
+        Args:
+            assignee: Name of the assignee
+            status: Optional status filter
+
+        Returns:
+            List of Task instances
+
+        Example:
+            >>> tasks = await manager.list_by_assignee("Alice Chen", status="In Progress")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        database_id = self._get_database_id("Tasks")
+        if not database_id:
+            return []
+
+        filters: list[dict[str, Any]] = [
+            {
+                "property": "Assignee",
+                "select": {"equals": assignee}
+            }
+        ]
+
+        if status:
+            filters.append({
+                "property": "Status",
+                "select": {"equals": status}
+            })
+
+        response = await self._client._api.databases.query(
+            database_id=database_id,
+            filter={"and": filters} if len(filters) > 1 else filters[0]
+        )
+
+        return [
+            Task(self._client, page_data)
+            for page_data in response.get("results", [])
+        ]
+
+    async def list_unassigned(self) -> list:
+        """
+        List unassigned tasks.
+
+        Returns:
+            List of Task instances with no assignee
+
+        Example:
+            >>> tasks = await manager.list_unassigned()
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        database_id = self._get_database_id("Tasks")
+        if not database_id:
+            return []
+
+        response = await self._client._api.databases.query(
+            database_id=database_id,
+            filter={
+                "property": "Assignee",
+                "select": {"is_empty": True}
+            }
+        )
+
+        return [
+            Task(self._client, page_data)
+            for page_data in response.get("results", [])
+        ]
+
+    async def can_start(self, task_id: str) -> dict:
+        """
+        Check if a task can start (all dependencies completed).
+
+        Args:
+            task_id: Task ID to check
+
+        Returns:
+            Dict with can_start (bool), task_id, and incomplete_dependencies
+
+        Example:
+            >>> result = await manager.can_start("task_123")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        deps = await task.dependencies()
+        incomplete = [d for d in deps if d.status != "Completed"]
+
+        return {
+            "can_start": len(incomplete) == 0,
+            "task_id": task_id,
+            "incomplete_dependencies": [
+                {"id": d.id, "title": d.title, "status": d.status}
+                for d in incomplete
+            ]
+        }
+
+    async def deps(self, task_id: str) -> dict:
+        """
+        List all dependencies of a task.
+
+        Args:
+            task_id: Task ID
+
+        Returns:
+            Dict with task_id and dependencies list
+
+        Example:
+            >>> result = await manager.deps("task_123")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        deps = await task.dependencies()
+
+        return {
+            "task_id": task_id,
+            "dependencies": [
+                {
+                    "id": d.id,
+                    "title": d.title,
+                    "status": d.status
+                }
+                for d in deps
+            ]
+        }
+
+    async def ready(self, version_id: str | None = None) -> list:
+        """
+        List all tasks ready to start (dependencies completed).
+
+        Args:
+            version_id: Optional version filter
+
+        Returns:
+            List of Task instances ready to start
+
+        Example:
+            >>> tasks = await manager.ready(version_id="ver_123")
+        """
+        return await self.find_ready(version_id)
+
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
         return getattr(self._client, "_workspace_config", {}).get(name)
@@ -826,6 +1061,41 @@ class WorkIssueManager:
 
         return issue
 
+    async def list_blocked_by(self, work_issue_id: str) -> list:
+        """
+        List tasks blocked by a work issue.
+
+        Args:
+            work_issue_id: Work issue ID
+
+        Returns:
+            List of Task instances
+
+        Example:
+            >>> tasks = await manager.list_blocked_by("issue_456")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        database_id = self._get_database_id("Tasks")
+        if not database_id:
+            return []
+
+        response = await self._client._api._request(
+            "POST",
+            f"/databases/{database_id}/query",
+            json={
+                "filter": {
+                    "property": "Related Work Issue",
+                    "relation": {"contains": work_issue_id}
+                }
+            }
+        )
+
+        return [
+            Task(self._client, page_data)
+            for page_data in response.get("results", [])
+        ]
+
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
         return getattr(self._client, "_workspace_config", {}).get(name)
@@ -991,6 +1261,89 @@ class IncidentManager:
             mttr[severity] = sum(times) / len(times) if times else 0.0
 
         return mttr
+
+    async def link_to_work_issue(self, incident_id: str, work_issue_id: str) -> dict:
+        """
+        Link an incident to a work issue (root cause).
+
+        Args:
+            incident_id: Incident ID
+            work_issue_id: Work issue ID to link to
+
+        Returns:
+            Dict with incident_id and work_issue_id
+
+        Example:
+            >>> result = await manager.link_to_work_issue("inc_123", "issue_456")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Incident
+
+        incident = await Incident.get(incident_id, client=self._client)
+        await incident.link_to_work_issue(work_issue_id)
+
+        return {
+            "incident_id": incident_id,
+            "work_issue_id": work_issue_id,
+            "linked": True
+        }
+
+    async def unlink_work_issue(self, incident_id: str) -> dict:
+        """
+        Unlink an incident from its work issue.
+
+        Args:
+            incident_id: Incident ID
+
+        Returns:
+            Dict with incident_id and unlinked status
+
+        Example:
+            >>> result = await manager.unlink_work_issue("inc_123")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Incident
+
+        incident = await Incident.get(incident_id, client=self._client)
+        await incident.unlink_work_issue()
+
+        return {
+            "incident_id": incident_id,
+            "unlinked": True
+        }
+
+    async def list_caused_by(self, work_issue_id: str) -> list:
+        """
+        List all incidents caused by a work issue.
+
+        Args:
+            work_issue_id: Work issue ID
+
+        Returns:
+            List of Incident instances
+
+        Example:
+            >>> incidents = await manager.list_caused_by("issue_456")
+        """
+        from better_notion.plugins.official.agents_sdk.models import Incident
+
+        database_id = self._get_database_id("Incidents")
+        if not database_id:
+            return []
+
+        response = await self._client._api._request(
+            "POST",
+            f"/databases/{database_id}/query",
+            json={
+                "filter": {
+                    "property": "Root Cause Work Issue",
+                    "relation": {"contains": work_issue_id}
+                }
+            }
+        )
+
+        return [
+            Incident(self._client, page_data)
+            for page_data in response.get("results", [])
+        ]
 
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
