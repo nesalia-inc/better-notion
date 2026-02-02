@@ -94,7 +94,6 @@ class TaskSelector:
         # Get candidate tasks - filter to backlog only
         candidates = await task_mgr.list(
             status="Backlog",
-            project_id=project_id,
             version_id=version_id,
         )
 
@@ -102,6 +101,19 @@ class TaskSelector:
         recommendations = []
 
         for task in candidates:
+            # Apply project_id filter if specified
+            if project_id:
+                # Navigate task -> version -> project to check
+                try:
+                    task_version = await task.version() if hasattr(task, "version") else None
+                    if task_version:
+                        task_project = await task_version.project() if hasattr(task_version, "project") else None
+                        if task_project and task_project.id != project_id:
+                            continue
+                except Exception:
+                    # If we can't navigate the relationship, skip the task
+                    continue
+
             # Apply filters
             if max_priority:
                 priority_order = {"Critical": 4, "High": 3, "Medium": 2, "Low": 1}
