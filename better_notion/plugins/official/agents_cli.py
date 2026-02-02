@@ -1159,7 +1159,7 @@ def ideas_reject(idea_id: str, reason: str = "") -> str:
             # Get idea and reject
             from better_notion.plugins.official.agents_sdk.models import Idea
             idea = await Idea.get(idea_id, client=client)
-            await idea.reject()
+            await idea.reject(reason)
 
             return format_success({
                 "message": "Idea rejected successfully",
