@@ -142,14 +142,28 @@ class WorkspaceInitializer:
                 except Exception as e:
                     # Clean up databases created so far
                     import traceback
-                    logger.error(f"Failed to create {display_name} database: {str(e)}")
-                    logger.error(f"Full traceback:\n{traceback.format_exc()}")
+                    import sys
+
+                    # Log to stderr for visibility
+                    print(f"\n{'='*60}", file=sys.stderr)
+                    print(f"❌ FAILED TO CREATE: {display_name} database", file=sys.stderr)
+                    print(f"{'='*60}", file=sys.stderr)
+                    print(f"Error: {str(e)}", file=sys.stderr)
+                    print(f"\nFull traceback:", file=sys.stderr)
+                    traceback.print_exc(file=sys.stderr)
 
                     # Try to get more error details if available
                     error_details = str(e)
                     if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                        logger.error(f"Notion API response: {e.response.text}")
+                        print(f"\nNotion API response:", file=sys.stderr)
+                        print(f"{e.response.text}", file=sys.stderr)
                         error_details += f"\nNotion API response: {e.response.text}"
+
+                    print(f"\nDatabases created before failure: {list(self._database_ids.keys())}", file=sys.stderr)
+                    print(f"{'='*60}\n", file=sys.stderr)
+
+                    logger.error(f"Failed to create {display_name} database: {str(e)}")
+                    logger.error(f"Full traceback:\n{traceback.format_exc()}")
 
                     logger.warning(f"Cleaning up {len(self._database_ids)} databases that were created...")
                     await self._delete_existing_databases(parent, self._database_ids)
