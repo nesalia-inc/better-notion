@@ -341,10 +341,19 @@ class TaskManager:
                 "select": {"equals": status},
             })
 
+        # Build query payload
+        query_payload = {}
+        if filters:
+            # Apply filter only if there are filters
+            if len(filters) == 1:
+                query_payload["filter"] = filters[0]
+            else:
+                query_payload["filter"] = {"and": filters}
+
         # Query pages
         response = await self._client._api.databases.query(
             database_id=database_id,
-            filter={"and": filters} if len(filters) > 1 else (filters[0] if filters else None),
+            **query_payload
         )
 
         return [
