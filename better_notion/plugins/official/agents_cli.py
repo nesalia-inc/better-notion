@@ -1376,7 +1376,7 @@ def work_issues_resolve(issue_id: str, resolution: str = "") -> str:
             # Get issue and resolve
             from better_notion.plugins.official.agents_sdk.models import WorkIssue
             issue = await WorkIssue.get(issue_id, client=client)
-            await issue.resolve()
+            await issue.resolve(resolution)
 
             return format_success({
                 "message": "Work issue resolved successfully",
@@ -1629,7 +1629,7 @@ def incidents_resolve(incident_id: str, resolution: str = "") -> str:
             # Get incident and resolve
             from better_notion.plugins.official.agents_sdk.models import Incident
             incident = await Incident.get(incident_id, client=client)
-            await incident.resolve()
+            await incident.resolve(resolution)
 
             return format_success({
                 "message": "Incident resolved successfully",
