@@ -75,7 +75,7 @@ class DatabasePageEntityMixin:
         from better_notion._sdk.models.block import Block
 
         async def _get_blocks(offset: str | None = None) -> dict[str, Any]:
-            return await self._client._request(
+            return await self._client._api._request(
                 "GET",
                 f"/blocks/{self.id}/children",
                 params={"start_cursor": offset} if offset else None
