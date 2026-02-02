@@ -1101,6 +1101,167 @@ def tasks_list_unassigned() -> str:
     return asyncio.run(_list_unassigned())
 
 
+def tasks_search(
+    query: str = typer.Argument(..., help="Search query"),
+    status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+    priority: Optional[str] = typer.Option(None, "--priority", "-p", help="Filter by priority"),
+    assignee: Optional[str] = typer.Option(None, "--assignee", "-a", help="Filter by assignee"),
+    project_id: Optional[str] = typer.Option(None, "--project-id", help="Filter by project ID"),
+    version_id: Optional[str] = typer.Option(None, "--version-id", help="Filter by version ID"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+) -> str:
+    """
+    Search tasks by text query with optional filters.
+
+    Args:
+        query: Text to search for in task titles and descriptions
+        status: Optional status filter
+        priority: Optional priority filter
+        assignee: Optional assignee filter
+        project_id: Optional project ID filter
+        version_id: Optional version ID filter
+        limit: Maximum number of results
+
+    Example:
+        $ notion tasks search "authentication" --status Backlog --priority High
+    """
+    async def _search() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Search tasks
+            manager = client.plugin_manager("tasks")
+            results = await manager.search(
+                query=query,
+                status=status,
+                priority=priority,
+                assignee=assignee,
+                project_id=project_id,
+                version_id=version_id,
+                limit=limit,
+            )
+
+            return format_success({
+                "results": results,
+                "total": len(results),
+            })
+
+        except Exception as e:
+            return format_error("SEARCH_ERROR", str(e), retry=False)
+
+    return asyncio.run(_search())
+
+
+def tasks_pick(
+    skills: Optional[str] = typer.Option(None, "--skills", "-s", help="Comma-separated skills"),
+    max_priority: Optional[str] = typer.Option(None, "--max-priority", help="Maximum priority"),
+    exclude: Optional[str] = typer.Option(None, "--exclude", help="Comma-separated exclude patterns"),
+    count: int = typer.Option(5, "--count", "-n", help="Number of recommendations"),
+    project_id: Optional[str] = typer.Option(None, "--project-id", help="Filter by project"),
+    version_id: Optional[str] = typer.Option(None, "--version-id", help="Filter by version"),
+) -> str:
+    """
+    Pick the best tasks for an agent to work on.
+
+    Args:
+        skills: Comma-separated list of agent skills (e.g., "python,database")
+        max_priority: Maximum priority to consider
+        exclude: Comma-separated regex patterns to exclude
+        count: Maximum number of recommendations
+        project_id: Optional project filter
+        version_id: Optional version filter
+
+    Example:
+        $ notion tasks pick --skills "python,api" --max-priority High --count 3
+    """
+    async def _pick() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Parse skills and exclude patterns
+            skills_list = skills.split(",") if skills else None
+            exclude_patterns = exclude.split(",") if exclude else None
+
+            # Pick tasks
+            manager = client.plugin_manager("tasks")
+            recommendations = await manager.pick(
+                skills=skills_list,
+                max_priority=max_priority,
+                exclude_patterns=exclude_patterns,
+                count=count,
+                project_id=project_id,
+                version_id=version_id,
+            )
+
+            return format_success({
+                "recommended": recommendations,
+                "total": len(recommendations),
+            })
+
+        except Exception as e:
+            return format_error("PICK_ERROR", str(e), retry=False)
+
+    return asyncio.run(_pick())
+
+
+def tasks_suggest(
+    unassigned: bool = typer.Option(False, "--unassigned", "-u", help="Only suggest unassigned tasks"),
+    priority: Optional[str] = typer.Option(None, "--priority", "-p", help="Comma-separated priorities"),
+    count: int = typer.Option(5, "--count", "-n", help="Number of suggestions"),
+    reason: bool = typer.Option(False, "--reason", "-r", help="Include reasoning"),
+) -> str:
+    """
+    Suggest tasks based on criteria.
+
+    Args:
+        unassigned: Only suggest unassigned tasks
+        priority: Comma-separated priority levels (e.g., "Critical,High")
+        count: Maximum number of suggestions
+        reason: Include reasoning in output
+
+    Example:
+        $ notion tasks suggest --unassigned --priority "Critical,High" --count 5
+    """
+    async def _suggest() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Parse priority list
+            priority_list = priority.split(",") if priority else None
+
+            # Get suggestions
+            manager = client.plugin_manager("tasks")
+            suggestions = await manager.suggest(
+                unassigned=unassigned,
+                priority=priority_list,
+                count=count,
+            )
+
+            result = {
+                "suggestions": suggestions,
+                "total": len(suggestions),
+            }
+
+            if reason:
+                result["reasoning"] = f"Showing top {len(suggestions)} tasks matching criteria"
+
+            return format_success(result)
+
+        except Exception as e:
+            return format_error("SUGGEST_ERROR", str(e), retry=False)
+
+    return asyncio.run(_suggest())
+
+
 # ===== IDEAS =====
 
 def ideas_list(
@@ -1404,6 +1565,54 @@ def ideas_reject(idea_id: str, reason: str = "") -> str:
     return asyncio.run(_reject())
 
 
+def ideas_search(
+    query: str = typer.Argument(..., help="Search query"),
+    status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+    category: Optional[str] = typer.Option(None, "--category", "-c", help="Filter by category"),
+    project_id: Optional[str] = typer.Option(None, "--project-id", help="Filter by project ID"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+) -> str:
+    """
+    Search ideas by text query with optional filters.
+
+    Args:
+        query: Text to search for in idea titles and descriptions
+        status: Optional status filter
+        category: Optional category filter
+        project_id: Optional project ID filter
+        limit: Maximum number of results
+
+    Example:
+        $ notion ideas search "dark mode" --status Accepted --category Feature
+    """
+    async def _search() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Search ideas
+            manager = client.plugin_manager("ideas")
+            results = await manager.search(
+                query=query,
+                status=status,
+                category=category,
+                project_id=project_id,
+                limit=limit,
+            )
+
+            return format_success({
+                "results": results,
+                "total": len(results),
+            })
+
+        except Exception as e:
+            return format_error("SEARCH_ERROR", str(e), retry=False)
+
+    return asyncio.run(_search())
+
+
 # ===== WORK ISSUES =====
 
 def work_issues_list(
@@ -1700,6 +1909,57 @@ def work_issues_list_blocked_by(work_issue_id: str) -> str:
             return format_error("LIST_BLOCKED_BY_ERROR", str(e), retry=False)
 
     return asyncio.run(_list_blocked_by())
+
+
+def work_issues_search(
+    query: str = typer.Argument(..., help="Search query"),
+    status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+    type_: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by type"),
+    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
+    project_id: Optional[str] = typer.Option(None, "--project-id", help="Filter by project ID"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+) -> str:
+    """
+    Search work issues by text query with optional filters.
+
+    Args:
+        query: Text to search for in work issue titles and descriptions
+        status: Optional status filter
+        type_: Optional type filter
+        severity: Optional severity filter
+        project_id: Optional project ID filter
+        limit: Maximum number of results
+
+    Example:
+        $ notion work-issues search "memory leak" --severity High --status Open
+    """
+    async def _search() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Search work issues
+            manager = client.plugin_manager("work_issues")
+            results = await manager.search(
+                query=query,
+                status=status,
+                type_=type_,
+                severity=severity,
+                project_id=project_id,
+                limit=limit,
+            )
+
+            return format_success({
+                "results": results,
+                "total": len(results),
+            })
+
+        except Exception as e:
+            return format_error("SEARCH_ERROR", str(e), retry=False)
+
+    return asyncio.run(_search())
 
 
 # ===== INCIDENTS =====
@@ -2095,3 +2355,90 @@ def incidents_list_caused_by(work_issue_id: str) -> str:
             return format_error("LIST_CAUSED_BY_ERROR", str(e), retry=False)
 
     return asyncio.run(_list_caused_by())
+
+
+def incidents_search(
+    query: str = typer.Argument(..., help="Search query"),
+    status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+    severity: Optional[str] = typer.Option(None, "--severity", help="Filter by severity"),
+    type_: Optional[str] = typer.Option(None, "--type", "-t", help="Filter by incident type"),
+    project_id: Optional[str] = typer.Option(None, "--project-id", help="Filter by project ID"),
+    limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+) -> str:
+    """
+    Search incidents by text query with optional filters.
+
+    Args:
+        query: Text to search for in incident titles and descriptions
+        status: Optional status filter
+        severity: Optional severity filter
+        type_: Optional incident type filter
+        project_id: Optional project ID filter
+        limit: Maximum number of results
+
+    Example:
+        $ notion incidents search "database" --severity Critical --status Open
+    """
+    async def _search() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Search incidents
+            manager = client.plugin_manager("incidents")
+            results = await manager.search(
+                query=query,
+                status=status,
+                severity=severity,
+                incident_type=type_,
+                project_id=project_id,
+                limit=limit,
+            )
+
+            return format_success({
+                "results": results,
+                "total": len(results),
+            })
+
+        except Exception as e:
+            return format_error("SEARCH_ERROR", str(e), retry=False)
+
+    return asyncio.run(_search())
+
+
+def incidents_triage(
+    incident_id: str = typer.Argument(..., help="Incident ID to triage"),
+) -> str:
+    """
+    Triage and classify an incident.
+
+    Uses AI to classify the incident by severity, type, and suggest team assignment.
+
+    Args:
+        incident_id: Incident ID to triage
+
+    Example:
+        $ notion incidents triage inc_123
+    """
+    async def _triage() -> str:
+        try:
+            client = get_client()
+
+            # Register SDK plugin
+            register_agents_sdk_plugin(client)
+
+            # Triage incident
+            manager = client.plugin_manager("incidents")
+            result = await manager.triage(incident_id)
+
+            return format_success({
+                "incident_id": incident_id,
+                "triage": result,
+            })
+
+        except Exception as e:
+            return format_error("TRIAGE_ERROR", str(e), retry=False)
+
+    return asyncio.run(_triage())

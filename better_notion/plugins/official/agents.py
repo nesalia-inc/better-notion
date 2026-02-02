@@ -956,6 +956,38 @@ class AgentsPlugin(CombinedPluginInterface):
         def tasks_list_unassigned_cmd():
             typer.echo(agents_cli.tasks_list_unassigned())
 
+        @tasks_app.command("search")
+        def tasks_search_cmd(
+            query: str = typer.Argument(..., help="Search query"),
+            status: str = typer.Option(None, "--status", "-s", help="Filter by status"),
+            priority: str = typer.Option(None, "--priority", "-p", help="Filter by priority"),
+            assignee: str = typer.Option(None, "--assignee", "-a", help="Filter by assignee"),
+            project_id: str = typer.Option(None, "--project-id", help="Filter by project ID"),
+            version_id: str = typer.Option(None, "--version-id", help="Filter by version ID"),
+            limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+        ):
+            typer.echo(agents_cli.tasks_search(query, status, priority, assignee, project_id, version_id, limit))
+
+        @tasks_app.command("pick")
+        def tasks_pick_cmd(
+            skills: str = typer.Option(None, "--skills", "-s", help="Comma-separated skills"),
+            max_priority: str = typer.Option(None, "--max-priority", help="Maximum priority"),
+            exclude: str = typer.Option(None, "--exclude", help="Comma-separated exclude patterns"),
+            count: int = typer.Option(5, "--count", "-n", help="Number of recommendations"),
+            project_id: str = typer.Option(None, "--project-id", help="Filter by project"),
+            version_id: str = typer.Option(None, "--version-id", help="Filter by version"),
+        ):
+            typer.echo(agents_cli.tasks_pick(skills, max_priority, exclude, count, project_id, version_id))
+
+        @tasks_app.command("suggest")
+        def tasks_suggest_cmd(
+            unassigned: bool = typer.Option(False, "--unassigned", "-u", help="Only suggest unassigned tasks"),
+            priority: str = typer.Option(None, "--priority", "-p", help="Comma-separated priorities"),
+            count: int = typer.Option(5, "--count", "-n", help="Number of suggestions"),
+            reason: bool = typer.Option(False, "--reason", "-r", help="Include reasoning"),
+        ):
+            typer.echo(agents_cli.tasks_suggest(unassigned, priority, count, reason))
+
         agents_app.add_typer(tasks_app)
 
         # Ideas commands (under agents)
@@ -1000,6 +1032,16 @@ class AgentsPlugin(CombinedPluginInterface):
         ):
             typer.echo(agents_cli.ideas_reject(idea_id, reason))
 
+        @ideas_app.command("search")
+        def ideas_search_cmd(
+            query: str = typer.Argument(..., help="Search query"),
+            status: str = typer.Option(None, "--status", "-s", help="Filter by status"),
+            category: str = typer.Option(None, "--category", "-c", help="Filter by category"),
+            project_id: str = typer.Option(None, "--project-id", help="Filter by project ID"),
+            limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+        ):
+            typer.echo(agents_cli.ideas_search(query, status, category, project_id, limit))
+
         agents_app.add_typer(ideas_app)
 
         # Work Issues commands (under agents)
@@ -1043,6 +1085,17 @@ class AgentsPlugin(CombinedPluginInterface):
         @work_issues_app.command("list-blocked-by")
         def work_issues_list_blocked_by_cmd(work_issue_id: str):
             typer.echo(agents_cli.work_issues_list_blocked_by(work_issue_id))
+
+        @work_issues_app.command("search")
+        def work_issues_search_cmd(
+            query: str = typer.Argument(..., help="Search query"),
+            status: str = typer.Option(None, "--status", "-s", help="Filter by status"),
+            type_: str = typer.Option(None, "--type", "-t", help="Filter by type"),
+            severity: str = typer.Option(None, "--severity", help="Filter by severity"),
+            project_id: str = typer.Option(None, "--project-id", help="Filter by project ID"),
+            limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+        ):
+            typer.echo(agents_cli.work_issues_search(query, status, type_, severity, project_id, limit))
 
         agents_app.add_typer(work_issues_app)
 
@@ -1102,6 +1155,21 @@ class AgentsPlugin(CombinedPluginInterface):
         @incidents_app.command("list-caused-by")
         def incidents_list_caused_by_cmd(work_issue_id: str):
             typer.echo(agents_cli.incidents_list_caused_by(work_issue_id))
+
+        @incidents_app.command("search")
+        def incidents_search_cmd(
+            query: str = typer.Argument(..., help="Search query"),
+            status: str = typer.Option(None, "--status", "-s", help="Filter by status"),
+            severity: str = typer.Option(None, "--severity", help="Filter by severity"),
+            type_: str = typer.Option(None, "--type", "-t", help="Filter by incident type"),
+            project_id: str = typer.Option(None, "--project-id", help="Filter by project ID"),
+            limit: int = typer.Option(50, "--limit", "-n", help="Maximum results"),
+        ):
+            typer.echo(agents_cli.incidents_search(query, status, severity, type_, project_id, limit))
+
+        @incidents_app.command("triage")
+        def incidents_triage_cmd(incident_id: str = typer.Argument(..., help="Incident ID to triage")):
+            typer.echo(agents_cli.incidents_triage(incident_id))
 
         agents_app.add_typer(incidents_app)
 

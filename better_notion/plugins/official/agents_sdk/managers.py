@@ -769,6 +769,235 @@ class TaskManager:
         """
         return await self.find_ready(version_id)
 
+    async def search(
+        self,
+        query: str,
+        status: str | None = None,
+        priority: str | None = None,
+        assignee: str | None = None,
+        project_id: str | None = None,
+        version_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Search tasks by text query with optional filters.
+
+        Args:
+            query: Text search query
+            status: Optional status filter
+            priority: Optional priority filter
+            assignee: Optional assignee filter
+            project_id: Optional project ID filter
+            version_id: Optional version ID filter
+            limit: Maximum results to return
+
+        Returns:
+            List of search result dictionaries
+        """
+        from better_notion.plugins.official.agents_sdk.search import TextSearcher
+
+        database_id = self._get_database_id("Tasks")
+        if not database_id:
+            return []
+
+        # Build filters
+        filters: list[dict[str, Any]] = []
+
+        if status:
+            filters.append({"property": "Status", "select": {"equals": status}})
+
+        if priority:
+            filters.append({"property": "Priority", "select": {"equals": priority}})
+
+        if assignee:
+            filters.append({"property": "Assignee", "select": {"equals": assignee}})
+
+        # Combine filters
+        filter_dict = None
+        if filters:
+            if len(filters) == 1:
+                filter_dict = filters[0]
+            else:
+                filter_dict = {"and": filters}
+
+        searcher = TextSearcher(self._client)
+        results = await searcher.search_tasks(query, database_id, filter_dict, limit)
+
+        # Filter by project/version if specified (post-filter due to relation filtering)
+        if project_id or version_id:
+            filtered_results = []
+            for result in results:
+                task = result.entity
+                # Filter by version
+                if version_id:
+                    task_version = getattr(task, "version_id", None)
+                    if task_version != version_id:
+                        continue
+
+                # Filter by project
+                if project_id:
+                    version = await task.version() if hasattr(task, "version") else None
+                    if version:
+                        project = await version.project() if hasattr(version, "project") else None
+                        if project and project.id != project_id:
+                            continue
+
+                filtered_results.append(result)
+
+            results = filtered_results
+
+        return [r.to_dict() for r in results]
+
+    async def pick(
+        self,
+        skills: list[str] | None = None,
+        max_priority: str | None = None,
+        exclude_patterns: list[str] | None = None,
+        count: int = 5,
+        project_id: str | None = None,
+        version_id: str | None = None,
+    ) -> list[dict]:
+        """Pick the best tasks for an agent to work on.
+
+        Args:
+            skills: List of agent skills (e.g., ["python", "database"])
+            max_priority: Maximum priority to consider
+            exclude_patterns: Regex patterns to exclude
+            count: Maximum number of recommendations
+            project_id: Optional project filter
+            version_id: Optional version filter
+
+        Returns:
+            List of task recommendation dictionaries
+        """
+        from better_notion.plugins.official.agents_sdk.agent import TaskSelector
+
+        selector = TaskSelector(self._client)
+        recommendations = await selector.pick_best_tasks(
+            skills=skills,
+            max_priority=max_priority,
+            exclude_patterns=exclude_patterns,
+            count=count,
+            project_id=project_id,
+            version_id=version_id,
+        )
+
+        return [r.to_dict() for r in recommendations]
+
+    async def suggest(
+        self,
+        unassigned: bool = False,
+        priority: list[str] | None = None,
+        count: int = 5,
+    ) -> list[dict]:
+        """Suggest tasks based on criteria.
+
+        Args:
+            unassigned: Only suggest unassigned tasks
+            priority: List of priority levels to include
+            count: Maximum number of suggestions
+
+        Returns:
+            List of task dictionaries
+        """
+        # Get candidate tasks
+        filters = []
+
+        if unassigned:
+            filters.append({"property": "Assignee", "select": {"is_empty": True}})
+
+        if priority:
+            or_filter = {"or": [{"property": "Priority", "select": {"equals": p}} for p in priority]}
+            filters.append(or_filter)
+
+        # Query with filters
+        database_id = self._get_database_id("Tasks")
+        if not database_id:
+            return []
+
+        query_obj: dict[str, Any] = {}
+        if filters:
+            if len(filters) == 1:
+                query_obj["filter"] = filters[0]
+            else:
+                query_obj["filter"] = {"and": filters}
+
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        response = await self._client._api._request(
+            "POST",
+            f"/databases/{database_id}/query",
+            json=query_obj,
+        )
+
+        tasks = [Task(self._client, page_data) for page_data in response.get("results", [])]
+
+        # Sort by priority (Critical > High > Medium > Low)
+        priority_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
+        tasks.sort(key=lambda t: priority_order.get(getattr(t, "priority", "Low"), 3))
+
+        # Get top N and convert to dicts
+        suggestions = []
+        for task in tasks[:count]:
+            suggestions.append({
+                "id": task.id,
+                "title": task.title,
+                "priority": getattr(task, "priority", None),
+                "status": getattr(task, "status", None),
+                "assignee": getattr(task, "assignee", None),
+                "type": getattr(task, "task_type", None),
+            })
+
+        return suggestions
+
+    async def claim(self, task_id: str) -> dict:
+        """Claim a task (set status to In Progress).
+
+        Args:
+            task_id: Task ID to claim
+
+        Returns:
+            Dict with task_id and new status
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        await task.update(status="In Progress")
+
+        return {
+            "task_id": task_id,
+            "status": "In Progress",
+        }
+
+    async def start(self, task_id: str) -> dict:
+        """Start a task (alias for claim).
+
+        Args:
+            task_id: Task ID to start
+
+        Returns:
+            Dict with task_id and new status
+        """
+        return await self.claim(task_id)
+
+    async def complete(self, task_id: str) -> dict:
+        """Complete a task (set status to Completed).
+
+        Args:
+            task_id: Task ID to complete
+
+        Returns:
+            Dict with task_id and new status
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        task = await Task.get(task_id, client=self._client)
+        await task.update(status="Completed")
+
+        return {
+            "task_id": task_id,
+            "status": "Completed",
+        }
+
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
         return getattr(self._client, "_workspace_config", {}).get(name)
@@ -889,6 +1118,57 @@ class IdeaManager:
         """
         ideas = await self.list(status="Accepted")
         return [idea for idea in ideas if not idea.related_task_id]
+
+    async def search(
+        self,
+        query: str,
+        status: str | None = None,
+        category: str | None = None,
+        project_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Search ideas by text query with optional filters.
+
+        Args:
+            query: Text search query
+            status: Optional status filter
+            category: Optional category filter
+            project_id: Optional project ID filter
+            limit: Maximum results to return
+
+        Returns:
+            List of search result dictionaries
+        """
+        from better_notion.plugins.official.agents_sdk.search import TextSearcher
+
+        database_id = self._get_database_id("Ideas")
+        if not database_id:
+            return []
+
+        # Build filters
+        filters: list[dict[str, Any]] = []
+
+        if status:
+            filters.append({"property": "Status", "select": {"equals": status}})
+
+        if category:
+            filters.append({"property": "Category", "select": {"equals": category}})
+
+        if project_id:
+            filters.append({"property": "Project", "relation": {"contains": project_id}})
+
+        # Combine filters
+        filter_dict = None
+        if filters:
+            if len(filters) == 1:
+                filter_dict = filters[0]
+            else:
+                filter_dict = {"and": filters}
+
+        searcher = TextSearcher(self._client)
+        results = await searcher.search_ideas(query, database_id, filter_dict, limit)
+
+        return [r.to_dict() for r in results]
 
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
@@ -1105,6 +1385,62 @@ class WorkIssueManager:
             for page_data in response.get("results", [])
         ]
 
+    async def search(
+        self,
+        query: str,
+        status: str | None = None,
+        type_: str | None = None,
+        severity: str | None = None,
+        project_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Search work issues by text query with optional filters.
+
+        Args:
+            query: Text search query
+            status: Optional status filter
+            type_: Optional type filter
+            severity: Optional severity filter
+            project_id: Optional project ID filter
+            limit: Maximum results to return
+
+        Returns:
+            List of search result dictionaries
+        """
+        from better_notion.plugins.official.agents_sdk.search import TextSearcher
+
+        database_id = self._get_database_id("Work_issues")
+        if not database_id:
+            return []
+
+        # Build filters
+        filters: list[dict[str, Any]] = []
+
+        if status:
+            filters.append({"property": "Status", "select": {"equals": status}})
+
+        if type_:
+            filters.append({"property": "Type", "select": {"equals": type_}})
+
+        if severity:
+            filters.append({"property": "Severity", "select": {"equals": severity}})
+
+        if project_id:
+            filters.append({"property": "Project", "relation": {"contains": project_id}})
+
+        # Combine filters
+        filter_dict = None
+        if filters:
+            if len(filters) == 1:
+                filter_dict = filters[0]
+            else:
+                filter_dict = {"and": filters}
+
+        searcher = TextSearcher(self._client)
+        results = await searcher.search_work_issues(query, database_id, filter_dict, limit)
+
+        return [r.to_dict() for r in results]
+
     def _get_database_id(self, name: str) -> str | None:
         """Get database ID from workspace config."""
         return getattr(self._client, "_workspace_config", {}).get(name)
@@ -1197,6 +1533,79 @@ class IncidentManager:
             incidents.append(incident)
 
         return incidents
+
+    async def search(
+        self,
+        query: str,
+        status: str | None = None,
+        severity: str | None = None,
+        incident_type: str | None = None,
+        project_id: str | None = None,
+        limit: int = 50,
+    ) -> list[dict]:
+        """Search incidents by text query with optional filters.
+
+        Args:
+            query: Text search query
+            status: Optional status filter
+            severity: Optional severity filter
+            incident_type: Optional incident type filter
+            project_id: Optional project ID filter
+            limit: Maximum results to return
+
+        Returns:
+            List of search result dictionaries
+        """
+        from better_notion.plugins.official.agents_sdk.search import TextSearcher
+
+        database_id = self._get_database_id("Incidents")
+        if not database_id:
+            return []
+
+        # Build filters
+        filters: list[dict[str, Any]] = []
+
+        if status:
+            filters.append({"property": "Status", "select": {"equals": status}})
+
+        if severity:
+            filters.append({"property": "Severity", "select": {"equals": severity}})
+
+        if incident_type:
+            filters.append({"property": "Type", "select": {"equals": incident_type}})
+
+        if project_id:
+            filters.append({"property": "Project", "relation": {"contains": project_id}})
+
+        # Combine filters
+        filter_dict = None
+        if filters:
+            if len(filters) == 1:
+                filter_dict = filters[0]
+            else:
+                filter_dict = {"and": filters}
+
+        searcher = TextSearcher(self._client)
+        results = await searcher.search_incidents(query, database_id, filter_dict, limit)
+
+        return [r.to_dict() for r in results]
+
+    async def triage(self, incident_id: str) -> dict:
+        """Triage and classify an incident.
+
+        Args:
+            incident_id: Incident ID to triage
+
+        Returns:
+            Dictionary with triage results including severity, type, and suggested assignment
+        """
+        from better_notion.plugins.official.agents_sdk.agent import IncidentTriager
+        from better_notion.plugins.official.agents_sdk.models import Incident
+
+        incident = await Incident.get(incident_id, client=self._client)
+        triager = IncidentTriager(self._client)
+
+        return await triager.triage_incident(incident)
 
     async def find_sla_violations(self) -> list:
         """
