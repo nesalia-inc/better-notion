@@ -466,7 +466,13 @@ class TaskSchema:
             ),
             "Estimated Hours": PropertyBuilder.number("Estimated Hours"),
             "Actual Hours": PropertyBuilder.number("Actual Hours"),
-            "Assignee": PropertyBuilder.people("Assignee"),
+            # Note: Assignee as select for MVP - change to people type for full Notion integration
+            "Assignee": PropertyBuilder.select(
+                "Assignee",
+                [
+                    SelectOption.option("Unassigned", "gray"),
+                ]
+            ),
             "Created Date": PropertyBuilder.date("Created Date"),
             "Completed Date": PropertyBuilder.date("Completed Date"),
         }
