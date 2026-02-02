@@ -984,7 +984,7 @@ class AgentsPlugin(CombinedPluginInterface):
             context: str = typer.Option("", "--context"),
             proposed_solution: str = typer.Option("", "--proposed-solution"),
         ):
-            typer.echo(agents_cli.work_issues_create(title, project_id, task_id, type_, severity, description, context, proposed_solution))
+            typer.echo(agents_cli.work_issues_create(title, project_id, type_, severity, description, context, task_id))
 
         @work_issues_app.command("resolve")
         def work_issues_resolve_cmd(
@@ -1021,7 +1021,7 @@ class AgentsPlugin(CombinedPluginInterface):
             severity: str = typer.Option("Medium", "--severity"),
             type_: str = typer.Option("Bug", "--type"),
         ):
-            typer.echo(agents_cli.incidents_create(title, project_id, affected_version_id, severity, type_))
+            typer.echo(agents_cli.incidents_create(title, project_id, severity, type_, affected_version_id))
 
         @incidents_app.command("resolve")
         def incidents_resolve_cmd(
