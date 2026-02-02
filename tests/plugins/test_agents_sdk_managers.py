@@ -279,7 +279,7 @@ class TestIdeaManager:
         """Test listing ideas with filters."""
         mock_client._workspace_config = {"Ideas": "db-123"}
 
-        mock_client._api.request.return_value = {
+        mock_client._api._request.return_value = {
             "results": [
                 {
                     "id": "idea-1",
@@ -306,7 +306,7 @@ class TestIdeaManager:
         """Test getting a batch of ideas for review."""
         mock_client._workspace_config = {"Ideas": "db-123"}
 
-        mock_client._api.request.return_value = {
+        mock_client._api._request.return_value = {
             "results": [
                 {
                     "id": "idea-1",
@@ -353,7 +353,7 @@ class TestWorkIssueManager:
         """Test listing work issues with filters."""
         mock_client._workspace_config = {"Work Issues": "db-123"}
 
-        mock_client._api.request.return_value = {
+        mock_client._api._request.return_value = {
             "results": [
                 {
                     "id": "issue-1",
@@ -381,7 +381,7 @@ class TestWorkIssueManager:
         """Test finding blocking issues."""
         mock_client._workspace_config = {"Work Issues": "db-123"}
 
-        mock_client._api.request.return_value = {
+        mock_client._api._request.return_value = {
             "results": [
                 {
                     "id": "issue-1",
@@ -428,7 +428,7 @@ class TestIncidentManager:
         """Test listing incidents with filters."""
         mock_client._workspace_config = {"Incidents": "db-123"}
 
-        mock_client._api.request.return_value = {
+        mock_client._api._request.return_value = {
             "results": [
                 {
                     "id": "incident-1",
@@ -457,12 +457,15 @@ class TestIncidentManager:
 @pytest.fixture
 def mock_client():
     """Create a mock NotionClient."""
-    from unittest.mock import MagicMock
+    from unittest.mock import AsyncMock, MagicMock
 
     from better_notion._sdk.client import NotionClient
 
     client = MagicMock(spec=NotionClient)
     client._api = MagicMock()
+    client._api.databases = MagicMock()
+    client._api.databases.query = AsyncMock(return_value={"results": []})
+    client._api._request = AsyncMock(return_value={"results": []})
     client._workspace_config = {}
     client._plugin_caches = {}
 
