@@ -1053,6 +1053,26 @@ class Task(DatabasePageEntityMixin, BaseEntity):
             return hours_prop.get("number")
         return None
 
+    @property
+    def assignee(self) -> str | None:
+        """Get the assignee of this task."""
+        assignee_prop = self._data["properties"].get("Assignee") or self._data["properties"].get("assignee")
+        if assignee_prop and assignee_prop.get("type") == "select":
+            select_data = assignee_prop.get("select")
+            if select_data:
+                return select_data.get("name")
+        return None
+
+    @property
+    def related_work_issue_id(self) -> str | None:
+        """Get related work issue ID (blocking this task or caused by this task)."""
+        issue_prop = self._data["properties"].get("Related Work Issue") or self._data["properties"].get("related_work_issue")
+        if issue_prop and issue_prop.get("type") == "relation":
+            relations = issue_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
+        return None
+
     # ===== AUTONOMOUS METHODS =====
 
     @classmethod
@@ -1261,6 +1281,121 @@ class Task(DatabasePageEntityMixin, BaseEntity):
             if dep.status != "Completed":
                 return False
         return True
+
+    async def related_work_issue(self) -> "WorkIssue | None":
+        """
+        Get the related work issue (blocking this task or caused by this task).
+
+        Returns:
+            WorkIssue instance or None
+
+        Example:
+            >>> issue = await task.related_work_issue()
+        """
+        from better_notion.plugins.official.agents_sdk.models import WorkIssue
+
+        issue_id = self.related_work_issue_id
+        if not issue_id:
+            return None
+
+        try:
+            return await WorkIssue.get(issue_id, client=self._client)
+        except Exception:
+            return None
+
+    async def link_to_work_issue(self, work_issue_id: str) -> None:
+        """
+        Link this task to a work issue.
+
+        Args:
+            work_issue_id: Work issue ID to link to
+
+        Example:
+            >>> await task.link_to_work_issue(issue_id)
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Related Work Issue": Relation([work_issue_id]).to_dict(),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Related Work Issue"] = {
+            "type": "relation",
+            "relation": [{"id": work_issue_id}]
+        }
+
+    async def unlink_work_issue(self) -> None:
+        """
+        Unlink this task from its work issue.
+
+        Example:
+            >>> await task.unlink_work_issue()
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Related Work Issue": Relation([]).to_dict(),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Related Work Issue"] = {
+            "type": "relation",
+            "relation": []
+        }
+
+    async def assign_to(self, assignee: str) -> None:
+        """
+        Assign this task to a person.
+
+        Args:
+            assignee: Name of the person to assign to
+
+        Example:
+            >>> await task.assign_to("Alice Chen")
+        """
+        from better_notion._api.properties import Select
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Assignee": Select(name="Assignee", value=assignee).to_dict(),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Assignee"] = {
+            "type": "select",
+            "select": {"name": assignee}
+        }
+
+    async def unassign(self) -> None:
+        """
+        Unassign this task.
+
+        Example:
+            >>> await task.unassign()
+        """
+        from better_notion._api.properties import Select
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Assignee": None,
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Assignee"] = {
+            "type": "select",
+            "select": None
+        }
 
 
 class Idea(DatabasePageEntityMixin, BaseEntity):
@@ -1790,6 +1925,24 @@ class WorkIssue(DatabasePageEntityMixin, BaseEntity):
                 return relations[0].get("id")
         return None
 
+    @property
+    def caused_incident_ids(self) -> list[str]:
+        """Get incident IDs caused by this work issue."""
+        incidents_prop = self._data["properties"].get("Caused Incidents") or self._data["properties"].get("caused_incidents")
+        if incidents_prop and incidents_prop.get("type") == "relation":
+            relations = incidents_prop.get("relation", [])
+            return [r.get("id", "") for r in relations if r.get("id")]
+        return []
+
+    @property
+    def blocking_task_ids(self) -> list[str]:
+        """Get task IDs blocked by this work issue."""
+        tasks_prop = self._data["properties"].get("Blocking Tasks") or self._data["properties"].get("blocking_tasks")
+        if tasks_prop and tasks_prop.get("type") == "relation":
+            relations = tasks_prop.get("relation", [])
+            return [r.get("id", "") for r in relations if r.get("id")]
+        return []
+
     # ===== AUTONOMOUS METHODS =====
 
     @classmethod
@@ -2010,6 +2163,48 @@ class WorkIssue(DatabasePageEntityMixin, BaseEntity):
 
         return idea
 
+    async def caused_incidents(self) -> list["Incident"]:
+        """
+        Get incidents caused by this work issue.
+
+        Returns:
+            List of Incident instances
+
+        Example:
+            >>> incidents = await issue.caused_incidents()
+        """
+        from better_notion.plugins.official.agents_sdk.models import Incident
+
+        incidents = []
+        for incident_id in self.caused_incident_ids:
+            try:
+                incident = await Incident.get(incident_id, client=self._client)
+                incidents.append(incident)
+            except Exception:
+                pass
+        return incidents
+
+    async def blocking_tasks(self) -> list["Task"]:
+        """
+        Get tasks blocked by this work issue.
+
+        Returns:
+            List of Task instances
+
+        Example:
+            >>> tasks = await issue.blocking_tasks()
+        """
+        from better_notion.plugins.official.agents_sdk.models import Task
+
+        tasks = []
+        for task_id in self.blocking_task_ids:
+            try:
+                task = await Task.get(task_id, client=self._client)
+                tasks.append(task)
+            except Exception:
+                pass
+        return tasks
+
 
 class Incident(DatabasePageEntityMixin, BaseEntity):
     """
@@ -2151,6 +2346,16 @@ class Incident(DatabasePageEntityMixin, BaseEntity):
             date_data = date_prop.get("date")
             if date_data and date_data.get("start"):
                 return date_data["start"]
+        return None
+
+    @property
+    def root_cause_work_issue_id(self) -> str | None:
+        """Get the work issue ID that caused this incident."""
+        issue_prop = self._data["properties"].get("Root Cause Work Issue") or self._data["properties"].get("root_cause_work_issue")
+        if issue_prop and issue_prop.get("type") == "relation":
+            relations = issue_prop.get("relation", [])
+            if relations:
+                return relations[0].get("id")
         return None
 
     # ===== AUTONOMOUS METHODS =====
@@ -2405,3 +2610,71 @@ class Incident(DatabasePageEntityMixin, BaseEntity):
         await self.assign(task.id)
 
         return task
+
+    async def root_cause_work_issue(self) -> "WorkIssue | None":
+        """
+        Get the work issue that caused this incident.
+
+        Returns:
+            WorkIssue instance or None
+
+        Example:
+            >>> issue = await incident.root_cause_work_issue()
+        """
+        from better_notion.plugins.official.agents_sdk.models import WorkIssue
+
+        issue_id = self.root_cause_work_issue_id
+        if not issue_id:
+            return None
+
+        try:
+            return await WorkIssue.get(issue_id, client=self._client)
+        except Exception:
+            return None
+
+    async def link_to_work_issue(self, work_issue_id: str) -> None:
+        """
+        Link this incident to a work issue (root cause).
+
+        Args:
+            work_issue_id: Work issue ID to link to
+
+        Example:
+            >>> await incident.link_to_work_issue(issue_id)
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Root Cause Work Issue": Relation([work_issue_id]).to_dict(),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Root Cause Work Issue"] = {
+            "type": "relation",
+            "relation": [{"id": work_issue_id}]
+        }
+
+    async def unlink_work_issue(self) -> None:
+        """
+        Unlink this incident from its work issue.
+
+        Example:
+            >>> await incident.unlink_work_issue()
+        """
+        from better_notion._api.properties import Relation
+
+        await self._client._api.pages.update(
+            page_id=self.id,
+            properties={
+                "Root Cause Work Issue": Relation([]).to_dict(),
+            },
+        )
+
+        # Update local data
+        self._data["properties"]["Root Cause Work Issue"] = {
+            "type": "relation",
+            "relation": []
+        }
