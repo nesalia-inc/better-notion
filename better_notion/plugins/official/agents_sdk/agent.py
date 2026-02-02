@@ -89,7 +89,7 @@ class TaskSelector:
         """
         from better_notion.plugins.official.agents_sdk.managers import TaskManager
 
-        task_mgr = TaskManager(self._client, self._client.workspace_config)
+        task_mgr = TaskManager(self._client, getattr(self._client, "_workspace_config", {}))
 
         # Get candidate tasks - filter to backlog only
         candidates = await task_mgr.list(
