@@ -572,25 +572,25 @@ class IdeaManager:
 
         if project_id:
             filters.append({
-                "property": "project_id",
+                "property": "Project",
                 "relation": {"contains": project_id}
             })
 
         if category:
             filters.append({
-                "property": "category",
+                "property": "Category",
                 "select": {"equals": category}
             })
 
         if status:
             filters.append({
-                "property": "status",
+                "property": "Status",
                 "select": {"equals": status}
             })
 
         if effort_estimate:
             filters.append({
-                "property": "effort_estimate",
+                "property": "Effort Estimate",
                 "select": {"equals": effort_estimate}
             })
 
@@ -605,8 +605,8 @@ class IdeaManager:
                 }
 
         response = await self._client._api._request(
-            method="POST",
-            path=f"databases/{database_id}/query",
+            "POST",
+            f"databases/{database_id}/query",
             json=query,
         )
 
@@ -695,31 +695,31 @@ class WorkIssueManager:
 
         if project_id:
             filters.append({
-                "property": "project_id",
+                "property": "Project",
                 "relation": {"contains": project_id}
             })
 
         if task_id:
             filters.append({
-                "property": "task_id",
+                "property": "Task",
                 "relation": {"contains": task_id}
             })
 
         if type_:
             filters.append({
-                "property": "type",
+                "property": "Type",
                 "select": {"equals": type_}
             })
 
         if severity:
             filters.append({
-                "property": "severity",
+                "property": "Severity",
                 "select": {"equals": severity}
             })
 
         if status:
             filters.append({
-                "property": "status",
+                "property": "Status",
                 "select": {"equals": status}
             })
 
@@ -734,8 +734,8 @@ class WorkIssueManager:
                 }
 
         response = await self._client._api._request(
-            method="POST",
-            path=f"databases/{database_id}/query",
+            "POST",
+            f"databases/{database_id}/query",
             json=query,
         )
 
@@ -877,25 +877,25 @@ class IncidentManager:
 
         if project_id:
             filters.append({
-                "property": "project_id",
+                "property": "Project",
                 "relation": {"contains": project_id}
             })
 
         if version_id:
             filters.append({
-                "property": "affected_version_id",
+                "property": "Affected Version",
                 "relation": {"contains": version_id}
             })
 
         if severity:
             filters.append({
-                "property": "severity",
+                "property": "Severity",
                 "select": {"equals": severity}
             })
 
         if status:
             filters.append({
-                "property": "status",
+                "property": "Status",
                 "select": {"equals": status}
             })
 
@@ -910,8 +910,8 @@ class IncidentManager:
                 }
 
         response = await self._client._api._request(
-            method="POST",
-            path=f"databases/{database_id}/query",
+            "POST",
+            f"databases/{database_id}/query",
             json=query,
         )
 
