@@ -141,11 +141,21 @@ class WorkspaceInitializer:
                     logger.info(f"✓ {display_name} database created: {self._database_ids[key]}")
                 except Exception as e:
                     # Clean up databases created so far
+                    import traceback
                     logger.error(f"Failed to create {display_name} database: {str(e)}")
+                    logger.error(f"Full traceback:\n{traceback.format_exc()}")
+
+                    # Try to get more error details if available
+                    error_details = str(e)
+                    if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                        logger.error(f"Notion API response: {e.response.text}")
+                        error_details += f"\nNotion API response: {e.response.text}"
+
                     logger.warning(f"Cleaning up {len(self._database_ids)} databases that were created...")
                     await self._delete_existing_databases(parent, self._database_ids)
+
                     error_msg = (
-                        f"Failed to create {display_name} database: {str(e)}\n"
+                        f"Failed to create {display_name} database: {error_details}\n"
                         f"All partially created databases have been deleted.\n"
                         f"Parent page: {parent_page_id}\n"
                         f"Workspace name: {workspace_name}"
@@ -388,18 +398,31 @@ class WorkspaceInitializer:
             # Continue with other deletions even if this one fails
 
     async def _update_self_relations(self, database_id: str) -> None:
-        """Update self-referential relations in Tasks database.
+        """Add self-referential Dependencies relation to Tasks database.
 
-        Note: The database was created with placeholder relations.
-        This method updates them to point to themselves.
+        The Dependencies property cannot be included in the initial schema
+        because it requires the database's own ID. This method adds it
+        after the database is created.
+
+        Args:
+            database_id: ID of the Tasks database
         """
         # Get the current database schema
         db = await self._client.databases.get(database_id)
-
-        # Update the Dependencies relation to point to itself
         schema = db.schema
-        if "Dependencies" in schema:
-            schema["Dependencies"]["relation"]["database_id"] = database_id
+
+        # Add the Dependencies self-referential relation
+        # This creates a relation from Tasks to Tasks itself
+        schema["Dependencies"] = {
+            "relation": {
+                "database_id": database_id,  # Self-reference
+                "type": "dual_property",
+                "dual_property": {
+                    "synced_property_name": "Dependent Tasks",
+                    "synced_property_type": "relation"
+                }
+            }
+        }
 
         # Update the database schema via API
         await self._client._api._request(
@@ -408,7 +431,7 @@ class WorkspaceInitializer:
             json={"properties": schema}
         )
 
-        logger.info(f"Updated self-referential relations for Tasks database {database_id}")
+        logger.info(f"Added Dependencies self-referential relation to Tasks database {database_id}")
 
     async def _update_cross_database_relations(self) -> None:
         """Update cross-database relations after all databases are created.
