@@ -1007,30 +1007,30 @@ def ideas_create(
 
             # Create idea in Notion
             properties = {
-                "title": {"title": [{"text": {"content": title}}]},
-                "project_id": {"relation": [{"id": project_id}]},
-                "category": {"select": {"name": category}},
-                "status": {"select": {"name": "Proposed"}},
-                "effort_estimate": {"select": {"name": effort_estimate}},
+                "Title": {"title": [{"text": {"content": title}}]},
+                "Project": {"relation": [{"id": project_id}]},
+                "Category": {"select": {"name": category}},
+                "Status": {"select": {"name": "Proposed"}},
+                "Effort Estimate": {"select": {"name": effort_estimate}},
             }
 
             if description:
-                properties["description"] = {
+                properties["Description"] = {
                     "rich_text": [{"text": {"content": description}}]
                 }
 
             if proposed_solution:
-                properties["proposed_solution"] = {
+                properties["Proposed Solution"] = {
                     "rich_text": [{"text": {"content": proposed_solution}}]
                 }
 
             if benefits:
-                properties["benefits"] = {
+                properties["Benefits"] = {
                     "rich_text": [{"text": {"content": benefits}}]
                 }
 
             if context:
-                properties["context"] = {
+                properties["Context"] = {
                     "rich_text": [{"text": {"content": context}}]
                 }
 
@@ -1312,25 +1312,25 @@ def work_issues_create(
 
             # Create issue in Notion
             properties = {
-                "title": {"title": [{"text": {"content": title}}]},
-                "project_id": {"relation": [{"id": project_id}]},
-                "type": {"select": {"name": type}},
-                "severity": {"select": {"name": severity}},
-                "status": {"select": {"name": "Open"}},
+                "Title": {"title": [{"text": {"content": title}}]},
+                "Project": {"relation": [{"id": project_id}]},
+                "Type": {"select": {"name": type}},
+                "Severity": {"select": {"name": severity}},
+                "Status": {"select": {"name": "Open"}},
             }
 
             if description:
-                properties["description"] = {
+                properties["Description"] = {
                     "rich_text": [{"text": {"content": description}}]
                 }
 
             if context:
-                properties["context"] = {
+                properties["Context"] = {
                     "rich_text": [{"text": {"content": context}}]
                 }
 
             if task_id:
-                properties["task_id"] = {"relation": [{"id": task_id}]}
+                properties["Task"] = {"relation": [{"id": task_id}]}
 
             response = await client._api._request(
                 "POST",
@@ -1568,21 +1568,21 @@ def incidents_create(
             from datetime import datetime, timezone
 
             properties = {
-                "title": {"title": [{"text": {"content": title}}]},
-                "project_id": {"relation": [{"id": project_id}]},
-                "severity": {"select": {"name": severity}},
-                "type": {"select": {"name": type}},
-                "status": {"select": {"name": "Active"}},
-                "discovery_date": {
+                "Title": {"title": [{"text": {"content": title}}]},
+                "Project": {"relation": [{"id": project_id}]},
+                "Severity": {"select": {"name": severity}},
+                "Type": {"select": {"name": type}},
+                "Status": {"select": {"name": "Active"}},
+                "Discovery Date": {
                     "date": {"start": datetime.now(timezone.utc).isoformat()}
                 },
             }
 
             if affected_version_id:
-                properties["affected_version_id"] = {"relation": [{"id": affected_version_id}]}
+                properties["Affected Version"] = {"relation": [{"id": affected_version_id}]}
 
             if root_cause:
-                properties["root_cause"] = {
+                properties["Root Cause"] = {
                     "rich_text": [{"text": {"content": root_cause}}]
                 }
 
