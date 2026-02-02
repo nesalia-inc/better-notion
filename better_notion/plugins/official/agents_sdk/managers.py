@@ -606,7 +606,7 @@ class IdeaManager:
 
         response = await self._client._api._request(
             "POST",
-            f"databases/{database_id}/query",
+            f"/databases/{database_id}/query",
             json=query,
         )
 
@@ -735,7 +735,7 @@ class WorkIssueManager:
 
         response = await self._client._api._request(
             "POST",
-            f"databases/{database_id}/query",
+            f"/databases/{database_id}/query",
             json=query,
         )
 
@@ -816,8 +816,8 @@ class WorkIssueManager:
             }
 
         response = await self._client._api._request(
-            method="POST",
-            path=f"databases/{database_id}",
+            "POST",
+            f"/databases/{database_id}",
             json={"properties": properties},
         )
 
@@ -907,7 +907,7 @@ class IncidentManager:
 
         response = await self._client._api._request(
             "POST",
-            f"databases/{database_id}/query",
+            f"/databases/{database_id}/query",
             json=query,
         )
 
