@@ -613,7 +613,7 @@ class IdeaManager:
         # Create Idea instances
         ideas = []
         for page_data in response.get("results", []):
-            idea = Idea(data=page_data, client=self._client, cache=self._client._plugin_caches.get("ideas"))
+            idea = Idea(self._client, page_data)
             ideas.append(idea)
 
         return ideas
@@ -742,7 +742,7 @@ class WorkIssueManager:
         # Create WorkIssue instances
         issues = []
         for page_data in response.get("results", []):
-            issue = WorkIssue(data=page_data, client=self._client, cache=self._client._plugin_caches.get("work_issues"))
+            issue = WorkIssue(self._client, page_data)
             issues.append(issue)
 
         return issues
@@ -822,11 +822,7 @@ class WorkIssueManager:
         )
 
         # Create WorkIssue instance
-        issue = WorkIssue(
-            data=response,
-            client=self._client,
-            cache=self._client._plugin_caches.get("work_issues"),
-        )
+        issue = WorkIssue(self._client, response)
 
         return issue
 
@@ -918,7 +914,7 @@ class IncidentManager:
         # Create Incident instances
         incidents = []
         for page_data in response.get("results", []):
-            incident = Incident(data=page_data, client=self._client, cache=self._client._plugin_caches.get("incidents"))
+            incident = Incident(self._client, page_data)
             incidents.append(incident)
 
         return incidents
