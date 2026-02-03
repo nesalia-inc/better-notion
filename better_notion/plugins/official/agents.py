@@ -381,7 +381,7 @@ class AgentsPlugin(CombinedPluginInterface):
                                 },
                                 {
                                     "action": "verify_setup",
-                                    "command": "agents info --parent-page " + parent_page_id,
+                                    "command": f"agents info --parent-page {parent_page_id or effective_parent_page}",
                                     "purpose": "View workspace status and database IDs",
                                     "when": "Anytime to verify setup",
                                 },

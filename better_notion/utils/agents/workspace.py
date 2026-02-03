@@ -610,8 +610,11 @@ class WorkspaceInitializer:
 
         # Map lowercase keys to capitalized keys for SDK manager compatibility
         database_ids_capitalized = {
-            key.capitalize(): value for key, value in self._database_ids.items()
+            key.capitalize(): value for key, value in self._database_ids.items() if value is not None
         }
+
+        # Also filter out None values from database_ids before saving
+        database_ids_filtered = {k: v for k, v in self._database_ids.items() if v is not None}
 
         # Save full workspace metadata
         # Database IDs are saved at top level with capitalized keys for SDK managers
@@ -622,7 +625,7 @@ class WorkspaceInitializer:
             "initialized_at": datetime.now(timezone.utc).isoformat(),
             "version": "1.5.4",
             **database_ids_capitalized,  # Save at top level: "Organizations", "Projects", etc.
-            "database_ids": self._database_ids,  # Also save under database_ids for compatibility
+            "database_ids": database_ids_filtered,  # Also save under database_ids for compatibility
         }
 
         with open(path, "w", encoding="utf-8") as f:
