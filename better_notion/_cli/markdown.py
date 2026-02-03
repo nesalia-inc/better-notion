@@ -103,8 +103,12 @@ class MarkdownParser:
                     j += 1
 
                 paragraph_text = " ".join(paragraph_lines)
-                if paragraph_text.strip():  # Only add if non-empty
-                    self.blocks.append(self._create_paragraph(paragraph_text))
+                # Only create paragraph if non-empty after stripping
+                if paragraph_text.strip():
+                    paragraph_block = self._create_paragraph(paragraph_text)
+                    # Double-check the paragraph actually has content
+                    if paragraph_block.get("paragraph", {}).get("rich_text"):
+                        self.blocks.append(paragraph_block)
 
                 i = j - 1  # Adjust for outer increment
 
@@ -158,8 +162,14 @@ class MarkdownParser:
             i += 1
 
         code = "\n".join(code_lines)
-        self.blocks.append(self._create_code(code, lang))
-        return i  # Return index of closing ```
+
+        # Only create code block if there's actual content
+        # Empty code blocks cause API errors
+        if code.strip():
+            self.blocks.append(self._create_code(code, lang))
+
+        # Return index AFTER closing ```
+        return i + 1
 
     def _create_rich_text(self, content: str) -> list[dict[str, Any]]:
         """Create rich text array from markdown inline formatting.
