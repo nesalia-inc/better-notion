@@ -74,11 +74,11 @@ class AgentsPlugin(CombinedPluginInterface):
         # Register sub-commands
         @agents_app.command("init")
         def init_workspace(
-            parent_page_id: str = typer.Option(
-                ...,
+            parent_page_id: str | None = typer.Option(
+                None,
                 "--parent-page",
                 "-p",
-                help="ID of the parent page where databases will be created",
+                help="ID of the parent page where databases will be created (auto-detected from existing config if not provided)",
             ),
             workspace_name: str = typer.Option(
                 "Agents Workspace",
@@ -91,12 +91,6 @@ class AgentsPlugin(CombinedPluginInterface):
                 "--reset",
                 "-r",
                 help="Reset workspace (delete existing databases and recreate)",
-            ),
-            skip: bool = typer.Option(
-                False,
-                "--skip",
-                "-s",
-                help="Skip if workspace already exists (return existing databases)",
             ),
             debug: bool = typer.Option(
                 False,
@@ -118,13 +112,14 @@ class AgentsPlugin(CombinedPluginInterface):
             - Incidents
             - Tags
 
-            If a workspace already exists in the page, use --reset to recreate
-            or --skip to keep the existing one.
+            If a workspace already exists in the page, it will be automatically detected and reused.
+            Use --reset to recreate the workspace.
 
             Example:
                 $ notion agents init --parent-page page123 --name "My Workspace"
-                $ notion agents init --parent-page page123 --reset  # Recreate
-                $ notion agents init --parent-page page123 --skip    # Keep existing
+                $ notion agents init --parent-page page123  # Reuse existing workspace
+                $ notion agents init                        # Auto-detect from existing config
+                $ notion agents init --reset                # Delete and recreate
             """
             import asyncio
             import logging
@@ -145,11 +140,30 @@ class AgentsPlugin(CombinedPluginInterface):
                     client = get_client()
                     initializer = WorkspaceInitializer(client)
 
-                    # Handle --skip flag
-                    if skip:
-                        from better_notion._sdk.models.page import Page
-                        from better_notion.utils.agents.metadata import WorkspaceMetadata
+                    # Auto-detect parent_page from config if not provided
+                    if not parent_page_id:
+                        try:
+                            detected_parent_page = WorkspaceInitializer.load_parent_page()
+                            if detected_parent_page:
+                                parent_page_id = detected_parent_page
+                        except FileNotFoundError:
+                            # No existing config, proceed to require parent_page
+                            pass
 
+                    # If we still don't have a parent_page, it's required for first initialization
+                    if not parent_page_id:
+                        return format_error(
+                            "MISSING_PARENT_PAGE",
+                            "No existing workspace found. Please provide --parent-page for first initialization.",
+                            retry=False,
+                        )
+
+                    # Auto-detect existing workspace
+                    from better_notion._sdk.models.page import Page
+                    from better_notion.utils.agents.metadata import WorkspaceMetadata
+
+                    # Only detect if not in reset mode
+                    if not reset:
                         try:
                             page = await Page.get(parent_page_id, client=client)
                             existing = await WorkspaceMetadata.detect_workspace(page, client)
@@ -158,8 +172,6 @@ class AgentsPlugin(CombinedPluginInterface):
                                 database_ids = existing.get("database_ids", {})
 
                                 # Save workspace config for subsequent commands
-                                # This fixes the bug where --skip detected workspace but didn't save config,
-                                # causing subsequent commands (agents orgs create, etc.) to fail
                                 initializer._database_ids = database_ids
                                 initializer._parent_page_id = parent_page_id
                                 initializer._workspace_id = existing.get("workspace_id")
@@ -168,11 +180,12 @@ class AgentsPlugin(CombinedPluginInterface):
 
                                 return format_success(
                                     {
-                                        "message": "Workspace already exists, skipping initialization",
+                                        "message": "Workspace already exists, using existing configuration",
                                         "workspace_id": existing.get("workspace_id"),
                                         "databases_found": len(database_ids),
                                         "database_ids": database_ids,
                                         "config_saved": True,
+                                        "parent_page": parent_page_id,
                                     },
                                     meta={
                                         "command": "agents init",
