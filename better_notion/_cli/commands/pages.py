@@ -444,11 +444,23 @@ async def create_from_md(
 
         client = get_client()
 
-        # Resolve parent
+        # Resolve parent with clear error messages
         try:
             parent_obj = await client.databases.get(parent)
-        except Exception:
-            parent_obj = await client.pages.get(parent)
+        except Exception as db_err:
+            # If database fails, try as page
+            try:
+                parent_obj = await client.pages.get(parent)
+            except Exception as page_err:
+                # Both failed - return detailed error
+                result = format_error(
+                    "PARENT_NOT_FOUND",
+                    f"Could not find parent '{parent}' as database or page. "
+                    f"Database error: {str(db_err)}. Page error: {str(page_err)}",
+                    retry=False
+                )
+                typer.echo(result)
+                raise typer.Exit(code=1)
 
         # Create page
         page = await client.pages.create(
