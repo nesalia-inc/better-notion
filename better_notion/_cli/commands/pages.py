@@ -478,22 +478,38 @@ async def create_from_md(
             # Add blocks one by one (Notion API limitation)
             # Note: Must use children=[block_data] format for Notion API
             created_count = 0
-            for block_data in blocks:
+            failed_blocks = []
+            for idx, block_data in enumerate(blocks):
                 try:
                     await blocks_collection.append(children=[block_data])
                     created_count += 1
                 except Exception as e:
-                    # Continue with other blocks even if one fails
-                    pass
+                    # Track failed blocks for debugging
+                    failed_blocks.append({
+                        "index": idx,
+                        "type": block_data.get("type", "unknown"),
+                        "error": str(e)
+                    })
 
         result = format_success({
             "id": page.id,
             "title": page_title,
             "url": page.url,
             "blocks_created": created_count,
+            "blocks_total": len(blocks),
+            "blocks_failed": len(failed_blocks),
             "file": file,
         })
         typer.echo(result)
+
+        # Warn about failed blocks if any
+        if failed_blocks:
+            import sys
+            print(f"[warning] {len(failed_blocks)} block(s) failed to create:", file=sys.stderr)
+            for failed in failed_blocks[:3]:  # Show first 3 failures
+                print(f"  - Block {failed['index']} ({failed['type']}): {failed['error'][:100]}", file=sys.stderr)
+            if len(failed_blocks) > 3:
+                print(f"  ... and {len(failed_blocks) - 3} more", file=sys.stderr)
 
     except FileNotFoundError as e:
         result = format_error("FILE_NOT_FOUND", str(e), retry=False)
@@ -565,20 +581,36 @@ async def append_md(
             # Add blocks one by one (Notion API limitation)
             # Note: Must use children=[block_data] format for Notion API
             appended_count = 0
-            for block_data in blocks:
+            failed_blocks = []
+            for idx, block_data in enumerate(blocks):
                 try:
                     await blocks_collection.append(children=[block_data])
                     appended_count += 1
                 except Exception as e:
-                    # Continue with other blocks even if one fails
-                    pass
+                    # Track failed blocks for debugging
+                    failed_blocks.append({
+                        "index": idx,
+                        "type": block_data.get("type", "unknown"),
+                        "error": str(e)
+                    })
 
         result = format_success({
             "page_id": page_id,
             "blocks_appended": appended_count,
+            "blocks_total": len(blocks),
+            "blocks_failed": len(failed_blocks),
             "file": file,
         })
         typer.echo(result)
+
+        # Warn about failed blocks if any
+        if failed_blocks:
+            import sys
+            print(f"[warning] {len(failed_blocks)} block(s) failed to append:", file=sys.stderr)
+            for failed in failed_blocks[:3]:  # Show first 3 failures
+                print(f"  - Block {failed['index']} ({failed['type']}): {failed['error'][:100]}", file=sys.stderr)
+            if len(failed_blocks) > 3:
+                print(f"  ... and {len(failed_blocks) - 3} more", file=sys.stderr)
 
     except FileNotFoundError as e:
         result = format_error("FILE_NOT_FOUND", str(e), retry=False)
