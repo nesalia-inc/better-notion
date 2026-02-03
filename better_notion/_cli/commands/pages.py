@@ -216,7 +216,7 @@ async def search(
     client = get_client()
     filters = json.loads(filter) if filter else {}
 
-    results = await client.search.search(query=query, filter=filters)
+    results = await client.search(query=query, filter=filters)
 
     pages = [r for r in results if hasattr(r, 'title')]
     result = format_success({
