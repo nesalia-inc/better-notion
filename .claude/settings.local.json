@@ -35,7 +35,9 @@
       "Bash(gh issue edit:*)",
       "Bash(a running event loop\" error on Windows and other platforms.\n\nChanges:\n- Made all commands in pages.py async directly \\(remove nested functions\\)\n- Removed asyncio.run\\(\\) calls from all commands\n- Removed unused asyncio import\n- Added proper error handling with typer.Exit\\(\\)\n\nFixes: #033\nEOF\n\\)\")",
       "Bash(uv publish:*)",
-      "Bash(gh issue create:*)"
+      "Bash(gh issue create:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(where:*)"
     ]
   }
 }

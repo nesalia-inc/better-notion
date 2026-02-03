@@ -10,9 +10,12 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("better-notion")
+try:
+    __version__ = version("better-notion")
+except PackageNotFoundError:
+    __version__ = "2.4.0"  # Fallback version
 
 
 def format_response(

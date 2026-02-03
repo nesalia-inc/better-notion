@@ -140,18 +140,21 @@ class AgentsPlugin(CombinedPluginInterface):
                     client = get_client()
                     initializer = WorkspaceInitializer(client)
 
+                    # Determine parent_page to use
+                    effective_parent_page: str | None = parent_page_id
+
                     # Auto-detect parent_page from config if not provided
-                    if not parent_page_id:
+                    if not effective_parent_page:
                         try:
                             detected_parent_page = WorkspaceInitializer.load_parent_page()
                             if detected_parent_page:
-                                parent_page_id = detected_parent_page
+                                effective_parent_page = detected_parent_page
                         except FileNotFoundError:
                             # No existing config, proceed to require parent_page
                             pass
 
                     # If we still don't have a parent_page, it's required for first initialization
-                    if not parent_page_id:
+                    if not effective_parent_page:
                         return format_error(
                             "MISSING_PARENT_PAGE",
                             "No existing workspace found. Please provide --parent-page for first initialization.",
@@ -165,7 +168,7 @@ class AgentsPlugin(CombinedPluginInterface):
                     # Only detect if not in reset mode
                     if not reset:
                         try:
-                            page = await Page.get(parent_page_id, client=client)
+                            page = await Page.get(effective_parent_page, client=client)
                             existing = await WorkspaceMetadata.detect_workspace(page, client)
 
                             if existing:
@@ -173,7 +176,7 @@ class AgentsPlugin(CombinedPluginInterface):
 
                                 # Save workspace config for subsequent commands
                                 initializer._database_ids = database_ids
-                                initializer._parent_page_id = parent_page_id
+                                initializer._parent_page_id = effective_parent_page
                                 initializer._workspace_id = existing.get("workspace_id")
                                 initializer._workspace_name = existing.get("workspace_name", workspace_name)
                                 initializer.save_database_ids()
@@ -185,7 +188,7 @@ class AgentsPlugin(CombinedPluginInterface):
                                         "databases_found": len(database_ids),
                                         "database_ids": database_ids,
                                         "config_saved": True,
-                                        "parent_page": parent_page_id,
+                                        "parent_page": effective_parent_page,
                                     },
                                     meta={
                                         "command": "agents init",
@@ -288,7 +291,7 @@ class AgentsPlugin(CombinedPluginInterface):
 
                     # Initialize workspace (with skip_detection=True if --reset)
                     database_ids = await initializer.initialize_workspace(
-                        parent_page_id=parent_page_id,
+                        parent_page_id=effective_parent_page,
                         workspace_name=workspace_name,
                         skip_detection=reset,  # Skip detection if resetting
                     )
