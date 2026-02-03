@@ -482,6 +482,11 @@ async def create_from_md(
             failed_blocks = []
             for idx, block_data in enumerate(blocks):
                 try:
+                    # Debug: log block structure before sending
+                    import sys
+                    if block_data.get("type") == "code":
+                        print(f"[debug] Sending code block {idx}: {block_data['code'].get('language', 'unknown')}", file=sys.stderr)
+
                     await blocks_collection.append(children=[block_data])
                     created_count += 1
                     # Small delay to avoid rate limiting (especially for code blocks)
@@ -489,16 +494,25 @@ async def create_from_md(
                         await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
+                    import sys
+                    import json
+
                     error_details = str(e)
                     # Try to extract more error details if available
                     if hasattr(e, 'body') and e.body:
-                        import json
                         try:
                             error_body = json.loads(e.body.decode() if isinstance(e.body, bytes) else e.body)
                             if isinstance(error_body, dict):
                                 error_details = error_body.get('message', error_details)
                         except:
                             pass
+
+                    # Print detailed debug info for failed blocks
+                    print(f"[error] Block {idx} ({block_data.get('type', 'unknown')}): {error_details}", file=sys.stderr)
+                    if block_data.get("type") == "code":
+                        code_content = block_data.get("code", {})
+                        print(f"[error]   Language: {code_content.get('language', 'unknown')}", file=sys.stderr)
+                        print(f"[error]   Content length: {len(code_content.get('rich_text', [{}])[0].get('text', {}).get('content', ''))} chars", file=sys.stderr)
 
                     failed_blocks.append({
                         "index": idx,
@@ -607,16 +621,25 @@ async def append_md(
                         await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
+                    import sys
+                    import json
+
                     error_details = str(e)
                     # Try to extract more error details if available
                     if hasattr(e, 'body') and e.body:
-                        import json
                         try:
                             error_body = json.loads(e.body.decode() if isinstance(e.body, bytes) else e.body)
                             if isinstance(error_body, dict):
                                 error_details = error_body.get('message', error_details)
                         except:
                             pass
+
+                    # Print detailed debug info for failed blocks
+                    print(f"[error] Block {idx} ({block_data.get('type', 'unknown')}): {error_details}", file=sys.stderr)
+                    if block_data.get("type") == "code":
+                        code_content = block_data.get("code", {})
+                        print(f"[error]   Language: {code_content.get('language', 'unknown')}", file=sys.stderr)
+                        print(f"[error]   Content length: {len(code_content.get('rich_text', [{}])[0].get('text', {}).get('content', ''))} chars", file=sys.stderr)
 
                     failed_blocks.append({
                         "index": idx,
