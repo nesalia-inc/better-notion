@@ -162,15 +162,88 @@ class MarkdownParser:
         return i  # Return index of closing ```
 
     def _create_rich_text(self, content: str) -> list[dict[str, Any]]:
-        """Create rich text array from plain text.
+        """Create rich text array from markdown inline formatting.
 
         Args:
-            content: Text content
+            content: Text content with markdown formatting
 
         Returns:
-            Rich text array
+            Rich text array with Notion annotations
         """
-        return [{"type": "text", "text": {"content": content}}]
+        if not content:
+            return []
+
+        # Patterns for inline formatting (order matters for nested formatting)
+        patterns = [
+            # Bold: **text** or __text__
+            (r'\*\*(.+?)\*\*', 'bold'),
+            (r'__(.+?)__', 'bold'),
+            # Italic: *text* or _text_ (but not mid-word)
+            (r'(?<!\w)\*(?!\*)(.+?)(?<!\*)\*(?!\w)', 'italic'),
+            (r'(?<!\w)_(?!_)(.+?)(?<!_)_(?!\w)', 'italic'),
+            # Strikethrough: ~~text~~
+            (r'~~(.+?)~~', 'strikethrough'),
+            # Inline code: `text`
+            (r'`(.+?)`', 'code'),
+            # Links: [text](url)
+            (r'\[(.+?)\]\((.+?)\)', 'link'),
+        ]
+
+        rich_text = []
+        remaining = content
+        last_end = 0
+
+        while remaining:
+            # Find the first matching pattern
+            earliest_match = None
+            earliest_pos = -1
+            matched_pattern = None
+
+            for pattern, style in patterns:
+                match = re.search(pattern, remaining)
+                if match and (earliest_pos == -1 or match.start() < earliest_pos):
+                    earliest_match = match
+                    earliest_pos = match.start()
+                    matched_pattern = (pattern, style)
+
+            if earliest_match:
+                # Add text before the match
+                if earliest_pos > 0:
+                    rich_text.append({"type": "text", "text": {"content": remaining[:earliest_pos]}})
+
+                # Process the match based on style
+                style = matched_pattern[1]
+
+                if style == 'link':
+                    # Link format: [text](url)
+                    link_text = earliest_match.group(1)
+                    link_url = earliest_match.group(2)
+                    rich_text.append({
+                        "type": "text",
+                        "text": {"content": link_text, "link": {"url": link_url}}
+                    })
+                else:
+                    # Text with annotation
+                    text_content = earliest_match.group(1)
+                    rich_text_obj = {"type": "text", "text": {"content": text_content}}
+
+                    # Add annotation
+                    annotations = {"bold": False, "italic": False, "strikethrough": False, "code": False, "underline": False}
+                    annotations[style] = True
+                    rich_text_obj["annotations"] = annotations
+
+                    rich_text.append(rich_text_obj)
+
+                # Move past this match
+                remaining = remaining[earliest_match.end():]
+                last_end = earliest_match.end()
+            else:
+                # No more matches, add remaining text
+                if remaining:
+                    rich_text.append({"type": "text", "text": {"content": remaining}})
+                break
+
+        return rich_text if rich_text else [{"type": "text", "text": {"content": content}}]
 
     def _create_paragraph(self, text: str) -> dict[str, Any]:
         """Create a paragraph block.

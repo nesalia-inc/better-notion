@@ -15,7 +15,7 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("better-notion")
 except PackageNotFoundError:
-    __version__ = "2.5.1"  # Fallback version
+    __version__ = "2.6.0"  # Fallback version
 
 
 def format_response(
