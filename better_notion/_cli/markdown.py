@@ -351,6 +351,58 @@ class MarkdownParser:
             }
         }
 
+    # Notion-supported code languages (from API documentation)
+    NOTION_LANGUAGES = {
+        "abap", "arduino", "bash", "basic", "c", "clojure", "coffeescript",
+        "cpp", "csharp", "css", "dart", "diff", "docker", "elixir", "elm",
+        "erlang", "flow", "fortran", "fsharp", "gherkin", "glsl", "go",
+        "graphql", "groovy", "haskell", "html", "java", "javascript", "json",
+        "julia", "kotlin", "latex", "less", "lisp", "livescript", "lua",
+        "makefile", "markdown", "mathematica", "matlab", "mermaid", "nix",
+        "objective-c", "objective-cpp", "ocaml", "pascal", "perl", "php",
+        "powershell", "prolog", "protobuf", "python", "r", "ruby", "rust",
+        "scala", "scheme", "scss", "shell", "sql", "swift", "typescript",
+        "vb.net", "verilog", "vhdl", "visual basic", "wollok", "xml", "yaml"
+    }
+
+    def _normalize_language(self, lang: str) -> str:
+        """Normalize language to Notion-supported format.
+
+        Args:
+            lang: Language identifier from markdown
+
+        Returns:
+            Normalized language name supported by Notion
+        """
+        lang_lower = lang.lower().strip()
+
+        # Map common variations to Notion-supported languages
+        language_map = {
+            "py": "python",
+            "js": "javascript",
+            "ts": "typescript",
+            "c++": "cpp",
+            "c#": "csharp",
+            "sh": "bash",
+            "zsh": "bash",
+            "yml": "yaml",
+            "txt": "text",
+            "": "text",
+            "text": "text",
+            "plain": "text",
+        }
+
+        # Apply mapping
+        if lang_lower in language_map:
+            return language_map[lang_lower]
+
+        # Check if it's a Notion-supported language
+        if lang_lower in self.NOTION_LANGUAGES:
+            return lang_lower
+
+        # Default to plain text for unknown languages
+        return "text"
+
     def _create_code(self, code: str, language: str = "text") -> dict[str, Any]:
         """Create a code block.
 
@@ -361,12 +413,13 @@ class MarkdownParser:
         Returns:
             Code block data
         """
+        normalized_lang = self._normalize_language(language)
         return {
             "object": "block",
             "type": "code",
             "code": {
                 "rich_text": [{"type": "text", "text": {"content": code}}],
-                "language": language
+                "language": normalized_lang
             }
         }
 

@@ -489,10 +489,21 @@ async def create_from_md(
                         await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
+                    error_details = str(e)
+                    # Try to extract more error details if available
+                    if hasattr(e, 'body') and e.body:
+                        import json
+                        try:
+                            error_body = json.loads(e.body.decode() if isinstance(e.body, bytes) else e.body)
+                            if isinstance(error_body, dict):
+                                error_details = error_body.get('message', error_details)
+                        except:
+                            pass
+
                     failed_blocks.append({
                         "index": idx,
                         "type": block_data.get("type", "unknown"),
-                        "error": str(e)
+                        "error": error_details
                     })
 
         result = format_success({
@@ -596,10 +607,21 @@ async def append_md(
                         await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
+                    error_details = str(e)
+                    # Try to extract more error details if available
+                    if hasattr(e, 'body') and e.body:
+                        import json
+                        try:
+                            error_body = json.loads(e.body.decode() if isinstance(e.body, bytes) else e.body)
+                            if isinstance(error_body, dict):
+                                error_details = error_body.get('message', error_details)
+                        except:
+                            pass
+
                     failed_blocks.append({
                         "index": idx,
                         "type": block_data.get("type", "unknown"),
-                        "error": str(e)
+                        "error": error_details
                     })
 
         result = format_success({
