@@ -255,7 +255,6 @@ class MarkdownParser:
             Paragraph block data
         """
         return {
-            "object": "block",
             "type": "paragraph",
             "paragraph": {
                 "rich_text": self._create_rich_text(text)
@@ -274,7 +273,6 @@ class MarkdownParser:
         """
         heading_type = f"heading_{level}"
         return {
-            "object": "block",
             "type": heading_type,
             heading_type: {
                 "rich_text": self._create_rich_text(text)
@@ -291,7 +289,6 @@ class MarkdownParser:
             Bullet block data
         """
         return {
-            "object": "block",
             "type": "bulleted_list_item",
             "bulleted_list_item": {
                 "rich_text": self._create_rich_text(text)
@@ -308,7 +305,6 @@ class MarkdownParser:
             Numbered block data
         """
         return {
-            "object": "block",
             "type": "numbered_list_item",
             "numbered_list_item": {
                 "rich_text": self._create_rich_text(text)
@@ -326,7 +322,6 @@ class MarkdownParser:
             Todo block data
         """
         return {
-            "object": "block",
             "type": "to_do",
             "to_do": {
                 "rich_text": self._create_rich_text(text),
@@ -344,7 +339,6 @@ class MarkdownParser:
             Quote block data
         """
         return {
-            "object": "block",
             "type": "quote",
             "quote": {
                 "rich_text": self._create_rich_text(text)
@@ -415,9 +409,9 @@ class MarkdownParser:
         """
         normalized_lang = self._normalize_language(language)
         return {
-            "object": "block",
             "type": "code",
             "code": {
+                "caption": [],
                 "rich_text": [{"type": "text", "text": {"content": code}}],
                 "language": normalized_lang
             }
@@ -430,7 +424,6 @@ class MarkdownParser:
             Divider block data
         """
         return {
-            "object": "block",
             "type": "divider",
             "divider": {}
         }
