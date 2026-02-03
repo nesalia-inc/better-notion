@@ -77,6 +77,10 @@ class WorkspaceInitializer:
             Exception: If database creation fails with detailed error message
             Exception: If workspace already exists (and skip_detection is False)
         """
+        # Ensure workspace_name is not None
+        if workspace_name is None:
+            workspace_name = "Agents Workspace"
+
         logger.info(f"Initializing workspace '{workspace_name}' in page {parent_page_id}")
 
         # Store workspace info
@@ -591,6 +595,18 @@ class WorkspaceInitializer:
             path = Path.home() / ".notion" / "workspace.json"
 
         path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Ensure _database_ids is not None
+        if self._database_ids is None:
+            self._database_ids = {}
+
+        # Ensure other required fields are not None
+        if self._workspace_id is None:
+            self._workspace_id = WorkspaceMetadata.generate_workspace_id()
+        if self._workspace_name is None:
+            self._workspace_name = "Agents Workspace"
+        if self._parent_page_id is None:
+            raise ValueError("Cannot save workspace config: parent_page_id is None")
 
         # Map lowercase keys to capitalized keys for SDK manager compatibility
         database_ids_capitalized = {
