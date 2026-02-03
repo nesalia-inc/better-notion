@@ -631,6 +631,26 @@ class WorkspaceInitializer:
         with open(path, encoding="utf-8") as f:
             return json.load(f)
 
+    @classmethod
+    def load_parent_page(cls, path: Optional[Path] = None) -> str | None:
+        """Load parent page ID from config file.
+
+        Args:
+            path: Path to config file (default: ~/.notion/workspace.json)
+
+        Returns:
+            Parent page ID if found, None otherwise
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+        """
+        if path is None:
+            path = Path.home() / ".notion" / "workspace.json"
+
+        with open(path, encoding="utf-8") as f:
+            config = json.load(f)
+            return config.get("parent_page")
+
 
 async def initialize_workspace_command(
     parent_page_id: str,
