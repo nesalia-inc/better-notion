@@ -78,7 +78,40 @@ class WorkspaceMetadata:
         Returns:
             Workspace metadata dict if found, None otherwise
         """
-        # Primary detection: Scan for databases with expected names
+        # Method 1: Check local config file first (fastest)
+        config_path = Path.home() / ".notion" / "workspace.json"
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    # Normalize page IDs for comparison (config may have dashes or not)
+                    config_parent = config.get("parent_page", "").replace("-", "")
+                    page_id_normalized = page.id.replace("-", "")
+                    # Only use config if it matches this page
+                    if config_parent == page_id_normalized:
+                        # Verify at least one database still exists
+                        database_ids = config.get("database_ids", {})
+                        if database_ids:
+                            # Check if Tasks database still exists (as a verification)
+                            tasks_db_id = database_ids.get("tasks")
+                            if tasks_db_id:
+                                try:
+                                    await client.databases.get(tasks_db_id)
+                                    logger.info(f"Workspace detected from config file for page {page.id}")
+                                    return {
+                                        "workspace_id": config.get("workspace_id"),
+                                        "workspace_name": config.get("workspace_name"),
+                                        "initialized_at": config.get("initialized_at"),
+                                        "database_ids": database_ids,
+                                        "detection_method": "config_file",
+                                        "databases_count": len(database_ids)
+                                    }
+                                except Exception:
+                                    logger.debug("Tasks database from config not found, falling back to scan")
+            except Exception as e:
+                logger.debug(f"Could not load local config: {e}")
+
+        # Method 2: Scan for databases with expected names (fallback)
         expected_databases = [
             "Organizations",
             "Tags",
@@ -112,29 +145,10 @@ class WorkspaceMetadata:
             if matches >= 5:
                 logger.info(f"Detected existing workspace with {matches}/{len(expected_databases)} databases in page {page.id}")
 
-                # Try to load workspace metadata from local config to get workspace_id
-                workspace_id = None
-                workspace_name = None
-                initialized_at = None
-
-                try:
-                    config_path = Path.home() / ".notion" / "workspace.json"
-                    if config_path.exists():
-                        with open(config_path, "r", encoding="utf-8") as f:
-                            config = json.load(f)
-                            # Only use config if it matches this page
-                            if config.get("parent_page") == page.id:
-                                workspace_id = config.get("workspace_id")
-                                workspace_name = config.get("workspace_name")
-                                initialized_at = config.get("initialized_at")
-                                logger.info(f"Config file matches this page, workspace_id: {workspace_id}")
-                except Exception as e:
-                    logger.debug(f"Could not load local config: {e}")
-
                 return {
-                    "workspace_id": workspace_id,
-                    "workspace_name": workspace_name,
-                    "initialized_at": initialized_at,
+                    "workspace_id": None,  # Not available from scan
+                    "workspace_name": None,
+                    "initialized_at": None,
                     "database_ids": database_ids,
                     "detection_method": "database_scan",
                     "databases_count": matches
