@@ -476,9 +476,12 @@ async def create_from_md(
             blocks_collection = BlockCollection(client.api, parent_id=page.id)
 
             # Add blocks one by one (Notion API limitation)
+            # Note: Must use children=[block_data] format for Notion API
+            created_count = 0
             for block_data in blocks:
                 try:
-                    await blocks_collection.append(block_data)
+                    await blocks_collection.append(children=[block_data])
+                    created_count += 1
                 except Exception as e:
                     # Continue with other blocks even if one fails
                     pass
@@ -487,7 +490,7 @@ async def create_from_md(
             "id": page.id,
             "title": page_title,
             "url": page.url,
-            "blocks_created": len(blocks),
+            "blocks_created": created_count,
             "file": file,
         })
         typer.echo(result)
@@ -560,10 +563,11 @@ async def append_md(
             blocks_collection = BlockCollection(client.api, parent_id=page.id)
 
             # Add blocks one by one (Notion API limitation)
+            # Note: Must use children=[block_data] format for Notion API
             appended_count = 0
             for block_data in blocks:
                 try:
-                    await blocks_collection.append(block_data)
+                    await blocks_collection.append(children=[block_data])
                     appended_count += 1
                 except Exception as e:
                     # Continue with other blocks even if one fails
