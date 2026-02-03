@@ -504,3 +504,87 @@ async def create_from_md(
         result = format_error("UNKNOWN_ERROR", str(e), retry=False)
         typer.echo(result)
         raise typer.Exit(code=1)
+
+
+@app.command("append-md")
+async def append_md(
+    page_id: str = typer.Option(..., "--page", "-p", help="Page ID to append content to"),
+    file: str = typer.Option(..., "--file", "-f", help="Path to markdown file"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be appended without appending"),
+) -> None:
+    """
+    Append markdown content to an existing page.
+
+    Parses the markdown file and appends blocks to an existing Notion page.
+    """
+    try:
+        # Parse markdown file
+        md_title, blocks = parse_markdown_file(file)
+
+        if dry_run:
+            # Show what would be appended
+            result = format_success({
+                "dry_run": True,
+                "file": file,
+                "page_id": page_id,
+                "blocks_count": len(blocks),
+                "blocks_preview": [
+                    {
+                        "type": block.get("type"),
+                        "preview": str(block.get(block.get("type", {}), {}))[:100]
+                    }
+                    for block in blocks[:5]  # Show first 5 blocks
+                ]
+            })
+            typer.echo(result)
+            return
+
+        client = get_client()
+
+        # Verify page exists
+        try:
+            page = await client.pages.get(page_id)
+        except Exception as page_err:
+            result = format_error(
+                "PAGE_NOT_FOUND",
+                f"Could not find page '{page_id}'. Error: {str(page_err)}",
+                retry=False
+            )
+            typer.echo(result)
+            raise typer.Exit(code=1)
+
+        # Append blocks to page
+        if blocks:
+            from better_notion._api.collections import BlockCollection
+
+            blocks_collection = BlockCollection(client.api, parent_id=page.id)
+
+            # Add blocks one by one (Notion API limitation)
+            appended_count = 0
+            for block_data in blocks:
+                try:
+                    await blocks_collection.append(block_data)
+                    appended_count += 1
+                except Exception as e:
+                    # Continue with other blocks even if one fails
+                    pass
+
+        result = format_success({
+            "page_id": page_id,
+            "blocks_appended": appended_count,
+            "file": file,
+        })
+        typer.echo(result)
+
+    except FileNotFoundError as e:
+        result = format_error("FILE_NOT_FOUND", str(e), retry=False)
+        typer.echo(result)
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        result = format_error("INVALID_FILE", str(e), retry=False)
+        typer.echo(result)
+        raise typer.Exit(code=1)
+    except Exception as e:
+        result = format_error("UNKNOWN_ERROR", str(e), retry=False)
+        typer.echo(result)
+        raise typer.Exit(code=1)
