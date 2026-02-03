@@ -472,6 +472,7 @@ async def create_from_md(
         if blocks:
             # Use BlockCollection to append blocks
             from better_notion._api.collections import BlockCollection
+            import asyncio
 
             blocks_collection = BlockCollection(client.api, parent_id=page.id)
 
@@ -483,6 +484,9 @@ async def create_from_md(
                 try:
                     await blocks_collection.append(children=[block_data])
                     created_count += 1
+                    # Small delay to avoid rate limiting (especially for code blocks)
+                    if idx < len(blocks) - 1:  # No delay after last block
+                        await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
                     failed_blocks.append({
@@ -575,6 +579,7 @@ async def append_md(
         # Append blocks to page
         if blocks:
             from better_notion._api.collections import BlockCollection
+            import asyncio
 
             blocks_collection = BlockCollection(client.api, parent_id=page.id)
 
@@ -586,6 +591,9 @@ async def append_md(
                 try:
                     await blocks_collection.append(children=[block_data])
                     appended_count += 1
+                    # Small delay to avoid rate limiting (especially for code blocks)
+                    if idx < len(blocks) - 1:  # No delay after last block
+                        await asyncio.sleep(0.3)
                 except Exception as e:
                     # Track failed blocks for debugging
                     failed_blocks.append({
