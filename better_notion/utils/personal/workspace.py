@@ -274,7 +274,7 @@ class PersonalWorkspaceInitializer:
             elif prop["type"] == "number":
                 prop_schema["number"] = {"format": prop.get("format", "number")}
             elif prop["type"] == "select":
-                prop_schema["select"] = {"options": prop["options"]}
+                prop_schema["select"] = prop["select"]
             elif prop["type"] == "date":
                 prop_schema["date"] = {}
             elif prop["type"] == "relation":
