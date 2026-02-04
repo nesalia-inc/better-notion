@@ -158,19 +158,10 @@ class PersonalWorkspaceInitializer:
                     "database_id": project_db.id,
                     "type": "single_property",
                 }},
-                {"name": "Parent Task", "type": "relation", "relation": {
-                    "database_id": task_db.id,
-                    "type": "dual_property",
-                    "dual_property": "Subtasks",
-                }},
-                {"name": "Subtasks", "type": "rollup", "rollup": {
-                    "type": "array",
-                    "array": {
-                        "type": "number",
-                        "relation": {"type": "relation", "relation_property": "Subtasks"}
-                    },
-                    "function": "count"
-                }},
+                # Note: Parent Task (self-referential) and Subtasks (rollup) properties
+                # need to be added after database creation via a separate API update
+                # because task_db.id doesn't exist yet at this point
+                # TODO: Implement update operation to add these properties
                 {"name": "Tags", "type": "relation", "relation": {
                     "database_id": tag_db.id,
                     "type": "dual_property",
