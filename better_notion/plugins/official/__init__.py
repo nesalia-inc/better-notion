@@ -5,11 +5,13 @@ This package contains officially maintained plugins that extend
 the CLI with commonly-needed functionality.
 """
 from better_notion.plugins.official.agents import AgentsPlugin
+from better_notion.plugins.official.personal import PersonalPlugin
 from better_notion.plugins.official.productivity import ProductivityPlugin
 
-__all__ = ["AgentsPlugin", "ProductivityPlugin"]
+__all__ = ["AgentsPlugin", "PersonalPlugin", "ProductivityPlugin"]
 
 OFFICIAL_PLUGINS = [
     AgentsPlugin,
+    PersonalPlugin,
     ProductivityPlugin,
 ]

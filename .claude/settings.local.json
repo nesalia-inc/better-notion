@@ -37,7 +37,8 @@
       "Bash(uv publish:*)",
       "Bash(gh issue create:*)",
       "Bash(pip uninstall:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(uv run python -m pytest:*)"
     ]
   }
 }
