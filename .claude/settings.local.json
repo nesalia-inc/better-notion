@@ -38,7 +38,9 @@
       "Bash(gh issue create:*)",
       "Bash(pip uninstall:*)",
       "Bash(where:*)",
-      "Bash(uv run python -m pytest:*)"
+      "Bash(uv run python -m pytest:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)"
     ]
   }
 }

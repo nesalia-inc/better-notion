@@ -174,7 +174,7 @@ class PersonalWorkspaceInitializer:
                     {"name": "Low", "color": "blue"},
                 ]}},
                 {"name": "Context", "type": "text"},
-                {"name": "Created Date", "type": "date", "date": {"created_time": "now"}},
+                {"name": "Created Date", "type": "date"},
                 {"name": "Completed Date", "type": "date"},
                 {"name": "Archived Date", "type": "date"},
             ]
@@ -287,11 +287,28 @@ class PersonalWorkspaceInitializer:
         # Create database via API
         parent = {"type": "page_id", "page_id": parent_page_id}
 
-        response = await self.client.api.databases.create(
-            parent=parent,
-            title=title,
-            properties=schema_properties,
-        )
+        # Log the request payload for debugging
+        import json
+        request_payload = {
+            "parent": parent,
+            "title": title,
+            "properties": schema_properties,
+        }
+        print(f"[DEBUG] Creating database '{title}' with schema:", file=__import__('sys').stderr)
+        print(json.dumps(request_payload, indent=2), file=__import__('sys').stderr)
+
+        try:
+            response = await self.client.api.databases.create(
+                parent=parent,
+                title=title,
+                properties=schema_properties,
+            )
+            print(f"[DEBUG] Database '{title}' created successfully: {response.get('id')}", file=__import__('sys').stderr)
+        except Exception as e:
+            print(f"[ERROR] Failed to create database '{title}': {e}", file=__import__('sys').stderr)
+            if hasattr(e, 'response'):
+                print(f"[ERROR] API Response: {e.response.text if hasattr(e.response, 'text') else e.response}", file=__import__('sys').stderr)
+            raise
 
         from better_notion._sdk.models.database import Database
         return Database(data=response, client=self.client)

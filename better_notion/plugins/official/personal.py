@@ -211,7 +211,24 @@ class PersonalPlugin(CombinedPluginInterface):
                     )
 
                 except Exception as e:
-                    return format_error("INIT_ERROR", str(e), retry=False)
+                    # Get detailed error information
+                    error_details = str(e)
+
+                    # Try to extract API response details if available
+                    if hasattr(e, 'response'):
+                        try:
+                            import json
+                            response_data = e.response.json()
+                            error_details = f"{error_details}\nAPI Response: {json.dumps(response_data, indent=2)}"
+                        except:
+                            if hasattr(e.response, 'text'):
+                                error_details = f"{error_details}\nAPI Response: {e.response.text}"
+
+                    if debug:
+                        import traceback
+                        error_details = f"{error_details}\nTraceback:\n{traceback.format_exc()}"
+
+                    return format_error("INIT_ERROR", error_details, retry=False)
 
             result = asyncio.run(_init())
             typer.echo(result)
