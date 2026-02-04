@@ -171,7 +171,6 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
-                        "type": "single_property",
                     }},
                     {"name": "Deadline", "type": "date"},
                     {"name": "Priority", "type": "select", "select": {"options": [
@@ -217,11 +216,9 @@ class PersonalWorkspaceInitializer:
                     {"name": "Due Date", "type": "date"},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
-                        "type": "single_property",
                     }},
                     {"name": "Project", "type": "relation", "relation": {
                         "data_source_id": project_db.id,
-                        "type": "single_property",
                     }},
                     # Note: Parent Task (self-referential) and Subtasks (rollup) properties
                     # need to be added after database creation via a separate API update
@@ -229,8 +226,9 @@ class PersonalWorkspaceInitializer:
                     # TODO: Implement update operation to add these properties
                     {"name": "Tags", "type": "relation", "relation": {
                         "data_source_id": tag_db.id,
-                        "type": "dual_property",
-                        "dual_property": "Tasks",
+                        "dual_property": {
+                            "synced_property_name": "Tasks"
+                        }
                     }},
                     {"name": "Estimated Time", "type": "number"},
                     {"name": "Energy Required", "type": "select", "select": {"options": [
@@ -268,7 +266,6 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
-                        "type": "single_property",
                     }},
                     {"name": "Best Time", "type": "rich_text"},
                     {"name": "Estimated Duration", "type": "number"},
@@ -302,11 +299,9 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Linked Task", "type": "relation", "relation": {
                         "data_source_id": task_db.id,
-                        "type": "single_property",
                     }},
                     {"name": "Linked Project", "type": "relation", "relation": {
                         "data_source_id": project_db.id,
-                        "type": "single_property",
                     }},
                     {"name": "Location", "type": "rich_text"},
                     {"name": "Notes", "type": "rich_text"},
