@@ -119,11 +119,11 @@ class TestDomainsCLI:
             "properties": {
                 "Name": {
                     "type": "title",
-                    "title": [{"type": "text", "text": {"content": "Work"}}]
+                    "title": [{"plain_text": "Work"}]
                 },
                 "Description": {
                     "type": "rich_text",
-                    "rich_text": [{"type": "text", "text": {"content": "Professional tasks"}}]
+                    "rich_text": [{"type": "text", "text": {"content": "Professional tasks"}, "plain_text": "Professional tasks"}]
                 },
                 "Color": {
                     "type": "select",
@@ -215,12 +215,8 @@ class TestTagsCLI:
             },
         )
 
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.get.return_value = {"results": []}
-        mock_client._api = MagicMock()
-        mock_client._api.databases = MagicMock()
-        mock_client._api.databases.query = AsyncMock(return_value=mock_response)
+        # Mock API response - return empty results directly
+        mock_client._api.databases.query = AsyncMock(return_value={"results": []})
 
         result = tags_list()
 
@@ -319,21 +315,30 @@ class TestTasksCLI:
 
         # Mock API response
         mock_task_data = {
+            "object": "page",
             "id": "task-123",
+            "created_time": "2025-01-15T00:00:00.000Z",
+            "last_edited_time": "2025-01-15T00:00:00.000Z",
+            "archived": False,
             "properties": {
-                "Title": {"title": [{"plain_text": "Buy groceries"}]},
-                "Status": {"select": {"name": "Todo"}},
-                "Priority": {"select": {"name": "Medium"}},
+                "Title": {
+                    "type": "title",
+                    "title": [{"plain_text": "Buy groceries"}]
+                },
+                "Status": {
+                    "type": "select",
+                    "select": {"name": "Todo"}
+                },
+                "Priority": {
+                    "type": "select",
+                    "select": {"name": "Medium"}
+                },
             },
         }
 
-        mock_response = MagicMock()
-        mock_response.get.return_value = {"results": [mock_task_data]}
-        mock_client._api = MagicMock()
-        mock_client._api.databases = MagicMock()
-        mock_client._api.databases.query = AsyncMock(return_value=mock_response)
+        mock_client._api.databases.query = AsyncMock(return_value={"results": [mock_task_data]})
 
-        result = tasks_list()
+        result = tasks_list(today=False, week=False, domain=None, project=None, status=None, tag=None)
 
         assert "Buy groceries" in result
 
@@ -498,14 +503,10 @@ class TestAgendaCLI:
             },
         )
 
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.get.return_value = {"results": []}
-        mock_client._api = MagicMock()
-        mock_client._api.databases = MagicMock()
-        mock_client._api.databases.query = AsyncMock(return_value=mock_response)
+        # Mock API response - return empty results directly
+        mock_client._api.databases.query = AsyncMock(return_value={"results": []})
 
-        result = agenda_show()
+        result = agenda_show(week=False)
 
         assert "agenda" in result.lower()
 
@@ -532,14 +533,10 @@ class TestSearchCLI:
             },
         )
 
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.get.return_value = {"results": []}
-        mock_client._api = MagicMock()
-        mock_client._api.databases = MagicMock()
-        mock_client._api.databases.query = AsyncMock(return_value=mock_response)
+        # Mock API response - return empty results directly
+        mock_client._api.databases.query = AsyncMock(return_value={"results": []})
 
-        result = search("gym")
+        result = search("gym", domain=None, tag=None, status=None, priority=None, limit=10)
 
         assert "results" in result.lower() or "search" in result.lower()
 
@@ -566,14 +563,10 @@ class TestArchiveCLI:
             },
         )
 
-        # Mock API response
-        mock_response = MagicMock()
-        mock_response.get.return_value = {"results": []}
-        mock_client._api = MagicMock()
-        mock_client._api.databases = MagicMock()
-        mock_client._api.databases.query = AsyncMock(return_value=mock_response)
+        # Mock API response - return empty results directly
+        mock_client._api.databases.query = AsyncMock(return_value={"results": []})
 
-        result = archive_list()
+        result = archive_list(domain=None, tag=None)
 
         assert "archive" in result.lower()
 

@@ -50,7 +50,6 @@ class PersonalWorkspaceInitializer:
         Returns:
             Dictionary mapping database names to their IDs
         """
-        from better_notion._api.databases import DatabaseCreateParams
         from better_notion._sdk.models.database import Database
 
         self._parent_page_id = parent_page_id
@@ -271,7 +270,6 @@ class PersonalWorkspaceInitializer:
         Returns:
             Created Database object
         """
-        from better_notion._api.databases import DatabaseCreateRequest, DatabaseCreateSchema
 
         # Format properties for API
         schema_properties = []
@@ -296,14 +294,13 @@ class PersonalWorkspaceInitializer:
             schema_properties.append(prop_schema)
 
         # Create database via API
-        request = DatabaseCreateRequest(
-            parent=parent_page_type="page_id",
-            parent_id=parent_page_id,
+        parent = {"type": "page_id", "page_id": parent_page_id}
+
+        response = await self.client.api.databases.create(
+            parent=parent,
             title=title,
             properties=schema_properties,
         )
-
-        response = await self.client.api.databases.create(request=request)
 
         from better_notion._sdk.models.database import Database
         return Database(data=response, client=self.client)

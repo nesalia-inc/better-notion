@@ -13,6 +13,25 @@ from better_notion.utils.personal.workspace import PersonalWorkspaceInitializer
 from better_notion.utils.personal.metadata import PersonalWorkspaceMetadata
 
 
+@pytest.fixture
+def mock_client():
+    """Create a mock NotionClient."""
+    from unittest.mock import MagicMock, AsyncMock
+    from better_notion._sdk.client import NotionClient
+
+    client = MagicMock(spec=NotionClient)
+
+    # Create mock API with async methods
+    mock_api = MagicMock()
+    mock_databases = MagicMock()
+    mock_databases.query = AsyncMock(return_value={"results": []})
+    mock_api.databases = mock_databases
+    mock_api._request = AsyncMock(return_value={"results": []})
+    client._api = mock_api
+
+    return client
+
+
 @pytest.mark.integration
 class TestPersonalWorkspaceInitializer:
     """Test workspace initialization."""
