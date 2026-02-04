@@ -260,7 +260,17 @@ class NotionAPI:
 
             if status_code == 400:
                 from better_notion._api.errors import BadRequestError
-                raise BadRequestError() from None
+                # Try to extract error details from Notion API response
+                try:
+                    error_data = e.response.json()
+                    error_message = error_data.get("message", "Bad request")
+                    error_code = error_data.get("code", "")
+                    if error_code:
+                        raise BadRequestError(f"{error_code}: {error_message}") from None
+                    else:
+                        raise BadRequestError(error_message) from None
+                except:
+                    raise BadRequestError() from None
             elif status_code == 401:
                 from better_notion._api.errors import UnauthorizedError
                 raise UnauthorizedError() from None

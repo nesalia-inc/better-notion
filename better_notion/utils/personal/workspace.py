@@ -62,7 +62,7 @@ class PersonalWorkspaceInitializer:
             "Domains",
             [
                 {"name": "Name", "type": "title"},
-                {"name": "Description", "type": "text"},
+                {"name": "Description", "type": "rich_text"},
                 {"name": "Color", "type": "select", "select": {"options": [
                     {"name": "Red", "color": "red"},
                     {"name": "Orange", "color": "orange"},
@@ -97,7 +97,7 @@ class PersonalWorkspaceInitializer:
                     {"name": "Time"},
                     {"name": "Custom"},
                 ]}},
-                {"name": "Description", "type": "text"},
+                {"name": "Description", "type": "rich_text"},
             ]
         )
 
@@ -114,7 +114,7 @@ class PersonalWorkspaceInitializer:
                     {"name": "Archived", "color": "gray"},
                 ]}},
                 {"name": "Domain", "type": "relation", "relation": {
-                    "database_id": domain_db.id,
+                    "data_source_id": domain_db.id,
                     "type": "single_property",
                 }},
                 {"name": "Deadline", "type": "date"},
@@ -125,8 +125,8 @@ class PersonalWorkspaceInitializer:
                     {"name": "Low", "color": "blue"},
                 ]}},
                 {"name": "Progress", "type": "number", "number": {"format": "percent"}},
-                {"name": "Goal", "type": "text"},
-                {"name": "Notes", "type": "text"},
+                {"name": "Goal", "type": "rich_text"},
+                {"name": "Notes", "type": "rich_text"},
             ]
         )
 
@@ -151,11 +151,11 @@ class PersonalWorkspaceInitializer:
                 ]}},
                 {"name": "Due Date", "type": "date"},
                 {"name": "Domain", "type": "relation", "relation": {
-                    "database_id": domain_db.id,
+                    "data_source_id": domain_db.id,
                     "type": "single_property",
                 }},
                 {"name": "Project", "type": "relation", "relation": {
-                    "database_id": project_db.id,
+                    "data_source_id": project_db.id,
                     "type": "single_property",
                 }},
                 # Note: Parent Task (self-referential) and Subtasks (rollup) properties
@@ -163,7 +163,7 @@ class PersonalWorkspaceInitializer:
                 # because task_db.id doesn't exist yet at this point
                 # TODO: Implement update operation to add these properties
                 {"name": "Tags", "type": "relation", "relation": {
-                    "database_id": tag_db.id,
+                    "data_source_id": tag_db.id,
                     "type": "dual_property",
                     "dual_property": "Tasks",
                 }},
@@ -173,7 +173,7 @@ class PersonalWorkspaceInitializer:
                     {"name": "Medium", "color": "yellow"},
                     {"name": "Low", "color": "blue"},
                 ]}},
-                {"name": "Context", "type": "text"},
+                {"name": "Context", "type": "rich_text"},
                 {"name": "Created Date", "type": "date"},
                 {"name": "Completed Date", "type": "date"},
                 {"name": "Archived Date", "type": "date"},
@@ -193,10 +193,10 @@ class PersonalWorkspaceInitializer:
                     {"name": "Weekends", "color": "purple"},
                 ]}},
                 {"name": "Domain", "type": "relation", "relation": {
-                    "database_id": domain_db.id,
+                    "data_source_id": domain_db.id,
                     "type": "single_property",
                 }},
-                {"name": "Best Time", "type": "text"},
+                {"name": "Best Time", "type": "rich_text"},
                 {"name": "Estimated Duration", "type": "number"},
                 {"name": "Streak", "type": "number"},
                 {"name": "Last Completed", "type": "date"},
@@ -218,15 +218,15 @@ class PersonalWorkspaceInitializer:
                     {"name": "Reminder", "color": "yellow"},
                 ]}},
                 {"name": "Linked Task", "type": "relation", "relation": {
-                    "database_id": task_db.id,
+                    "data_source_id": task_db.id,
                     "type": "single_property",
                 }},
                 {"name": "Linked Project", "type": "relation", "relation": {
-                    "database_id": project_db.id,
+                    "data_source_id": project_db.id,
                     "type": "single_property",
                 }},
-                {"name": "Location", "type": "text"},
-                {"name": "Notes", "type": "text"},
+                {"name": "Location", "type": "rich_text"},
+                {"name": "Notes", "type": "rich_text"},
             ]
         )
 
@@ -269,28 +269,30 @@ class PersonalWorkspaceInitializer:
 
             if prop["type"] == "title":
                 prop_schema["title"] = {}
-            elif prop["type"] == "text":
-                prop_schema["text"] = {}
+            elif prop["type"] == "rich_text":
+                prop_schema["rich_text"] = {}
             elif prop["type"] == "number":
                 prop_schema["number"] = {"format": prop.get("format", "number")}
             elif prop["type"] == "select":
                 prop_schema["select"] = prop["select"]
-            elif prop["type"] == "date":
-                prop_schema["date"] = {}
             elif prop["type"] == "relation":
                 prop_schema["relation"] = prop["relation"]
             elif prop["type"] == "rollup":
                 prop_schema["rollup"] = prop["rollup"]
+            # For date, checkbox, etc.: no additional fields needed
 
             schema_properties.append(prop_schema)
 
-        # Create database via API
-        parent = {"type": "page_id", "page_id": parent_page_id}
+        # Create database via API using the DatabaseCollection
+        from better_notion._api.collections import DatabaseCollection
+
+        # Create a DatabaseCollection instance
+        db_collection = DatabaseCollection(self.client._api)
 
         # Log the request payload for debugging
         import json
         request_payload = {
-            "parent": parent,
+            "parent": {"type": "page_id", "page_id": parent_page_id},
             "title": title,
             "properties": schema_properties,
         }
@@ -298,8 +300,8 @@ class PersonalWorkspaceInitializer:
         print(json.dumps(request_payload, indent=2), file=__import__('sys').stderr)
 
         try:
-            response = await self.client.api.databases.create(
-                parent=parent,
+            response = await db_collection.create(
+                parent=request_payload["parent"],
                 title=title,
                 properties=schema_properties,
             )
@@ -307,7 +309,7 @@ class PersonalWorkspaceInitializer:
         except Exception as e:
             print(f"[ERROR] Failed to create database '{title}': {e}", file=__import__('sys').stderr)
             if hasattr(e, 'response'):
-                print(f"[ERROR] API Response: {e.response.text if hasattr(e.response, 'text') else e.response}", file=__import__('sys').stderr)
+                print(f"[ERROR] API Response: {e.response.text if hasattr(e.response, 'text') else str(e)}", file=__import__('sys').stderr)
             raise
 
         from better_notion._sdk.models.database import Database
