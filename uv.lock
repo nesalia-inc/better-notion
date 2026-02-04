@@ -49,11 +49,12 @@ wheels = [
 
 [[package]]
 name = "better-notion"
-version = "0.8.1"
+version = "2.7.1"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },
     { name = "pydantic" },
+    { name = "rich" },
     { name = "typing-extensions" },
 ]
 
@@ -108,6 +109,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0.0" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.10.0" },
     { name = "python-dotenv", marker = "extra == 'dev'", specifier = ">=1.0.0" },
+    { name = "rich", specifier = ">=13.0.0,<14.0.0" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=13.0.0,<14.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "typer", marker = "extra == 'cli'", specifier = ">=0.12.0,<0.13.0" },
