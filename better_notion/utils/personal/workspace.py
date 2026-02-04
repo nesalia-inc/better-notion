@@ -171,6 +171,7 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
+                        "single_property": {},
                     }},
                     {"name": "Deadline", "type": "date"},
                     {"name": "Priority", "type": "select", "select": {"options": [
@@ -216,9 +217,11 @@ class PersonalWorkspaceInitializer:
                     {"name": "Due Date", "type": "date"},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
+                        "single_property": {},
                     }},
                     {"name": "Project", "type": "relation", "relation": {
                         "data_source_id": project_db.id,
+                        "single_property": {},
                     }},
                     # Note: Parent Task (self-referential) and Subtasks (rollup) properties
                     # need to be added after database creation via a separate API update
@@ -228,7 +231,7 @@ class PersonalWorkspaceInitializer:
                         "data_source_id": tag_db.id,
                         "dual_property": {
                             "synced_property_name": "Tasks"
-                        }
+                        },
                     }},
                     {"name": "Estimated Time", "type": "number"},
                     {"name": "Energy Required", "type": "select", "select": {"options": [
@@ -266,6 +269,7 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Domain", "type": "relation", "relation": {
                         "data_source_id": domain_db.id,
+                        "single_property": {},
                     }},
                     {"name": "Best Time", "type": "rich_text"},
                     {"name": "Estimated Duration", "type": "number"},
@@ -299,9 +303,11 @@ class PersonalWorkspaceInitializer:
                     ]}},
                     {"name": "Linked Task", "type": "relation", "relation": {
                         "data_source_id": task_db.id,
+                        "single_property": {},
                     }},
                     {"name": "Linked Project", "type": "relation", "relation": {
                         "data_source_id": project_db.id,
+                        "single_property": {},
                     }},
                     {"name": "Location", "type": "rich_text"},
                     {"name": "Notes", "type": "rich_text"},
@@ -344,25 +350,40 @@ class PersonalWorkspaceInitializer:
         """
 
         # Format properties for API
-        schema_properties = []
+        # Notion API expects properties as a dict (not a list)
+        # with property names as keys
+        schema_properties = {}
         for prop in properties:
-            prop_schema = {"name": prop["name"], "type": prop["type"]}
+            prop_name = prop["name"]
+            prop_type = prop["type"]
 
-            if prop["type"] == "title":
+            # Build property schema without "name" field
+            prop_schema = {"type": prop_type}
+
+            if prop_type == "title":
                 prop_schema["title"] = {}
-            elif prop["type"] == "rich_text":
+            elif prop_type == "rich_text":
                 prop_schema["rich_text"] = {}
-            elif prop["type"] == "number":
-                prop_schema["number"] = {"format": prop.get("format", "number")}
-            elif prop["type"] == "select":
+            elif prop_type == "number":
+                # Get number config from prop["number"] or default to {"format": "number"}
+                number_config = prop.get("number", {"format": "number"})
+                prop_schema["number"] = number_config
+            elif prop_type == "select":
                 prop_schema["select"] = prop["select"]
-            elif prop["type"] == "relation":
-                prop_schema["relation"] = prop["relation"]
-            elif prop["type"] == "rollup":
+            elif prop_type == "date":
+                prop_schema["date"] = {}
+            elif prop_type == "relation":
+                # Fix relation format for Notion API
+                relation_config = prop["relation"].copy()
+                # Convert data_source_id to database_id for /databases endpoint
+                if "data_source_id" in relation_config:
+                    relation_config["database_id"] = relation_config.pop("data_source_id")
+                prop_schema["relation"] = relation_config
+            elif prop_type == "rollup":
                 prop_schema["rollup"] = prop["rollup"]
             # For date, checkbox, etc.: no additional fields needed
 
-            schema_properties.append(prop_schema)
+            schema_properties[prop_name] = prop_schema
 
         # Create database via API using the DatabaseCollection
         from better_notion._api.collections import DatabaseCollection
@@ -388,9 +409,12 @@ class PersonalWorkspaceInitializer:
             )
             print(f"[DEBUG] Database '{title}' created successfully: {response.get('id')}", file=__import__('sys').stderr)
         except Exception as e:
-            print(f"[ERROR] Failed to create database '{title}': {e}", file=__import__('sys').stderr)
-            if hasattr(e, 'response'):
-                print(f"[ERROR] API Response: {e.response.text if hasattr(e.response, 'text') else str(e)}", file=__import__('sys').stderr)
+            print(f"[ERROR] Failed to create database '{title}': {type(e).__name__}: {e}", file=__import__('sys').stderr)
+            # Try to get more error details
+            import traceback
+            print(f"[ERROR] Traceback: {traceback.format_exc()}", file=__import__('sys').stderr)
+            if hasattr(e, 'args') and e.args:
+                print(f"[ERROR] Exception args: {e.args}", file=__import__('sys').stderr)
             raise
 
         from better_notion._sdk.models.database import Database

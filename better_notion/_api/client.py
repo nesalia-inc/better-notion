@@ -269,8 +269,16 @@ class NotionAPI:
                         raise BadRequestError(f"{error_code}: {error_message}") from None
                     else:
                         raise BadRequestError(error_message) from None
-                except:
-                    raise BadRequestError() from None
+                except Exception as parse_error:
+                    # If we can't parse the error, include the response text
+                    try:
+                        response_text = e.response.text if hasattr(e.response, 'text') else str(e)
+                        import sys
+                        print(f"[DEBUG] Failed to parse error response: {parse_error}", file=sys.stderr)
+                        print(f"[DEBUG] Response text: {response_text[:1000]}", file=sys.stderr)
+                        raise BadRequestError(f"Bad request: {response_text[:500]}") from None
+                    except:
+                        raise BadRequestError() from None
             elif status_code == 401:
                 from better_notion._api.errors import UnauthorizedError
                 raise UnauthorizedError() from None
