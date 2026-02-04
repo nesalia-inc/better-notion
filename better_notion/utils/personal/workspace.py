@@ -56,179 +56,265 @@ class PersonalWorkspaceInitializer:
         self._workspace_name = workspace_name
         self._workspace_id = f"personal-{uuid.uuid4().hex[:8]}"
 
-        # Step 1: Create Domains database
-        domain_db = await self._create_database(
-            parent_page_id,
-            "Domains",
-            [
-                {"name": "Name", "type": "title"},
-                {"name": "Description", "type": "rich_text"},
-                {"name": "Color", "type": "select", "select": {"options": [
-                    {"name": "Red", "color": "red"},
-                    {"name": "Orange", "color": "orange"},
-                    {"name": "Yellow", "color": "yellow"},
-                    {"name": "Green", "color": "green"},
-                    {"name": "Blue", "color": "blue"},
-                    {"name": "Purple", "color": "purple"},
-                    {"name": "Gray", "color": "gray"},
-                ]}},
-            ]
-        )
+        # Helper function to find existing database
+        async def find_existing_database(title: str) -> str | None:
+            """Check if a database with given title already exists in the parent page."""
+            from better_notion._api.collections import DatabaseCollection
 
-        # Step 2: Create Tags database
-        tag_db = await self._create_database(
-            parent_page_id,
-            "Tags",
-            [
-                {"name": "Name", "type": "title"},
-                {"name": "Color", "type": "select", "select": {"options": [
-                    {"name": "Red", "color": "red"},
-                    {"name": "Orange", "color": "orange"},
-                    {"name": "Yellow", "color": "yellow"},
-                    {"name": "Green", "color": "green"},
-                    {"name": "Blue", "color": "blue"},
-                    {"name": "Purple", "color": "purple"},
-                    {"name": "Gray", "color": "gray"},
-                ]}},
-                {"name": "Category", "type": "select", "select": {"options": [
-                    {"name": "Context"},
-                    {"name": "Energy"},
-                    {"name": "Location"},
-                    {"name": "Time"},
-                    {"name": "Custom"},
-                ]}},
-                {"name": "Description", "type": "rich_text"},
-            ]
-        )
+            # Query for child databases in the parent page
+            # We need to search through children to find databases
+            try:
+                # Get all children blocks
+                response = await self.client._api._request(
+                    "GET",
+                    f"/blocks/{parent_page_id}/children"
+                )
 
-        # Step 3: Create Projects database
-        project_db = await self._create_database(
-            parent_page_id,
-            "Projects",
-            [
-                {"name": "Name", "type": "title"},
-                {"name": "Status", "type": "select", "select": {"options": [
-                    {"name": "Active", "color": "green"},
-                    {"name": "On Hold", "color": "orange"},
-                    {"name": "Completed", "color": "blue"},
-                    {"name": "Archived", "color": "gray"},
-                ]}},
-                {"name": "Domain", "type": "relation", "relation": {
-                    "data_source_id": domain_db.id,
-                    "type": "single_property",
-                }},
-                {"name": "Deadline", "type": "date"},
-                {"name": "Priority", "type": "select", "select": {"options": [
-                    {"name": "Critical", "color": "red"},
-                    {"name": "High", "color": "orange"},
-                    {"name": "Medium", "color": "yellow"},
-                    {"name": "Low", "color": "blue"},
-                ]}},
-                {"name": "Progress", "type": "number", "number": {"format": "percent"}},
-                {"name": "Goal", "type": "rich_text"},
-                {"name": "Notes", "type": "rich_text"},
-            ]
-        )
+                for child in response.get("results", []):
+                    if child.get("type") == "database":
+                        # Get database details to check title
+                        db_response = await self.client._api._request(
+                            "GET",
+                            f"/databases/{child['id']}"
+                        )
+                        db_title = db_response.get("title", [])
+                        if db_title and len(db_title) > 0:
+                            title_text = db_title[0].get("plain_text", "")
+                            if title_text == title:
+                                return child["id"]
+            except Exception:
+                # If search fails, proceed with creation
+                pass
 
-        # Step 4: Create Tasks database
-        task_db = await self._create_database(
-            parent_page_id,
-            "Tasks",
-            [
-                {"name": "Title", "type": "title"},
-                {"name": "Status", "type": "select", "select": {"options": [
-                    {"name": "Todo", "color": "gray"},
-                    {"name": "In Progress", "color": "blue"},
-                    {"name": "Done", "color": "green"},
-                    {"name": "Cancelled", "color": "red"},
-                    {"name": "Archived", "color": "gray"},
-                ]}},
-                {"name": "Priority", "type": "select", "select": {"options": [
-                    {"name": "Critical", "color": "red"},
-                    {"name": "High", "color": "orange"},
-                    {"name": "Medium", "color": "yellow"},
-                    {"name": "Low", "color": "blue"},
-                ]}},
-                {"name": "Due Date", "type": "date"},
-                {"name": "Domain", "type": "relation", "relation": {
-                    "data_source_id": domain_db.id,
-                    "type": "single_property",
-                }},
-                {"name": "Project", "type": "relation", "relation": {
-                    "data_source_id": project_db.id,
-                    "type": "single_property",
-                }},
-                # Note: Parent Task (self-referential) and Subtasks (rollup) properties
-                # need to be added after database creation via a separate API update
-                # because task_db.id doesn't exist yet at this point
-                # TODO: Implement update operation to add these properties
-                {"name": "Tags", "type": "relation", "relation": {
-                    "data_source_id": tag_db.id,
-                    "type": "dual_property",
-                    "dual_property": "Tasks",
-                }},
-                {"name": "Estimated Time", "type": "number"},
-                {"name": "Energy Required", "type": "select", "select": {"options": [
-                    {"name": "High", "color": "red"},
-                    {"name": "Medium", "color": "yellow"},
-                    {"name": "Low", "color": "blue"},
-                ]}},
-                {"name": "Context", "type": "rich_text"},
-                {"name": "Created Date", "type": "date"},
-                {"name": "Completed Date", "type": "date"},
-                {"name": "Archived Date", "type": "date"},
-            ]
-        )
+            return None
 
-        # Step 5: Create Routines database
-        routine_db = await self._create_database(
-            parent_page_id,
-            "Routines",
-            [
-                {"name": "Name", "type": "title"},
-                {"name": "Frequency", "type": "select", "select": {"options": [
-                    {"name": "Daily", "color": "blue"},
-                    {"name": "Weekly", "color": "green"},
-                    {"name": "Weekdays", "color": "yellow"},
-                    {"name": "Weekends", "color": "purple"},
-                ]}},
-                {"name": "Domain", "type": "relation", "relation": {
-                    "data_source_id": domain_db.id,
-                    "type": "single_property",
-                }},
-                {"name": "Best Time", "type": "rich_text"},
-                {"name": "Estimated Duration", "type": "number"},
-                {"name": "Streak", "type": "number"},
-                {"name": "Last Completed", "type": "date"},
-                {"name": "Total Completions", "type": "number"},
-            ]
-        )
+        # Step 1: Create Domains database (or reuse existing)
+        existing_domains_id = await find_existing_database("Domains")
+        if existing_domains_id:
+            print(f"[DEBUG] Reusing existing Domains database: {existing_domains_id}")
+            domain_id = existing_domains_id
+        else:
+            print(f"[DEBUG] Creating new Domains database")
+            domain_db = await self._create_database(
+                parent_page_id,
+                "Domains",
+                [
+                    {"name": "Name", "type": "title"},
+                    {"name": "Description", "type": "rich_text"},
+                    {"name": "Color", "type": "select", "select": {"options": [
+                        {"name": "Red", "color": "red"},
+                        {"name": "Orange", "color": "orange"},
+                        {"name": "Yellow", "color": "yellow"},
+                        {"name": "Green", "color": "green"},
+                        {"name": "Blue", "color": "blue"},
+                        {"name": "Purple", "color": "purple"},
+                        {"name": "Gray", "color": "gray"},
+                    ]}},
+                ]
+            )
+            domain_id = domain_db.id
+            print(f"[DEBUG] Domains database created: {domain_id}")
+        domain_db = type('obj', (object,), {'id': domain_id})  # Mock object with id attribute
 
-        # Step 6: Create Agenda database
-        agenda_db = await self._create_database(
-            parent_page_id,
-            "Agenda",
-            [
-                {"name": "Name", "type": "title"},
-                {"name": "Date & Time", "type": "date"},
-                {"name": "Duration", "type": "number"},
-                {"name": "Type", "type": "select", "select": {"options": [
-                    {"name": "Event", "color": "blue"},
-                    {"name": "Time Block", "color": "green"},
-                    {"name": "Reminder", "color": "yellow"},
-                ]}},
-                {"name": "Linked Task", "type": "relation", "relation": {
-                    "data_source_id": task_db.id,
-                    "type": "single_property",
-                }},
-                {"name": "Linked Project", "type": "relation", "relation": {
-                    "data_source_id": project_db.id,
-                    "type": "single_property",
-                }},
-                {"name": "Location", "type": "rich_text"},
-                {"name": "Notes", "type": "rich_text"},
-            ]
-        )
+        # Step 2: Create Tags database (or reuse existing)
+        existing_tags_id = await find_existing_database("Tags")
+        if existing_tags_id:
+            print(f"[DEBUG] Reusing existing Tags database: {existing_tags_id}")
+            tag_id = existing_tags_id
+        else:
+            print(f"[DEBUG] Creating new Tags database")
+            tag_db = await self._create_database(
+                parent_page_id,
+                "Tags",
+                [
+                    {"name": "Name", "type": "title"},
+                    {"name": "Color", "type": "select", "select": {"options": [
+                        {"name": "Red", "color": "red"},
+                        {"name": "Orange", "color": "orange"},
+                        {"name": "Yellow", "color": "yellow"},
+                        {"name": "Green", "color": "green"},
+                        {"name": "Blue", "color": "blue"},
+                        {"name": "Purple", "color": "purple"},
+                        {"name": "Gray", "color": "gray"},
+                    ]}},
+                    {"name": "Category", "type": "select", "select": {"options": [
+                        {"name": "Context"},
+                        {"name": "Energy"},
+                        {"name": "Location"},
+                        {"name": "Time"},
+                        {"name": "Custom"},
+                    ]}},
+                    {"name": "Description", "type": "rich_text"},
+                ]
+            )
+            tag_id = tag_db.id
+            print(f"[DEBUG] Tags database created: {tag_id}")
+        tag_db = type('obj', (object,), {'id': tag_id})  # Mock object with id attribute
+
+        # Step 3: Create Projects database (or reuse existing)
+        existing_projects_id = await find_existing_database("Projects")
+        if existing_projects_id:
+            print(f"[DEBUG] Reusing existing Projects database: {existing_projects_id}")
+            project_id = existing_projects_id
+        else:
+            print(f"[DEBUG] Creating new Projects database")
+            project_db = await self._create_database(
+                parent_page_id,
+                "Projects",
+                [
+                    {"name": "Name", "type": "title"},
+                    {"name": "Status", "type": "select", "select": {"options": [
+                        {"name": "Active", "color": "green"},
+                        {"name": "On Hold", "color": "orange"},
+                        {"name": "Completed", "color": "blue"},
+                        {"name": "Archived", "color": "gray"},
+                    ]}},
+                    {"name": "Domain", "type": "relation", "relation": {
+                        "data_source_id": domain_db.id,
+                        "type": "single_property",
+                    }},
+                    {"name": "Deadline", "type": "date"},
+                    {"name": "Priority", "type": "select", "select": {"options": [
+                        {"name": "Critical", "color": "red"},
+                        {"name": "High", "color": "orange"},
+                        {"name": "Medium", "color": "yellow"},
+                        {"name": "Low", "color": "blue"},
+                    ]}},
+                    {"name": "Progress", "type": "number", "number": {"format": "percent"}},
+                    {"name": "Goal", "type": "rich_text"},
+                    {"name": "Notes", "type": "rich_text"},
+                ]
+            )
+            project_id = project_db.id
+            print(f"[DEBUG] Projects database created: {project_id}")
+        project_db = type('obj', (object,), {'id': project_id})  # Mock object with id attribute
+
+        # Step 4: Create Tasks database (or reuse existing)
+        existing_tasks_id = await find_existing_database("Tasks")
+        if existing_tasks_id:
+            print(f"[DEBUG] Reusing existing Tasks database: {existing_tasks_id}")
+            task_id = existing_tasks_id
+        else:
+            print(f"[DEBUG] Creating new Tasks database")
+            task_db = await self._create_database(
+                parent_page_id,
+                "Tasks",
+                [
+                    {"name": "Title", "type": "title"},
+                    {"name": "Status", "type": "select", "select": {"options": [
+                        {"name": "Todo", "color": "gray"},
+                        {"name": "In Progress", "color": "blue"},
+                        {"name": "Done", "color": "green"},
+                        {"name": "Cancelled", "color": "red"},
+                        {"name": "Archived", "color": "gray"},
+                    ]}},
+                    {"name": "Priority", "type": "select", "select": {"options": [
+                        {"name": "Critical", "color": "red"},
+                        {"name": "High", "color": "orange"},
+                        {"name": "Medium", "color": "yellow"},
+                        {"name": "Low", "color": "blue"},
+                    ]}},
+                    {"name": "Due Date", "type": "date"},
+                    {"name": "Domain", "type": "relation", "relation": {
+                        "data_source_id": domain_db.id,
+                        "type": "single_property",
+                    }},
+                    {"name": "Project", "type": "relation", "relation": {
+                        "data_source_id": project_db.id,
+                        "type": "single_property",
+                    }},
+                    # Note: Parent Task (self-referential) and Subtasks (rollup) properties
+                    # need to be added after database creation via a separate API update
+                    # because task_db.id doesn't exist yet at this point
+                    # TODO: Implement update operation to add these properties
+                    {"name": "Tags", "type": "relation", "relation": {
+                        "data_source_id": tag_db.id,
+                        "type": "dual_property",
+                        "dual_property": "Tasks",
+                    }},
+                    {"name": "Estimated Time", "type": "number"},
+                    {"name": "Energy Required", "type": "select", "select": {"options": [
+                        {"name": "High", "color": "red"},
+                        {"name": "Medium", "color": "yellow"},
+                        {"name": "Low", "color": "blue"},
+                    ]}},
+                    {"name": "Context", "type": "rich_text"},
+                    {"name": "Created Date", "type": "date"},
+                    {"name": "Completed Date", "type": "date"},
+                    {"name": "Archived Date", "type": "date"},
+                ]
+            )
+            task_id = task_db.id
+            print(f"[DEBUG] Tasks database created: {task_id}")
+        task_db = type('obj', (object,), {'id': task_id})  # Mock object with id attribute
+
+        # Step 5: Create Routines database (or reuse existing)
+        existing_routines_id = await find_existing_database("Routines")
+        if existing_routines_id:
+            print(f"[DEBUG] Reusing existing Routines database: {existing_routines_id}")
+            routine_id = existing_routines_id
+        else:
+            print(f"[DEBUG] Creating new Routines database")
+            routine_db = await self._create_database(
+                parent_page_id,
+                "Routines",
+                [
+                    {"name": "Name", "type": "title"},
+                    {"name": "Frequency", "type": "select", "select": {"options": [
+                        {"name": "Daily", "color": "blue"},
+                        {"name": "Weekly", "color": "green"},
+                        {"name": "Weekdays", "color": "yellow"},
+                        {"name": "Weekends", "color": "purple"},
+                    ]}},
+                    {"name": "Domain", "type": "relation", "relation": {
+                        "data_source_id": domain_db.id,
+                        "type": "single_property",
+                    }},
+                    {"name": "Best Time", "type": "rich_text"},
+                    {"name": "Estimated Duration", "type": "number"},
+                    {"name": "Streak", "type": "number"},
+                    {"name": "Last Completed", "type": "date"},
+                    {"name": "Total Completions", "type": "number"},
+                ]
+            )
+            routine_id = routine_db.id
+            print(f"[DEBUG] Routines database created: {routine_id}")
+        routine_db = type('obj', (object,), {'id': routine_id})  # Mock object with id attribute
+
+        # Step 6: Create Agenda database (or reuse existing)
+        existing_agenda_id = await find_existing_database("Agenda")
+        if existing_agenda_id:
+            print(f"[DEBUG] Reusing existing Agenda database: {existing_agenda_id}")
+            agenda_id = existing_agenda_id
+        else:
+            print(f"[DEBUG] Creating new Agenda database")
+            agenda_db = await self._create_database(
+                parent_page_id,
+                "Agenda",
+                [
+                    {"name": "Name", "type": "title"},
+                    {"name": "Date & Time", "type": "date"},
+                    {"name": "Duration", "type": "number"},
+                    {"name": "Type", "type": "select", "select": {"options": [
+                        {"name": "Event", "color": "blue"},
+                        {"name": "Time Block", "color": "green"},
+                        {"name": "Reminder", "color": "yellow"},
+                    ]}},
+                    {"name": "Linked Task", "type": "relation", "relation": {
+                        "data_source_id": task_db.id,
+                        "type": "single_property",
+                    }},
+                    {"name": "Linked Project", "type": "relation", "relation": {
+                        "data_source_id": project_db.id,
+                        "type": "single_property",
+                    }},
+                    {"name": "Location", "type": "rich_text"},
+                    {"name": "Notes", "type": "rich_text"},
+                ]
+            )
+            agenda_id = agenda_db.id
+            print(f"[DEBUG] Agenda database created: {agenda_id}")
+        agenda_db = type('obj', (object,), {'id': agenda_id})  # Mock object with id attribute
 
         # Store database IDs
         self._database_ids = {
