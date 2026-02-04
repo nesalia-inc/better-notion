@@ -335,7 +335,7 @@ class PersonalPlugin(CombinedPluginInterface):
         @domains_app.command("create")
         def domains_create_cmd(
             name: str = typer.Option(..., "--name", "-n"),
-            description: str = typer.Option("", "--description", "-d", default=""),
+            description: str = typer.Option("", "--description", "-d"),
             color: str = typer.Option("Blue", "--color", "-c"),
         ):
             typer.echo(personal_cli.domains_create(name, description, color))
