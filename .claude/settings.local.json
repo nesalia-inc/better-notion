@@ -40,7 +40,10 @@
       "Bash(where:*)",
       "Bash(uv run python -m pytest:*)",
       "Bash(git push:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "WebSearch",
+      "Bash(uv run python:*)",
+      "Bash(uv run notion personal init:*)"
     ]
   }
 }

@@ -101,9 +101,16 @@ class PageCollection:
 
         Raises:
             NotFoundError: If the page does not exist.
-        """
-        return await self._api._request("DELETE", f"/pages/{page_id}")
 
+        Note:
+            Uses DELETE /blocks/{block_id} endpoint because pages are
+            technically blocks in Notion's architecture.
+        """
+        return await self._api._request("DELETE", f"/blocks/{page_id}")
+
+    async def iterate(
+        self, database_id: str, **kwargs: Any
+    ) -> AsyncPaginatedIterator:
         """Iterate over all pages in a database with automatic pagination.
 
         Args:
