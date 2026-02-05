@@ -90,6 +90,20 @@ class PageCollection:
         """
         return await self._api._request("PATCH", f"/pages/{page_id}", json=kwargs)
 
+    async def delete(self, page_id: str) -> dict[str, Any]:
+        """Delete a page.
+
+        Args:
+            page_id: The page ID.
+
+        Returns:
+            Empty response dict on success.
+
+        Raises:
+            NotFoundError: If the page does not exist.
+        """
+        return await self._api._request("DELETE", f"/pages/{page_id}")
+
         """Iterate over all pages in a database with automatic pagination.
 
         Args:

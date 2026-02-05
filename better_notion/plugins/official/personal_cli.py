@@ -876,8 +876,8 @@ def routines_check(routine_id: str) -> str:
             new_total = routine.total_completions + 1
 
             properties = {
-                "Streak": Number(name="Streak", number=new_streak),
-                "Total Completions": Number(name="Total Completions", number=new_total),
+                "Streak": Number(name="Streak", value=new_streak),
+                "Total Completions": Number(name="Total Completions", value=new_total),
                 "Last Completed": Date(name="Last Completed", value=datetime.now())
             }
 

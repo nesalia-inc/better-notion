@@ -1192,7 +1192,7 @@ class Agenda(DatabasePageEntityMixin, BaseEntity):
 
         properties: dict[str, Any] = {
             "Name": Title(content=name),
-            "Date & Time": Date(name="Date & Time", start=date_time),
+            "Date & Time": Date(name="Date & Time", value=date_time),
             "Duration": Number(name="Duration", value=duration),
             "Type": Select(name="Type", value=type_),
         }
