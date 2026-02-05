@@ -260,48 +260,56 @@ class NotionAPI:
 
             if status_code == 400:
                 from better_notion._api.errors import BadRequestError
+                import json
+                import logging
+
+                logger = logging.getLogger(__name__)
+
                 # Try to extract error details from Notion API response
                 try:
                     error_data = e.response.json()
                     error_message = error_data.get("message", "Bad request")
                     error_code = error_data.get("code", "")
+
                     if error_code:
-                        raise BadRequestError(f"{error_code}: {error_message}") from None
+                        raise BadRequestError(f"{error_code}: {error_message}") from e
                     else:
-                        raise BadRequestError(error_message) from None
-                except Exception as parse_error:
-                    # If we can't parse the error, include the response text
-                    try:
-                        response_text = e.response.text if hasattr(e.response, 'text') else str(e)
-                        import sys
-                        print(f"[DEBUG] Failed to parse error response: {parse_error}", file=sys.stderr)
-                        print(f"[DEBUG] Response text: {response_text[:1000]}", file=sys.stderr)
-                        raise BadRequestError(f"Bad request: {response_text[:500]}") from None
-                    except:
-                        raise BadRequestError() from None
+                        raise BadRequestError(error_message) from e
+
+                except json.JSONDecodeError as parse_error:
+                    # Response is not valid JSON - fall back to text
+                    logger.debug("Failed to parse error response as JSON", exc_info=parse_error)
+
+                    response_text = e.response.text if hasattr(e.response, 'text') else str(e)
+                    raise BadRequestError(f"Bad request: {response_text[:500]}") from e
+
+                except Exception as unexpected_error:
+                    # Something unexpected happened during error parsing
+                    logger.error("Unexpected error while parsing error response", exc_info=unexpected_error)
+                    raise BadRequestError("Bad request: unable to parse error details") from unexpected_error
             elif status_code == 401:
                 from better_notion._api.errors import UnauthorizedError
-                raise UnauthorizedError() from None
+                raise UnauthorizedError() from e
             elif status_code == 403:
                 from better_notion._api.errors import ForbiddenError
-                raise ForbiddenError() from None
+                raise ForbiddenError() from e
             elif status_code == 404:
                 from better_notion._api.errors import NotFoundError
-                raise NotFoundError() from None
+                raise NotFoundError() from e
             elif status_code == 409:
                 from better_notion._api.errors import ConflictError
-                raise ConflictError() from None
+                raise ConflictError() from e
             elif status_code == 429:
                 from better_notion._api.errors import RateLimitedError
                 retry_after = e.response.headers.get("Retry-After")
                 raise RateLimitedError(
                     retry_after=int(retry_after) if retry_after else None
-                ) from None
+                ) from e
             elif status_code >= 500:
                 from better_notion._api.errors import InternalServerError
-                raise InternalServerError() from None
+                raise InternalServerError() from e
             else:
-                raise NotionAPIError(f"HTTP {status_code}: {e.response.text}") from None
+                raise NotionAPIError(f"HTTP {status_code}: {e.response.text}") from e
 
         except httpx.RequestError as e:
             from better_notion._api.errors import NetworkError
