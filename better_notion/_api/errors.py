@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class NotionAPIError(Exception):
     """Base exception for all Notion API errors.
@@ -11,20 +13,36 @@ class NotionAPIError(Exception):
         status_code: HTTP status code (optional).
         code: Error code from API (optional).
         info: Additional error info (optional).
+        request_id: Request ID for correlation (optional).
+        notion_code: Notion's error code (optional).
+        request_method: HTTP method of the request (optional).
+        request_path: Request path (optional).
+        response_body: Response body (optional).
     """
 
     def __init__(
         self,
         message: str | int,
         code: str | None = None,
-        info: dict | None = None
+        info: dict | None = None,
+        *,
+        request_id: str | None = None,
+        notion_code: str | None = None,
+        request_method: str | None = None,
+        request_path: str | None = None,
+        response_body: dict | None = None,
     ) -> None:
         """Initialize Notion API error.
 
         Args:
-            message: Error message (or status code if using 3-param form)
-            code: Error code (optional, or message if using 3-param form)
-            info: Additional error info (optional, only used in 3-param form)
+            message: Error message (or status code if using 3-param form).
+            code: Error code (optional, or message if using 3-param form).
+            info: Additional error info (optional, only used in 3-param form).
+            request_id: Request ID for correlation.
+            notion_code: Notion's error code.
+            request_method: HTTP method of the request.
+            request_path: Request path.
+            response_body: Response body.
 
         Supports two calling conventions:
             1. NotionAPIError("message") - simple message
@@ -45,6 +63,56 @@ class NotionAPIError(Exception):
             self.info = info or {}
             super().__init__(message)
 
+        # Rich context attributes
+        self.request_id = request_id
+        self.notion_code = notion_code
+        self.request_method = request_method
+        self.request_path = request_path
+        self.response_body = response_body or {}
+
+    def get_user_friendly_message(self) -> str:
+        """Generate a clear error message for users.
+
+        Returns:
+            A formatted error message with context.
+        """
+        if self.notion_code:
+            return f"{self.notion_code}: {super().__str__()}"
+        return super().__str__()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize error for logging/monitoring.
+
+        Returns:
+            Dictionary representation of the error.
+        """
+        return {
+            "type": type(self).__name__,
+            "message": self.message,
+            "request_id": self.request_id,
+            "status_code": self.status_code,
+            "notion_code": self.notion_code,
+            "request": f"{self.request_method} {self.request_path}" if self.request_method else None,
+        }
+
+    def get_context_summary(self) -> str:
+        """Get a summary of the error context.
+
+        Returns:
+            A string summarizing the error context.
+        """
+        parts = []
+        if self.request_id:
+            parts.append(f"Request ID: {self.request_id}")
+        if self.notion_code:
+            parts.append(f"Notion Code: {self.notion_code}")
+        if self.request_method and self.request_path:
+            parts.append(f"Operation: {self.request_method} {self.request_path}")
+        if self.status_code is not None:
+            parts.append(f"Status Code: {self.status_code}")
+
+        return " | ".join(parts) if parts else "No context"
+
 
 class HTTPError(NotionAPIError):
     """Base class for HTTP-related errors.
@@ -54,14 +122,20 @@ class HTTPError(NotionAPIError):
         status_code: HTTP status code.
     """
 
-    def __init__(self, message: str, status_code: int | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        status_code: int | None = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize HTTP error.
 
         Args:
             message: Error message.
             status_code: HTTP status code.
+            **kwargs: Additional context passed to NotionAPIError.
         """
-        super().__init__(message)
+        super().__init__(message, **kwargs)
         self.message = message
         self.status_code = status_code
 

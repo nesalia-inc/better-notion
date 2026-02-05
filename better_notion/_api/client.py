@@ -262,8 +262,13 @@ class NotionAPI:
                 from better_notion._api.errors import BadRequestError
                 import json
                 import logging
+                import uuid
 
                 logger = logging.getLogger(__name__)
+
+                # Generate request ID for tracking
+                request_id = uuid.uuid4().hex[:8]
+                notion_request_id = e.response.headers.get('x-request-id')
 
                 # Try to extract error details from Notion API response
                 try:
@@ -271,22 +276,63 @@ class NotionAPI:
                     error_message = error_data.get("message", "Bad request")
                     error_code = error_data.get("code", "")
 
+                    # Create error with rich context
+                    error = BadRequestError(
+                        f"{error_code}: {error_message}" if error_code else error_message,
+                        request_id=request_id,
+                        notion_code=error_code,
+                        request_method=method,
+                        request_path=path,
+                        response_body=error_data,
+                    )
+
+                    # Add rich context using Exception.add_note()
+                    error.add_note(f"Request ID: {request_id}")
+                    if notion_request_id:
+                        error.add_note(f"Notion Request ID: {notion_request_id}")
+                    error.add_note(f"Operation: {method} {path}")
+                    error.add_note(f"Status Code: {status_code}")
                     if error_code:
-                        raise BadRequestError(f"{error_code}: {error_message}") from e
-                    else:
-                        raise BadRequestError(error_message) from e
+                        error.add_note(f"Notion Error Code: {error_code}")
+                    error.add_note(f"Notion Message: {error_message}")
+
+                    raise error from e
 
                 except json.JSONDecodeError as parse_error:
                     # Response is not valid JSON - fall back to text
                     logger.debug("Failed to parse error response as JSON", exc_info=parse_error)
 
                     response_text = e.response.text if hasattr(e.response, 'text') else str(e)
-                    raise BadRequestError(f"Bad request: {response_text[:500]}") from e
+                    error = BadRequestError(
+                        f"Bad request: {response_text[:500]}",
+                        request_id=request_id,
+                        request_method=method,
+                        request_path=path,
+                    )
+
+                    error.add_note(f"Request ID: {request_id}")
+                    if notion_request_id:
+                        error.add_note(f"Notion Request ID: {notion_request_id}")
+                    error.add_note(f"Operation: {method} {path}")
+                    error.add_note("Failed to parse error response as JSON")
+
+                    raise error from e
 
                 except Exception as unexpected_error:
                     # Something unexpected happened during error parsing
                     logger.error("Unexpected error while parsing error response", exc_info=unexpected_error)
-                    raise BadRequestError("Bad request: unable to parse error details") from unexpected_error
+                    error = BadRequestError(
+                        "Bad request: unable to parse error details",
+                        request_id=request_id,
+                        request_method=method,
+                        request_path=path,
+                    )
+
+                    error.add_note(f"Request ID: {request_id}")
+                    error.add_note(f"Operation: {method} {path}")
+                    error.add_note("Unexpected error during error parsing")
+
+                    raise error from unexpected_error
             elif status_code == 401:
                 from better_notion._api.errors import UnauthorizedError
                 raise UnauthorizedError() from e
