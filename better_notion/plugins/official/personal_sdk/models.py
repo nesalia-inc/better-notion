@@ -564,7 +564,7 @@ class Project(DatabasePageEntityMixin, BaseEntity):
         }
 
         if domain_id:
-            properties["Domain"] = Relation(page_ids=[domain_id])
+            properties["Domain"] = Relation("Domain", [domain_id])
 
         if deadline:
             properties["Deadline"] = Date(name="Deadline", start=deadline)
@@ -832,13 +832,13 @@ class Task(DatabasePageEntityMixin, BaseEntity):
             properties["Due Date"] = Date(name="Due Date", start=due_date)
 
         if domain_id:
-            properties["Domain"] = Relation(page_ids=[domain_id])
+            properties["Domain"] = Relation("Domain", [domain_id])
 
         if project_id:
-            properties["Project"] = Relation(page_ids=[project_id])
+            properties["Project"] = Relation("Project", [project_id])
 
         if parent_task_id:
-            properties["Parent Task"] = Relation(page_ids=[parent_task_id])
+            properties["Parent Task"] = Relation("Parent Task", [parent_task_id])
 
         if tag_ids:
             # Get Tags database ID from config
@@ -846,7 +846,7 @@ class Task(DatabasePageEntityMixin, BaseEntity):
             database_ids = config.get('database_ids', {})
             tags_db_id = database_ids.get('tags')
             if tags_db_id:
-                properties["Tags"] = Relation(page_ids=tag_ids)
+                properties["Tags"] = Relation("Tags", tag_ids)
 
         if estimated_time is not None:
             properties["Estimated Time"] = Number(name="Estimated Time", value=estimated_time)
@@ -1020,7 +1020,7 @@ class Routine(DatabasePageEntityMixin, BaseEntity):
         }
 
         if domain_id:
-            properties["Domain"] = Relation(page_ids=[domain_id])
+            properties["Domain"] = Relation("Domain", [domain_id])
 
         if best_time:
             properties["Best Time"] = RichText(name="Best Time", content=best_time)
@@ -1200,10 +1200,10 @@ class Agenda(DatabasePageEntityMixin, BaseEntity):
         }
 
         if linked_task_id:
-            properties["Linked Task"] = Relation(page_ids=[linked_task_id])
+            properties["Linked Task"] = Relation("Linked Task", [linked_task_id])
 
         if linked_project_id:
-            properties["Linked Project"] = Relation(page_ids=[linked_project_id])
+            properties["Linked Project"] = Relation("Linked Project", [linked_project_id])
 
         if location:
             properties["Location"] = RichText(name="Location", content=location)

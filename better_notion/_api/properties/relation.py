@@ -10,13 +10,14 @@ from better_notion._api.properties.base import Property
 class Relation(Property):
     """Builder for relation properties."""
 
-    def __init__(self, page_ids: list[str]) -> None:
+    def __init__(self, name: str, page_ids: list[str]) -> None:
         """Initialize a relation property.
 
         Args:
+            name: The property name (e.g., "Assigned To", "Depends On").
             page_ids: List of related page IDs.
         """
-        super().__init__("Relation")
+        super().__init__(name)
         self._page_ids = page_ids
 
     def to_dict(self) -> dict[str, Any]:
