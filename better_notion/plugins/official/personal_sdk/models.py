@@ -1088,21 +1088,23 @@ class Agenda(DatabasePageEntityMixin, BaseEntity):
         return ""
 
     @property
-    def date_time(self) -> datetime | None:
-        """Get scheduled date and time."""
-        datetime_prop = self._data["properties"].get("Date & Time")
-        if datetime_prop and datetime_prop.get("type") == "date":
-            date_data = datetime_prop.get("date")
+    def start(self) -> datetime | None:
+        """Get start date and time."""
+        start_prop = self._data["properties"].get("Start")
+        if start_prop and start_prop.get("type") == "date":
+            date_data = start_prop.get("date")
             if date_data and date_data.get("start"):
                 return datetime.fromisoformat(date_data["start"])
         return None
 
     @property
-    def duration(self) -> int | None:
-        """Get duration in minutes."""
-        duration_prop = self._data["properties"].get("Duration")
-        if duration_prop and duration_prop.get("type") == "number":
-            return duration_prop.get("number")
+    def end(self) -> datetime | None:
+        """Get end date and time."""
+        end_prop = self._data["properties"].get("End")
+        if end_prop and end_prop.get("type") == "date":
+            date_data = end_prop.get("date")
+            if date_data and date_data.get("start"):
+                return datetime.fromisoformat(date_data["start"])
         return None
 
     @property
@@ -1179,8 +1181,8 @@ class Agenda(DatabasePageEntityMixin, BaseEntity):
         client: "NotionClient",
         database_id: str,
         name: str,
-        date_time: str,
-        duration: int = 30,
+        start: str,
+        end: str,
         type_: str = "Event",
         linked_task_id: str | None = None,
         linked_project_id: str | None = None,
@@ -1188,12 +1190,12 @@ class Agenda(DatabasePageEntityMixin, BaseEntity):
         notes: str = "",
     ) -> "Agenda":
         """Create a new agenda item."""
-        from better_notion._api.properties import Title, Date, Number, Select, Relation, RichText
+        from better_notion._api.properties import Title, Date, Select, Relation, RichText
 
         properties: dict[str, Any] = {
             "Name": Title(content=name),
-            "Date & Time": Date(name="Date & Time", value=date_time),
-            "Duration": Number(name="Duration", value=duration),
+            "Start": Date(name="Start", value=start),
+            "End": Date(name="End", value=end),
             "Type": Select(name="Type", value=type_),
         }
 

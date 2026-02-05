@@ -967,14 +967,14 @@ def agenda_show(week: bool) -> str:
             if week:
                 end_date = today_date + timedelta(days=7)
                 filter_dict = {
-                    "property": "Date & Time",
+                    "property": "Start",
                     "date": {
                         "on_or_before": end_date.isoformat(),
                     },
                 }
             else:
                 filter_dict = {
-                    "property": "Date & Time",
+                    "property": "Start",
                     "date": {
                         "on_or_before": today_date.isoformat(),
                     },
@@ -984,7 +984,7 @@ def agenda_show(week: bool) -> str:
                 database_id=agenda_db_id,
                 filter=filter_dict,
                 sorts=[{
-                    "property": "Date & Time",
+                    "property": "Start",
                     "direction": "ascending",
                 }],
             )
@@ -1011,7 +1011,7 @@ def agenda_show(week: bool) -> str:
     return asyncio.run(_show())
 
 
-def agenda_add(name: str, when: str, duration: int, location: str) -> str:
+def agenda_add(name: str, start: str, end: str, location: str) -> str:
     """Add an agenda item."""
     async def _add() -> str:
         try:
@@ -1029,8 +1029,8 @@ def agenda_add(name: str, when: str, duration: int, location: str) -> str:
                 client=client,
                 database_id=agenda_db_id,
                 name=name,
-                date_time=when,
-                duration=duration,
+                start=start,
+                end=end,
                 type_="Event",
                 location=location,
             )
@@ -1040,7 +1040,8 @@ def agenda_add(name: str, when: str, duration: int, location: str) -> str:
                 "item": {
                     "id": item.id,
                     "name": item.name,
-                    "date_time": item.date_time.isoformat() if item.date_time else None,
+                    "start": item.start.isoformat() if item.start else None,
+                    "end": item.end.isoformat() if item.end else None,
                 },
             })
 
@@ -1050,7 +1051,7 @@ def agenda_add(name: str, when: str, duration: int, location: str) -> str:
     return asyncio.run(_add())
 
 
-def agenda_timeblock(name: str, start: str, duration: int, type_: str) -> str:
+def agenda_timeblock(name: str, start: str, end: str, type_: str) -> str:
     """Add a time block to agenda."""
     async def _timeblock() -> str:
         try:
@@ -1068,8 +1069,8 @@ def agenda_timeblock(name: str, start: str, duration: int, type_: str) -> str:
                 client=client,
                 database_id=agenda_db_id,
                 name=name,
-                date_time=start,
-                duration=duration,
+                start=start,
+                end=end,
                 type_=type_,
             )
 
@@ -1078,7 +1079,8 @@ def agenda_timeblock(name: str, start: str, duration: int, type_: str) -> str:
                 "item": {
                     "id": item.id,
                     "name": item.name,
-                    "date_time": item.date_time.isoformat() if item.date_time else None,
+                    "start": item.start.isoformat() if item.start else None,
+                    "end": item.end.isoformat() if item.end else None,
                     "type": item.type,
                 },
             })

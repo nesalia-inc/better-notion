@@ -502,20 +502,20 @@ class PersonalPlugin(CombinedPluginInterface):
         @agenda_app.command("add")
         def agenda_add_cmd(
             name: str = typer.Option(..., "--name", "-n"),
-            when: str = typer.Option(..., "--when", "-w"),
-            duration: int = typer.Option(30, "--duration"),
+            start: str = typer.Option(..., "--start", "-s"),
+            end: str = typer.Option(..., "--end", "-e"),
             location: str = typer.Option("", "--location"),
         ):
-            typer.echo(personal_cli.agenda_add(name, when, duration, location))
+            typer.echo(personal_cli.agenda_add(name, start, end, location))
 
         @agenda_app.command("timeblock")
         def agenda_timeblock_cmd(
             name: str = typer.Option(..., "--name", "-n"),
             start: str = typer.Option(..., "--start", "-s"),
-            duration: int = typer.Option(60, "--duration"),
+            end: str = typer.Option(..., "--end", "-e"),
             type_: str = typer.Option("Time Block", "--type", "-t"),
         ):
-            typer.echo(personal_cli.agenda_timeblock(name, start, duration, type_))
+            typer.echo(personal_cli.agenda_timeblock(name, start, end, type_))
 
         personal_app.add_typer(agenda_app)
 

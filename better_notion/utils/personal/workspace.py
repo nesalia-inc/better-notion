@@ -294,8 +294,8 @@ class PersonalWorkspaceInitializer:
                 "Agenda",
                 [
                     {"name": "Name", "type": "title"},
-                    {"name": "Date & Time", "type": "date"},
-                    {"name": "Duration", "type": "number"},
+                    {"name": "Start", "type": "date"},
+                    {"name": "End", "type": "date"},
                     {"name": "Type", "type": "select", "select": {"options": [
                         {"name": "Event", "color": "blue"},
                         {"name": "Time Block", "color": "green"},
