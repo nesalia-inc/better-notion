@@ -293,6 +293,35 @@ class PersonalPlugin(CombinedPluginInterface):
             result = asyncio.run(_info())
             typer.echo(result)
 
+        @personal_app.command("reset")
+        def reset_workspace(
+            confirm: bool = typer.Option(
+                False,
+                "--confirm",
+                "-y",
+                help="Confirm reset without prompting",
+            ),
+        ) -> None:
+            """
+            Reset the personal workspace by deleting all databases and configuration.
+
+            WARNING: This action cannot be undone! All your tasks, projects, routines,
+            and agenda items will be permanently deleted from Notion.
+
+            Use --confirm to skip the confirmation prompt.
+
+            Example:
+                $ notion personal reset
+                $ notion personal reset --confirm
+            """
+            if not confirm:
+                typer.confirm(
+                    "Are you sure you want to delete all personal workspace databases and configuration? This cannot be undone!",
+                    abort=True,
+                )
+
+            typer.echo(personal_cli.reset_workspace())
+
         @personal_app.command("schema")
         def personal_schema(
             format: str = typer.Option(

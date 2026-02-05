@@ -32,6 +32,52 @@ def get_workspace_config() -> dict:
     return {}
 
 
+# ===== WORKSPACE =====
+
+def reset_workspace() -> str:
+    """Reset the personal workspace by deleting all databases and configuration."""
+    async def _reset() -> str:
+        try:
+            config_path = Path.home() / ".notion" / "personal.json"
+
+            if not config_path.exists():
+                return format_error("NOT_INITIALIZED", "No personal workspace found. Nothing to reset.", retry=False)
+
+            # Load configuration to get database IDs
+            with open(config_path) as f:
+                config = json.load(f)
+
+            database_ids = config.get("database_ids", {})
+
+            # Delete all databases
+            client = get_client()
+            deleted_databases = []
+            failed_deletions = []
+
+            for db_name, db_id in database_ids.items():
+                try:
+                    # Delete database using DELETE /blocks/{block_id}
+                    await client._api._request("DELETE", f"/blocks/{db_id}")
+                    deleted_databases.append(db_name)
+                except Exception as e:
+                    failed_deletions.append({"name": db_name, "error": str(e)})
+
+            # Delete configuration file
+            config_path.unlink()
+
+            return format_success({
+                "message": "Personal workspace reset successfully",
+                "deleted_databases": deleted_databases,
+                "failed_deletions": failed_deletions,
+                "note": "You can now run 'notion personal init' to create a fresh workspace",
+            })
+
+        except Exception as e:
+            return format_error("WORKSPACE_RESET_ERROR", str(e), retry=False)
+
+    return asyncio.run(_reset())
+
+
 # ===== DOMAINS =====
 
 def domains_list() -> str:
