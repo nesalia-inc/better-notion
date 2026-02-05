@@ -477,7 +477,7 @@ def tasks_update(task_id: str, status: str | None, priority: str | None) -> str:
                 if status == "Done":
                     from better_notion._api.properties import Date
                     from datetime import datetime
-                    properties["Completed Date"] = Date(name="Completed Date", start=datetime.now().isoformat())
+                    properties["Completed Date"] = Date(name="Completed Date", value=datetime.now())
 
             if priority:
                 properties["Priority"] = Select(name="Priority", value=priority)
@@ -592,7 +592,7 @@ def tasks_archive(task_id: str) -> str:
 
             properties = {
                 "Status": Select(name="Status", value="Archived"),
-                "Archived Date": Date(name="Archived Date", start=datetime.now().isoformat()),
+                "Archived Date": Date(name="Archived Date", value=datetime.now())
             }
 
             serialized_properties = {
@@ -878,7 +878,7 @@ def routines_check(routine_id: str) -> str:
             properties = {
                 "Streak": Number(name="Streak", number=new_streak),
                 "Total Completions": Number(name="Total Completions", number=new_total),
-                "Last Completed": Date(name="Last Completed", start=datetime.now().isoformat()),
+                "Last Completed": Date(name="Last Completed", value=datetime.now())
             }
 
             serialized_properties = {
@@ -1240,7 +1240,7 @@ def archive_tasks(older_than: int | None, completed_before: str | None) -> str:
                 # Archive the task
                 properties = {
                     "Status": Select(name="Status", value="Archived"),
-                    "Archived Date": Date(name="Archived Date", start=datetime.now().isoformat()),
+                    "Archived Date": Date(name="Archived Date", value=datetime.now())
                 }
 
                 serialized_properties = {
