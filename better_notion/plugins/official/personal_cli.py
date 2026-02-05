@@ -391,10 +391,12 @@ def tasks_list(
 
             filter_dict = {"and": filters} if len(filters) > 1 else (filters[0] if filters else None)
 
-            response = await client._api.databases.query(
-                database_id=tasks_db_id,
-                filter=filter_dict,
-            )
+            # Build query params dynamically (filter is optional)
+            query_params = {"database_id": tasks_db_id}
+            if filter_dict:
+                query_params["filter"] = filter_dict
+
+            response = await client._api.databases.query(**query_params)
 
             tasks = [Task(client, page_data) for page_data in response.get("results", [])]
 
@@ -639,10 +641,12 @@ def projects_list(domain: str | None) -> str:
                         "relation": {"contains": domain_id},
                     }
 
-            response = await client._api.databases.query(
-                database_id=projects_db_id,
-                filter=filter_dict,
-            )
+            # Build query params dynamically (filter is optional)
+            query_params = {"database_id": projects_db_id}
+            if filter_dict:
+                query_params["filter"] = filter_dict
+
+            response = await client._api.databases.query(**query_params)
 
             projects = [Project(client, page_data) for page_data in response.get("results", [])]
 
@@ -783,10 +787,12 @@ def routines_list(domain: str | None) -> str:
                         "relation": {"contains": domain_id},
                     }
 
-            response = await client._api.databases.query(
-                database_id=routines_db_id,
-                filter=filter_dict,
-            )
+            # Build query params dynamically (filter is optional)
+            query_params = {"database_id": routines_db_id}
+            if filter_dict:
+                query_params["filter"] = filter_dict
+
+            response = await client._api.databases.query(**query_params)
 
             routines = [Routine(client, page_data) for page_data in response.get("results", [])]
 
