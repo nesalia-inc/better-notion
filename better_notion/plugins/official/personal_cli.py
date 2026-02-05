@@ -1042,9 +1042,10 @@ def agenda_show(week: bool) -> str:
                     {
                         "id": a.id,
                         "name": a.name,
-                        "date_time": a.date_time.isoformat() if a.date_time else None,
-                        "duration": a.duration,
+                        "start": a.start.isoformat() if a.start else None,
+                        "end": a.end.isoformat() if a.end else None,
                         "type": a.type,
+                        "location": a.location,
                     }
                     for a in agenda_items
                 ],
