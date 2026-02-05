@@ -154,43 +154,43 @@ class ServerError(HTTPError):
 class BadRequestError(ClientError):
     """400 Bad Request - Invalid request."""
 
-    def __init__(self, message: str = "Bad request") -> None:
-        super().__init__(message, status_code=400)
+    def __init__(self, message: str = "Bad request", **kwargs: Any) -> None:
+        super().__init__(message, status_code=400, **kwargs)
 
 
 class UnauthorizedError(ClientError):
     """401 Unauthorized - Invalid or missing credentials."""
 
-    def __init__(self, message: str = "Unauthorized") -> None:
-        super().__init__(message, status_code=401)
+    def __init__(self, message: str = "Unauthorized", **kwargs: Any) -> None:
+        super().__init__(message, status_code=401, **kwargs)
 
 
 class ForbiddenError(ClientError):
     """403 Forbidden - Insufficient permissions."""
 
-    def __init__(self, message: str = "Forbidden") -> None:
-        super().__init__(message, status_code=403)
+    def __init__(self, message: str = "Forbidden", **kwargs: Any) -> None:
+        super().__init__(message, status_code=403, **kwargs)
 
 
 class NotFoundError(ClientError):
     """404 Not Found - Resource not found."""
 
-    def __init__(self, message: str = "Not found") -> None:
-        super().__init__(message, status_code=404)
+    def __init__(self, message: str = "Not found", **kwargs: Any) -> None:
+        super().__init__(message, status_code=404, **kwargs)
 
 
 class ConflictError(ClientError):
     """409 Conflict - Request conflicts with current state."""
 
-    def __init__(self, message: str = "Conflict") -> None:
-        super().__init__(message, status_code=409)
+    def __init__(self, message: str = "Conflict", **kwargs: Any) -> None:
+        super().__init__(message, status_code=409, **kwargs)
 
 
 class ValidationError(ClientError):
     """422 Validation Error - Invalid data."""
 
-    def __init__(self, message: str = "Validation error") -> None:
-        super().__init__(message, status_code=422)
+    def __init__(self, message: str = "Validation error", **kwargs: Any) -> None:
+        super().__init__(message, status_code=422, **kwargs)
 
 
 class RateLimitedError(ClientError):
@@ -204,8 +204,9 @@ class RateLimitedError(ClientError):
         self,
         message: str = "Rate limited",
         retry_after: int | None = None,
+        **kwargs: Any,
     ) -> None:
-        super().__init__(message, status_code=429)
+        super().__init__(message, status_code=429, **kwargs)
         self.retry_after = retry_after
 
 
@@ -215,22 +216,22 @@ class RateLimitedError(ClientError):
 class InternalServerError(ServerError):
     """500 Internal Server Error."""
 
-    def __init__(self, message: str = "Internal server error") -> None:
-        super().__init__(message, status_code=500)
+    def __init__(self, message: str = "Internal server error", **kwargs: Any) -> None:
+        super().__init__(message, status_code=500, **kwargs)
 
 
 class BadGatewayError(ServerError):
     """502 Bad Gateway."""
 
-    def __init__(self, message: str = "Bad gateway") -> None:
-        super().__init__(message, status_code=502)
+    def __init__(self, message: str = "Bad gateway", **kwargs: Any) -> None:
+        super().__init__(message, status_code=502, **kwargs)
 
 
 class ServiceUnavailableError(ServerError):
     """503 Service Unavailable."""
 
-    def __init__(self, message: str = "Service unavailable") -> None:
-        super().__init__(message, status_code=503)
+    def __init__(self, message: str = "Service unavailable", **kwargs: Any) -> None:
+        super().__init__(message, status_code=503, **kwargs)
 
 
 # Other Errors
