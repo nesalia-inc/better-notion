@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 import httpx
@@ -13,9 +14,12 @@ from better_notion._api.collections import (
     PageCollection,
     UserCollection,
 )
+from better_notion._api.context import get_current_request_context, request_context
 from better_notion._api.errors import NotionAPIError
 from better_notion._api.oauth import OAuthTokenHandler
 from better_notion._api.retry import retry_on_rate_limit
+
+logger = logging.getLogger(__name__)
 
 
 class NotionAPI:
@@ -232,141 +236,161 @@ class NotionAPI:
             backoff and jitter. Other errors are raised immediately.
         """
         url = path if path.startswith("http") else f"{self._base_url}{path}"
+        operation = f"{method} {path}"
 
-        try:
-            response = await self._http.request(
-                method=method,
-                url=url,
-                params=params,
-                json=json,
-            )
-            response.raise_for_status()
-            return response.json()
+        # Use request context manager for tracking
+        async with request_context(self, operation) as ctx:
+            # Add request ID to headers for correlation
+            headers = {"X-Request-ID": ctx.request_id}
 
-        except httpx.HTTPStatusError as e:
-            # Map HTTP errors to NotionAPIError subclasses
-            status_code = e.response.status_code
+            # Add metadata for debugging
+            ctx.metadata.update({
+                "method": method,
+                "path": path,
+                "has_body": json is not None,
+                "has_params": params is not None,
+            })
 
-            # Handle 401 Unauthorized with token refresh
-            if status_code == 401 and self._auth_handler and self._auth_handler.has_refresh_token and _retry_count == 0:
-                try:
-                    # Refresh the token
-                    await self._auth_handler.refresh(self._http)
+            try:
+                response = await self._http.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    json=json,
+                    headers=headers,
+                )
+                response.raise_for_status()
 
-                    # Retry the request with new token
-                    return await self._request(
-                        method,
-                        path,
-                        params=params,
-                        json=json,
-                        _retry_count=_retry_count + 1,
-                    )
-                except Exception:
-                    # If refresh fails, fall through to normal 401 handling
-                    pass
+                # Extract Notion's request ID from response headers
+                notion_request_id = response.headers.get("x-request-id")
+                if notion_request_id:
+                    ctx.notion_request_id = notion_request_id
 
-            if status_code == 400:
-                from better_notion._api.errors import BadRequestError
-                import json
-                import logging
-                import uuid
+                return response.json()
 
-                logger = logging.getLogger(__name__)
+            except httpx.HTTPStatusError as e:
+                # Map HTTP errors to NotionAPIError subclasses
+                status_code = e.response.status_code
 
-                # Generate request ID for tracking
-                request_id = uuid.uuid4().hex[:8]
-                notion_request_id = e.response.headers.get('x-request-id')
+                # Handle 401 Unauthorized with token refresh
+                if status_code == 401 and self._auth_handler and self._auth_handler.has_refresh_token and _retry_count == 0:
+                    try:
+                        # Refresh the token
+                        await self._auth_handler.refresh(self._http)
 
-                # Try to extract error details from Notion API response
-                try:
-                    error_data = e.response.json()
-                    error_message = error_data.get("message", "Bad request")
-                    error_code = error_data.get("code", "")
+                        # Retry the request with new token
+                        return await self._request(
+                            method,
+                            path,
+                            params=params,
+                            json=json,
+                            _retry_count=_retry_count + 1,
+                        )
+                    except Exception:
+                        # If refresh fails, fall through to normal 401 handling
+                        pass
 
-                    # Create error with rich context
-                    error = BadRequestError(
-                        f"{error_code}: {error_message}" if error_code else error_message,
-                        request_id=request_id,
-                        notion_code=error_code,
-                        request_method=method,
-                        request_path=path,
-                        response_body=error_data,
-                    )
+                if status_code == 400:
+                    from better_notion._api.errors import BadRequestError
+                    import json
 
-                    # Add rich context using Exception.add_note()
-                    error.add_note(f"Request ID: {request_id}")
-                    if notion_request_id:
-                        error.add_note(f"Notion Request ID: {notion_request_id}")
-                    error.add_note(f"Operation: {method} {path}")
-                    error.add_note(f"Status Code: {status_code}")
-                    if error_code:
-                        error.add_note(f"Notion Error Code: {error_code}")
-                    error.add_note(f"Notion Message: {error_message}")
+                    # Get request context for correlation
+                    request_id = ctx.request_id
+                    notion_request_id = e.response.headers.get('x-request-id')
 
-                    raise error from e
+                    # Try to extract error details from Notion API response
+                    try:
+                        error_data = e.response.json()
+                        error_message = error_data.get("message", "Bad request")
+                        error_code = error_data.get("code", "")
 
-                except json.JSONDecodeError as parse_error:
-                    # Response is not valid JSON - fall back to text
-                    logger.debug("Failed to parse error response as JSON", exc_info=parse_error)
+                        # Create error with rich context
+                        error = BadRequestError(
+                            f"{error_code}: {error_message}" if error_code else error_message,
+                            request_id=request_id,
+                            notion_code=error_code,
+                            request_method=method,
+                            request_path=path,
+                            response_body=error_data,
+                        )
 
-                    response_text = e.response.text if hasattr(e.response, 'text') else str(e)
-                    error = BadRequestError(
-                        f"Bad request: {response_text[:500]}",
-                        request_id=request_id,
-                        request_method=method,
-                        request_path=path,
-                    )
+                        # Add duration from context
+                        error.add_note(f"Duration: {ctx.duration():.3f}s")
 
-                    error.add_note(f"Request ID: {request_id}")
-                    if notion_request_id:
-                        error.add_note(f"Notion Request ID: {notion_request_id}")
-                    error.add_note(f"Operation: {method} {path}")
-                    error.add_note("Failed to parse error response as JSON")
+                        # Add rich context using Exception.add_note()
+                        error.add_note(f"Request ID: {request_id}")
+                        if notion_request_id:
+                            error.add_note(f"Notion Request ID: {notion_request_id}")
+                        error.add_note(f"Operation: {method} {path}")
+                        error.add_note(f"Status Code: {status_code}")
+                        if error_code:
+                            error.add_note(f"Notion Error Code: {error_code}")
+                        error.add_note(f"Notion Message: {error_message}")
 
-                    raise error from e
+                        raise error from e
 
-                except Exception as unexpected_error:
-                    # Something unexpected happened during error parsing
-                    logger.error("Unexpected error while parsing error response", exc_info=unexpected_error)
-                    error = BadRequestError(
-                        "Bad request: unable to parse error details",
-                        request_id=request_id,
-                        request_method=method,
-                        request_path=path,
-                    )
+                    except json.JSONDecodeError as parse_error:
+                        # Response is not valid JSON - fall back to text
+                        logger.debug("Failed to parse error response as JSON", exc_info=parse_error)
 
-                    error.add_note(f"Request ID: {request_id}")
-                    error.add_note(f"Operation: {method} {path}")
-                    error.add_note("Unexpected error during error parsing")
+                        response_text = e.response.text if hasattr(e.response, 'text') else str(e)
+                        error = BadRequestError(
+                            f"Bad request: {response_text[:500]}",
+                            request_id=request_id,
+                            request_method=method,
+                            request_path=path,
+                        )
 
-                    raise error from unexpected_error
-            elif status_code == 401:
-                from better_notion._api.errors import UnauthorizedError
-                raise UnauthorizedError() from e
-            elif status_code == 403:
-                from better_notion._api.errors import ForbiddenError
-                raise ForbiddenError() from e
-            elif status_code == 404:
-                from better_notion._api.errors import NotFoundError
-                raise NotFoundError() from e
-            elif status_code == 409:
-                from better_notion._api.errors import ConflictError
-                raise ConflictError() from e
-            elif status_code == 429:
-                from better_notion._api.errors import RateLimitedError
-                retry_after = e.response.headers.get("Retry-After")
-                raise RateLimitedError(
-                    retry_after=int(retry_after) if retry_after else None
-                ) from e
-            elif status_code >= 500:
-                from better_notion._api.errors import InternalServerError
-                raise InternalServerError() from e
-            else:
-                raise NotionAPIError(f"HTTP {status_code}: {e.response.text}") from e
+                        error.add_note(f"Request ID: {request_id}")
+                        if notion_request_id:
+                            error.add_note(f"Notion Request ID: {notion_request_id}")
+                        error.add_note(f"Operation: {method} {path}")
+                        error.add_note("Failed to parse error response as JSON")
 
-        except httpx.RequestError as e:
-            from better_notion._api.errors import NetworkError
-            raise NetworkError(f"Network error: {e}") from e
+                        raise error from e
+
+                    except Exception as unexpected_error:
+                        # Something unexpected happened during error parsing
+                        logger.error("Unexpected error while parsing error response", exc_info=unexpected_error)
+                        error = BadRequestError(
+                            "Bad request: unable to parse error details",
+                            request_id=request_id,
+                            request_method=method,
+                            request_path=path,
+                        )
+
+                        error.add_note(f"Request ID: {request_id}")
+                        error.add_note(f"Operation: {method} {path}")
+                        error.add_note("Unexpected error during error parsing")
+
+                        raise error from unexpected_error
+                elif status_code == 401:
+                    from better_notion._api.errors import UnauthorizedError
+                    raise UnauthorizedError() from e
+                elif status_code == 403:
+                    from better_notion._api.errors import ForbiddenError
+                    raise ForbiddenError() from e
+                elif status_code == 404:
+                    from better_notion._api.errors import NotFoundError
+                    raise NotFoundError() from e
+                elif status_code == 409:
+                    from better_notion._api.errors import ConflictError
+                    raise ConflictError() from e
+                elif status_code == 429:
+                    from better_notion._api.errors import RateLimitedError
+                    retry_after = e.response.headers.get("Retry-After")
+                    raise RateLimitedError(
+                        retry_after=int(retry_after) if retry_after else None
+                    ) from e
+                elif status_code >= 500:
+                    from better_notion._api.errors import InternalServerError
+                    raise InternalServerError() from e
+                else:
+                    raise NotionAPIError(f"HTTP {status_code}: {e.response.text}") from e
+
+            except httpx.RequestError as e:
+                from better_notion._api.errors import NetworkError
+                raise NetworkError(f"Network error: {e}") from e
 
     async def __aenter__(self) -> NotionAPI:
         """Async context manager entry."""
