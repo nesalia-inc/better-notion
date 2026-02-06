@@ -74,6 +74,51 @@ class Database:
         return self._data["parent"]
 
     # Instance methods
+    async def update(self, **kwargs: Any) -> None:
+        """Update database properties locally.
+
+        Note:
+            This method updates local state only. Call save() to persist
+            changes to Notion.
+
+            Database schema updates have limitations in Notion API.
+            Some changes may require recreating the database.
+
+        Args:
+            **kwargs: Properties to update (properties, title).
+
+        Raises:
+            ValueError: If an invalid property name is provided.
+            ValueError: If property validation fails.
+        """
+        # Validate property names
+        for key in kwargs:
+            if key not in self.VALID_PROPERTIES:
+                raise ValueError(
+                    f"Invalid database property: {key!r}. "
+                    f"Valid properties are: {', '.join(sorted(self.VALID_PROPERTIES))}"
+                )
+
+        # Validate and process property values
+        validated_kwargs = {}
+        for key, value in kwargs.items():
+            try:
+                validated_value = self._validate_property_value(key, value)
+                validated_kwargs[key] = validated_value
+            except ValueError as e:
+                raise ValueError(f"Invalid value for property '{key}': {e}") from e
+
+        # Update database data
+        if "properties" in validated_kwargs:
+            self._data["properties"] = validated_kwargs["properties"]
+
+        if "title" in validated_kwargs:
+            self._data["title"] = validated_kwargs["title"]
+
+        # Track modified properties
+        self._modified_properties.update(validated_kwargs)
+        self._modified = True
+
     async def query(self, **kwargs: Any) -> list[Page]:
         """Query this database.
 
@@ -123,12 +168,20 @@ class Database:
         if not self._modified:
             return
 
-        # Notion API doesn't support partial schema updates
-        # We need to send the full schema
+        # Build payload with modified properties
+        payload: dict[str, Any] = {}
+
+        if "properties" in self._modified_properties:
+            payload["properties"] = self._data["properties"]
+
+        if "title" in self._modified_properties:
+            payload["title"] = self._data["title"]
+
+        # Send update to Notion
         await self._api._request(
             "PATCH",
             f"/databases/{self.id}",
-            json={"properties": self._data["properties"]}
+            json=payload,
         )
 
         self._modified_properties = {}
@@ -144,6 +197,57 @@ class Database:
         """
         await self._api._request("DELETE", f"/blocks/{self.id}")
         self._data["archived"] = True
+
+    def _validate_property_value(self, name: str, value: Any) -> Any:
+        """Validate a property value.
+
+        Args:
+            name: Property name
+            value: Property value to validate
+
+        Returns:
+            Validated/converted value
+
+        Raises:
+            ValueError: If value is invalid
+        """
+        if name == "title":
+            # Title should be a list of rich text objects
+            if not isinstance(value, list) and value is not None:
+                raise ValueError(f"title must be a list, got {type(value).__name__}")
+            return value
+
+        elif name == "properties":
+            # Properties should be a dict
+            if not isinstance(value, dict) and value is not None:
+                raise ValueError(f"properties must be a dict, got {type(value).__name__}")
+            return value
+
+        return value
+
+    def _validate_property(self, name: str, value: Any) -> Any:
+        """Validate an individual property.
+
+        Args:
+            name: Property name
+            value: Property value to validate
+
+        Returns:
+            Validated/converted value
+
+        Raises:
+            ValueError: If value is invalid
+        """
+        # Basic validation for properties
+        if name == "properties":
+            if value is not None and not isinstance(value, dict):
+                raise ValueError(f"properties must be a dict, got {type(value).__name__}")
+
+        elif name == "title":
+            if value is not None and not isinstance(value, list):
+                raise ValueError(f"title must be a list, got {type(value).__name__}")
+
+        return value
 
     def __repr__(self) -> str:
         """String representation."""
