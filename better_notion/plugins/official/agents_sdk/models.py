@@ -568,7 +568,7 @@ class Project(DatabasePageEntityMixin, BaseEntity):
         # Build properties
         properties: dict[str, Any] = {
             "Name": Title(content=name),
-            "Organization": Relation([organization_id]),
+            "Organization": Relation("Organization", [organization_id]),
             "Role": Select(name="Role", value=role),
         }
 
@@ -826,7 +826,7 @@ class Version(DatabasePageEntityMixin, BaseEntity):
         # Build properties
         properties: dict[str, Any] = {
             "Version": Title(content=name),
-            "Project": Relation([project_id]),
+            "Project": Relation("Project", [project_id]),
             "Status": Select(name="Status", value=status),
             "Type": Select(name="Type", value=version_type),
             "Progress": Number(name="Progress", value=progress),
@@ -1113,14 +1113,14 @@ class Task(DatabasePageEntityMixin, BaseEntity):
         # Build properties
         properties: dict[str, Any] = {
             "Title": Title(content=title),
-            "Version": Relation([version_id]),
+            "Version": Relation("Version", [version_id]),
             "Status": Select(name="Status", value=status),
             "Type": Select(name="Type", value=task_type),
             "Priority": Select(name="Priority", value=priority),
         }
 
         if dependency_ids:
-            properties["Dependencies"] = Relation(dependency_ids)
+            properties["Dependencies"] = Relation("Dependencies", dependency_ids)
         if estimated_hours is not None:
             properties["Estimated Hours"] = Number(name="Estimated Hours", value=estimated_hours)
 
@@ -1318,7 +1318,7 @@ class Task(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Related Work Issue": Relation([work_issue_id]).to_dict(),
+                "Related Work Issue": Relation("Related Work Issue", [work_issue_id]).to_dict(),
             },
         )
 
@@ -1340,7 +1340,7 @@ class Task(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Related Work Issue": Relation([]).to_dict(),
+                "Related Work Issue": Relation("Related Work Issue", []).to_dict(),
             },
         )
 
@@ -1589,7 +1589,7 @@ class Idea(DatabasePageEntityMixin, BaseEntity):
         if context:
             properties["Context"] = RichText(name="Context", content=context)
         if project_id:
-            properties["Project"] = Relation([project_id])
+            properties["Project"] = Relation("Project", [project_id])
 
         # Convert Property objects to dicts for API
         serialized_properties = {
@@ -1780,7 +1780,7 @@ class Idea(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Related Task": Relation([task_id]),
+                "Related Task": Relation("Related Task", [task_id]),
             },
         )
 
@@ -1981,14 +1981,14 @@ class WorkIssue(DatabasePageEntityMixin, BaseEntity):
 
         properties: dict[str, Any] = {
             "Title": Title(content=title),
-            "Project": Relation([project_id]),
+            "Project": Relation("Project", [project_id]),
             "Type": Select(name="Type", value=type),
             "Severity": Select(name="Severity", value=severity),
             "Status": Select(name="Status", value=status),
         }
 
         if task_id:
-            properties["Task"] = Relation([task_id])
+            properties["Task"] = Relation("Task", [task_id])
         if description:
             properties["Description"] = RichText(name="Description", content=description)
         if context:
@@ -2120,7 +2120,7 @@ class WorkIssue(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Related Idea": Relation([idea_id]),
+                "Related Idea": Relation("Related Idea", [idea_id]),
             },
         )
 
@@ -2395,8 +2395,8 @@ class Incident(DatabasePageEntityMixin, BaseEntity):
 
         properties: dict[str, Any] = {
             "Title": Title(content=title),
-            "Project": Relation([project_id]),
-            "Affected Version": Relation([affected_version_id]),
+            "Project": Relation("Project", [project_id]),
+            "Affected Version": Relation("Affected Version", [affected_version_id]),
             "Severity": Select(name="Severity", value=severity),
             "Type": Select(name="Type", value=type),
             "Status": Select(name="Status", value=status),
@@ -2506,7 +2506,7 @@ class Incident(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Fix Task": Relation([task_id]).to_dict(),
+                "Fix Task": Relation("Fix Task", [task_id]).to_dict(),
                 "Status": Select(name="Status", value="Fix in Progress").to_dict(),
             },
         )
@@ -2647,7 +2647,7 @@ class Incident(DatabasePageEntityMixin, BaseEntity):
         await self._client._api.pages.update(
             page_id=self.id,
             properties={
-                "Root Cause Work Issue": Relation([work_issue_id]).to_dict(),
+                "Root Cause Work Issue": Relation("Root Cause Work Issue", [work_issue_id]).to_dict(),
             },
         )
 

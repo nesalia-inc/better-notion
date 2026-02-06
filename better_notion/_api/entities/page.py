@@ -15,6 +15,15 @@ class Page:
     This entity knows its API and can manipulate itself.
     """
 
+    # Define valid top-level properties
+    VALID_PROPERTIES = {
+        "properties",  # Page properties (title, etc.)
+        "archived",    # Archive status
+        "icon",        # Page icon
+        "cover",       # Page cover
+        # "parent" is not allowed (immutable)
+    }
+
     def __init__(self, api: NotionAPI, data: dict[str, Any]) -> None:
         """Initialize a Page entity.
 
@@ -26,6 +35,7 @@ class Page:
         self._data = data
         self._modified_properties: dict[str, Any] = {}
         self._modified = False
+        self._schema: dict[str, Any] | None = None  # Cached schema
 
     # Properties
     @property
@@ -112,6 +122,84 @@ class Page:
         self._modified_properties = {}
         self._modified = False
 
+    def _validate_property_value(self, name: str, value: Any) -> Any:
+        """Validate a property value.
+
+        Args:
+            name: Property name
+            value: Property value to validate
+
+        Returns:
+            Validated/converted value
+
+        Raises:
+            ValueError: If value is invalid
+        """
+        if name == "archived":
+            if not isinstance(value, bool):
+                raise ValueError(f"archived must be a boolean, got {type(value).__name__}")
+            return value
+
+        elif name == "icon":
+            # Icon can be None, dict, or str (emoji)
+            if value is None:
+                return None
+            if isinstance(value, str):
+                return {"type": "emoji", "emoji": value}
+            if isinstance(value, dict):
+                return value
+            raise ValueError(f"icon must be None, str, or dict, got {type(value).__name__}")
+
+        elif name == "cover":
+            # Cover can be None, str (URL), or dict
+            if value is None:
+                return None
+            if isinstance(value, str):
+                return {"type": "external", "external": {"url": value}}
+            if isinstance(value, dict):
+                return value
+            raise ValueError(f"cover must be None, str, or dict, got {type(value).__name__}")
+
+        elif name == "properties":
+            if not isinstance(value, dict):
+                raise ValueError(f"properties must be a dict, got {type(value).__name__}")
+
+            # Validate individual property values
+            validated = {}
+            for prop_name, prop_value in value.items():
+                validated[prop_name] = self._validate_property(prop_name, prop_value)
+            return validated
+
+        return value
+
+    def _validate_property(self, name: str, value: Any) -> Any:
+        """Validate an individual property.
+
+        Args:
+            name: Property name
+            value: Property value to validate
+
+        Returns:
+            Validated/converted value
+
+        Raises:
+            ValueError: If value is invalid
+        """
+        # Check if it's a Property builder object with to_dict method
+        if hasattr(value, "to_dict"):
+            return value
+
+        # Basic type validation for common types
+        if name in ("title", "name"):
+            if not isinstance(value, str) and not hasattr(value, "to_dict"):
+                raise ValueError(f"{name} must be a string or property builder object")
+
+        elif name in ("rich_text", "text"):
+            if not isinstance(value, str) and not hasattr(value, "to_dict"):
+                raise ValueError(f"{name} must be a string or property builder object")
+
+        return value
+
     async def update(self, **kwargs: Any) -> None:
         """Update page properties.
 
@@ -120,19 +208,40 @@ class Page:
                      its contents will be unpacked into the modified properties.
 
         Raises:
+            ValueError: If an invalid property name is provided.
+            ValueError: If property validation fails.
             ValidationError: If the properties are invalid.
             NotFoundError: If the page no longer exists.
         """
+        # Validate property names
+        for key in kwargs:
+            if key not in self.VALID_PROPERTIES:
+                raise ValueError(
+                    f"Invalid page property: {key!r}. "
+                    f"Valid properties are: {', '.join(sorted(self.VALID_PROPERTIES))}"
+                )
+
+        # Validate and process property values
+        validated_kwargs = {}
+        for key, value in kwargs.items():
+            try:
+                validated_value = self._validate_property_value(key, value)
+                validated_kwargs[key] = validated_value
+            except ValueError as e:
+                raise ValueError(f"Invalid value for property '{key}': {e}") from e
+
         # Special handling for 'properties' kwarg - unpack it
-        if "properties" in kwargs:
-            self._modified_properties.update(kwargs["properties"])
+        if "properties" in validated_kwargs:
+            self._modified_properties.update(validated_kwargs["properties"])
 
         # Handle other kwargs normally (e.g., 'archived')
-        for key, value in kwargs.items():
+        for key, value in validated_kwargs.items():
             if key != "properties":
                 self._modified_properties[key] = value
 
-        self._modified = True
+        # Only mark as modified if we actually added something
+        if validated_kwargs:
+            self._modified = True
 
     # Navigation
     @property
