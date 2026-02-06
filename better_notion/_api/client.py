@@ -15,6 +15,7 @@ from better_notion._api.collections import (
 )
 from better_notion._api.errors import NotionAPIError
 from better_notion._api.oauth import OAuthTokenHandler
+from better_notion._api.retry import retry_on_rate_limit
 
 
 class NotionAPI:
@@ -200,6 +201,7 @@ class NotionAPI:
             "Content-Type": "application/json",
         }
 
+    @retry_on_rate_limit(max_retries=3, initial_backoff=1.0, max_backoff=60.0)
     async def _request(
         self,
         method: str,
@@ -209,7 +211,7 @@ class NotionAPI:
         json: dict[str, Any] | None = None,
         _retry_count: int = 0,
     ) -> dict[str, Any]:
-        """Make an HTTP request to the Notion API.
+        """Make an HTTP request to the Notion API with automatic retry on rate limit.
 
         Args:
             method: HTTP method.
@@ -223,6 +225,11 @@ class NotionAPI:
 
         Raises:
             NotionAPIError: For API errors.
+            RateLimitedError: If max retries exceeded.
+
+        Note:
+            Automatically retries on HTTP 429 (rate limiting) with exponential
+            backoff and jitter. Other errors are raised immediately.
         """
         url = path if path.startswith("http") else f"{self._base_url}{path}"
 
