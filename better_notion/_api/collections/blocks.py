@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
+    from better_notion._api.entities import Block
 
 
 
@@ -25,22 +26,24 @@ class BlockCollection:
         self._api = api
         self._parent_id = parent_id
 
-    async def get(self, block_id: str) -> dict[str, Any]:
+    async def get(self, block_id: str) -> Block:
         """Retrieve a block by ID.
 
         Args:
             block_id: The block ID.
 
         Returns:
-            Raw block data dict from Notion API.
+            Block entity object.
 
         Raises:
             NotFoundError: If the block does not exist.
         """
-        return await self._api._request("GET", f"/blocks/{block_id}")
+        from better_notion._api.entities import Block
+        data = await self._api._request("GET", f"/blocks/{block_id}")
+        return Block(self._api, data)
 
-    async def update(self, block_id: str, **kwargs: Any) -> dict[str, Any]:
-        """Update a block.
+    async def update(self, block_id: str, **kwargs: Any) -> Block:
+        """Update a block by ID.
 
         Args:
             block_id: The block ID.
@@ -51,7 +54,7 @@ class BlockCollection:
                 etc.
 
         Returns:
-            Raw block data dict from Notion API.
+            Updated Block entity.
 
         Raises:
             ValidationError: If the request is invalid.
@@ -64,13 +67,15 @@ class BlockCollection:
             ...     paragraph={"rich_text": [{"type": "text", "text": {"content": "New text"}}]}
             ... )
         """
-        return await self._api._request("PATCH", f"/blocks/{block_id}", json=kwargs)
+        from better_notion._api.entities import Block
+        data = await self._api._request("PATCH", f"/blocks/{block_id}", json=kwargs)
+        return Block(self._api, data)
 
-    async def children(self) -> list[dict[str, Any]]:
+    async def children(self) -> list[Block]:
         """Get children blocks.
 
         Returns:
-            List of raw child block data dicts from Notion API.
+            List of child Block entities.
 
         Raises:
             NotFoundError: If the parent block does not exist.
@@ -79,17 +84,19 @@ class BlockCollection:
         if not self._parent_id:
             raise ValueError("parent_id is required to get children")
 
+        from better_notion._api.entities import Block
         data = await self._api._request("GET", f"/blocks/{self._parent_id}/children")
-        return data.get("results", [])
+        results = data.get("results", [])
+        return [Block(self._api, block_data) for block_data in results]
 
-    async def append(self, **kwargs: Any) -> dict[str, Any]:
+    async def append(self, **kwargs: Any) -> Block:
         """Append a new block.
 
         Args:
             **kwargs: Block properties including children (required).
 
         Returns:
-            Raw block data dict from Notion API.
+            The newly created Block entity.
 
         Raises:
             ValidationError: If parent_id is not set or request is invalid.
@@ -98,6 +105,7 @@ class BlockCollection:
         if not self._parent_id:
             raise ValueError("parent_id is required to append blocks")
 
+        from better_notion._api.entities import Block
         data = await self._api._request(
             "PATCH",
             f"/blocks/{self._parent_id}/children",
@@ -107,7 +115,18 @@ class BlockCollection:
         # We need to get the last created child
         children = data.get("results", [])
         if children:
-            return children[-1]
+            return Block(self._api, children[-1])
         # If no children returned, we need to fetch the parent's children again
         # For now, just return the first child from the response
-        return data
+        return Block(self._api, data)
+
+    async def delete(self, block_id: str) -> None:
+        """Delete a block by ID.
+
+        Args:
+            block_id: The block ID.
+
+        Raises:
+            NotFoundError: If the block does not exist.
+        """
+        await self._api._request("DELETE", f"/blocks/{block_id}")
