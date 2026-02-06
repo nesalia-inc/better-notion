@@ -9,8 +9,10 @@ if TYPE_CHECKING:
     from better_notion._api import NotionAPI
     from better_notion._api.entities import Page
 
+from better_notion._api.entities.base import Entity
 
-class Database:
+
+class Database(Entity):
     """Represents a Notion database.
 
     This entity knows its API and can manipulate itself.
@@ -30,8 +32,7 @@ class Database:
             api: The NotionAPI client instance.
             data: Raw database data from Notion API.
         """
-        self._api = api
-        self._data = data
+        super().__init__(api, data)
         self._modified_properties: dict[str, Any] = {}
         self._modified = False
 
@@ -248,7 +249,3 @@ class Database:
                 raise ValueError(f"title must be a list, got {type(value).__name__}")
 
         return value
-
-    def __repr__(self) -> str:
-        """String representation."""
-        return f"Database(id={self.id!r})"

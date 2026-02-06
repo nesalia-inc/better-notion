@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.entities.base import Entity
 
-class Block:
+
+class Block(Entity):
     """Represents a Notion block.
 
     This entity knows its API and can manipulate itself.
@@ -28,8 +30,7 @@ class Block:
             api: The NotionAPI client instance.
             data: Raw block data from Notion API.
         """
-        self._api = api
-        self._data = data
+        super().__init__(api, data)
         self._modified_properties: dict[str, Any] = {}
         self._modified = False
 
@@ -225,7 +226,3 @@ class Block:
                 raise ValueError(f"content must be a dict, got {type(value).__name__}")
 
         return value
-
-    def __repr__(self) -> str:
-        """String representation."""
-        return f"Block(id={self.id!r}, type={self.type!r})"

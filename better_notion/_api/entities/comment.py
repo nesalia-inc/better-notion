@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.entities.base import Entity
 
-class Comment:
+
+class Comment(Entity):
     """Comment entity from Notion API.
 
     This is a low-level entity that wraps the raw API response.
@@ -35,8 +37,7 @@ class Comment:
             api: The NotionAPI client instance.
             data: Raw comment data from Notion API.
         """
-        self._api = api
-        self._data = data
+        super().__init__(api, data)
 
     @property
     def id(self) -> str:
@@ -155,7 +156,3 @@ class Comment:
         """
         data = await self._api._request("GET", f"/comments/{self.id}")
         self._data = data
-
-    def __repr__(self) -> str:
-        """String representation."""
-        return f"Comment(id={self.id!r})"

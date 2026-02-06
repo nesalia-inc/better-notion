@@ -8,8 +8,10 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.entities.base import Entity
 
-class Page:
+
+class Page(Entity):
     """Represents a Notion page.
 
     This entity knows its API and can manipulate itself.
@@ -31,8 +33,7 @@ class Page:
             api: The NotionAPI client instance.
             data: Raw page data from Notion API.
         """
-        self._api = api
-        self._data = data
+        super().__init__(api, data)
         self._modified_properties: dict[str, Any] = {}
         self._modified = False
         self._schema: dict[str, Any] | None = None  # Cached schema
@@ -257,7 +258,3 @@ class Page:
         """
         from better_notion._api.collections import BlockCollection
         return BlockCollection(self._api, parent_id=self.id)
-
-    def __repr__(self) -> str:
-        """String representation."""
-        return f"Page(id={self.id!r})"
