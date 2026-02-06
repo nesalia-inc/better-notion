@@ -76,6 +76,10 @@ class NotionAPIError(Exception):
         Returns:
             A formatted error message with context.
         """
+        # Special handling for ValidationError with structured errors
+        if isinstance(self, ValidationError) and self.errors:
+            return self.get_user_friendly_message()
+
         if self.notion_code:
             return f"{self.notion_code}: {super().__str__()}"
         return super().__str__()
@@ -187,10 +191,101 @@ class ConflictError(ClientError):
 
 
 class ValidationError(ClientError):
-    """422 Validation Error - Invalid data."""
+    """422 Validation Error - Invalid data.
 
-    def __init__(self, message: str = "Validation error", **kwargs: Any) -> None:
+    Provides structured validation errors with property-level details for
+    better error reporting and debugging.
+    """
+
+    def __init__(
+        self,
+        message: str = "Validation error",
+        errors: list[dict[str, Any]] | None = None,
+        properties: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initialize a validation error.
+
+        Args:
+            message: Error message.
+            errors: List of validation errors for specific properties.
+            properties: The properties that failed validation.
+            **kwargs: Additional context passed to NotionAPIError.
+        """
         super().__init__(message, status_code=422, **kwargs)
+        self.errors = errors or []
+        self.properties = properties or {}
+
+    def add_error(
+        self,
+        property: str,
+        message: str,
+        code: str,
+        value: Any = None,
+    ) -> None:
+        """Add a validation error for a specific property.
+
+        Args:
+            property: The property name that failed validation.
+            message: Human-readable error message.
+            code: Error code (e.g., "required", "invalid_type", "invalid_value").
+            value: The invalid value (optional).
+        """
+        self.errors.append({
+            "property": property,
+            "message": message,
+            "code": code,
+            "value": value,
+        })
+
+    def has_errors(self) -> bool:
+        """Check if there are any validation errors.
+
+        Returns:
+            True if there are validation errors, False otherwise.
+        """
+        return len(self.errors) > 0
+
+    def get_errors_for_property(self, property_name: str) -> list[dict[str, Any]]:
+        """Get all errors for a specific property.
+
+        Args:
+            property_name: The property name to filter by.
+
+        Returns:
+            List of errors for the specified property.
+        """
+        return [e for e in self.errors if e["property"] == property_name]
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize error for logging/serialization.
+
+        Returns:
+            Dictionary representation of the validation error.
+        """
+        return {
+            "type": "validation_error",
+            "message": self.message,
+            "errors": self.errors,
+            "properties": self.properties,
+        }
+
+    def get_user_friendly_message(self) -> str:
+        """Generate a user-friendly error message.
+
+        Returns:
+            A formatted error message listing all validation issues.
+        """
+        if not self.errors:
+            return self.message
+
+        lines = [self.message]
+        for error in self.errors:
+            prop = error.get("property", "unknown")
+            msg = error.get("message", "validation failed")
+            lines.append(f"  - {prop}: {msg}")
+
+        return "\n".join(lines)
 
 
 class RateLimitedError(ClientError):
