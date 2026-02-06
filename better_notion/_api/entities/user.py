@@ -7,11 +7,16 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.entities.base import ReadOnlyEntity
 
-class User:
+
+class User(ReadOnlyEntity):
     """Represents a Notion user.
 
     This entity represents user metadata.
+
+    Note:
+        User is read-only - does not support save() or delete().
     """
 
     def __init__(self, api: NotionAPI, data: dict[str, Any]) -> None:
@@ -21,8 +26,7 @@ class User:
             api: The NotionAPI client instance.
             data: Raw user data from Notion API.
         """
-        self._api = api
-        self._data = data
+        super().__init__(api, data)
 
     # Properties
     @property
@@ -45,6 +49,13 @@ class User:
         """Get the user type."""
         return self._data["type"]
 
-    def __repr__(self) -> str:
-        """String representation."""
-        return f"User(id={self.id!r}, name={self.name!r})"
+    async def reload(self) -> None:
+        """Reload user data from Notion.
+
+        Fetches the latest user data and updates the entity.
+
+        Raises:
+            NotFoundError: If the user no longer exists.
+        """
+        data = await self._api._request("GET", f"/users/{self.id}")
+        self._data = data

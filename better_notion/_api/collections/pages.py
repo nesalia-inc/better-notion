@@ -7,11 +7,12 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.collections.base import EntityCollection
 from better_notion._api.entities import Page
 from better_notion._api.utils import AsyncPaginatedIterator
 
 
-class PageCollection:
+class PageCollection(EntityCollection[Page]):
     """Collection for managing pages.
 
     Provides factory methods for creating and retrieving pages as Entity objects.
@@ -23,22 +24,16 @@ class PageCollection:
         Args:
             api: The NotionAPI client instance.
         """
-        self._api = api
+        super().__init__(api)
 
-    async def get(self, page_id: str) -> Page:
-        """Retrieve a page by ID.
+    @property
+    def _entity_class(self) -> type[Page]:
+        """The Page entity class."""
+        return Page
 
-        Args:
-            page_id: The page ID.
-
-        Returns:
-            Page entity with rich methods (save, delete, reload, etc.).
-
-        Raises:
-            NotFoundError: If the page does not exist.
-        """
-        data = await self._api._request("GET", f"/pages/{page_id}")
-        return Page(self._api, data)
+    def _get_path(self, id: str) -> str:
+        """Get API path for a page."""
+        return f"/pages/{id}"
 
     async def create(self, **kwargs: Any) -> Page:
         """Create a new page.

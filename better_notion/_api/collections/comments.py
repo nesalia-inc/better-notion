@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
+    from better_notion._api.entities import Comment
+
+from better_notion._api.collections.base import EntityCollection
 
 
 
-class CommentCollection:
+class CommentCollection(EntityCollection["Comment"]):
     """Collection for managing comments.
 
     Provides factory methods for creating and retrieving comments.
@@ -21,21 +24,17 @@ class CommentCollection:
         Args:
             api: The NotionAPI client instance.
         """
-        self._api = api
+        super().__init__(api)
 
-    async def retrieve(self, comment_id: str) -> dict[str, Any]:
-        """Retrieve a comment by ID.
+    @property
+    def _entity_class(self) -> type[Comment]:
+        """The Comment entity class."""
+        from better_notion._api.entities import Comment
+        return Comment
 
-        Args:
-            comment_id: The comment ID.
-
-        Returns:
-            Raw comment data dict from Notion API.
-
-        Raises:
-            NotFoundError: If the comment does not exist.
-        """
-        return await self._api._request("GET", f"/comments/{comment_id}")
+    def _get_path(self, id: str) -> str:
+        """Get API path for a comment."""
+        return f"/comments/{id}"
 
     async def create(
         self,
@@ -45,7 +44,7 @@ class CommentCollection:
         rich_text: list[dict[str, Any]],
         attachments: list[dict[str, Any]] | None = None,
         display_name: dict[str, str] | None = None
-    ) -> dict[str, Any]:
+    ) -> Comment:
         """Create a new comment.
 
         Args:
@@ -56,12 +55,13 @@ class CommentCollection:
             display_name: Optional display name configuration
 
         Returns:
-            Raw comment data dict from Notion API.
+            Created Comment entity.
 
         Raises:
             ValidationError: If the request is invalid.
             BadRequestError: If the request is invalid.
         """
+        from better_notion._api.entities import Comment
         payload: dict[str, Any] = {"rich_text": rich_text}
 
         if parent:
@@ -76,7 +76,8 @@ class CommentCollection:
         if display_name:
             payload["display_name"] = display_name
 
-        return await self._api._request("POST", "/comments", json=payload)
+        data = await self._api._request("POST", "/comments", json=payload)
+        return Comment(self._api, data)
 
     async def list(
         self,
@@ -93,11 +94,12 @@ class CommentCollection:
             start_cursor: Pagination cursor.
 
         Returns:
-            Dict with results, has_more, next_cursor.
+            Dict with results (list[Comment]), has_more, next_cursor.
 
         Raises:
             ValidationError: If the request is invalid.
         """
+        from better_notion._api.entities import Comment
         params: dict[str, Any] = {}
 
         if block_id:
@@ -109,4 +111,19 @@ class CommentCollection:
         if start_cursor:
             params["start_cursor"] = start_cursor
 
-        return await self._api._request("GET", "/comments", params=params)
+        data = await self._api._request("GET", "/comments", params=params)
+        # Convert results to Comment entities
+        results = data.get("results", [])
+        data["results"] = [Comment(self._api, comment_data) for comment_data in results]
+        return data
+
+    async def delete(self, comment_id: str) -> None:
+        """Delete a comment by ID.
+
+        Args:
+            comment_id: The comment ID.
+
+        Raises:
+            NotFoundError: If the comment does not exist.
+        """
+        await self._api._request("DELETE", f"/comments/{comment_id}")
