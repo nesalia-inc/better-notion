@@ -8,9 +8,11 @@ if TYPE_CHECKING:
     from better_notion._api import NotionAPI
     from better_notion._api.entities import Comment
 
+from better_notion._api.collections.base import EntityCollection
 
 
-class CommentCollection:
+
+class CommentCollection(EntityCollection["Comment"]):
     """Collection for managing comments.
 
     Provides factory methods for creating and retrieving comments.
@@ -22,23 +24,17 @@ class CommentCollection:
         Args:
             api: The NotionAPI client instance.
         """
-        self._api = api
+        super().__init__(api)
 
-    async def get(self, comment_id: str) -> Comment:
-        """Retrieve a comment by ID.
-
-        Args:
-            comment_id: The comment ID.
-
-        Returns:
-            Comment entity object.
-
-        Raises:
-            NotFoundError: If the comment does not exist.
-        """
+    @property
+    def _entity_class(self) -> type[Comment]:
+        """The Comment entity class."""
         from better_notion._api.entities import Comment
-        data = await self._api._request("GET", f"/comments/{comment_id}")
-        return Comment(self._api, data)
+        return Comment
+
+    def _get_path(self, id: str) -> str:
+        """Get API path for a comment."""
+        return f"/comments/{id}"
 
     async def create(
         self,

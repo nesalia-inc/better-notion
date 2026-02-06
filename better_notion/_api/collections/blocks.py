@@ -8,9 +8,11 @@ if TYPE_CHECKING:
     from better_notion._api import NotionAPI
     from better_notion._api.entities import Block
 
+from better_notion._api.collections.base import EntityCollection
 
 
-class BlockCollection:
+
+class BlockCollection(EntityCollection["Block"]):
     """Collection for managing blocks.
 
     Provides factory methods for creating and retrieving blocks.
@@ -23,24 +25,18 @@ class BlockCollection:
             api: The NotionAPI client instance.
             parent_id: Optional parent ID for children blocks.
         """
-        self._api = api
+        super().__init__(api)
         self._parent_id = parent_id
 
-    async def get(self, block_id: str) -> Block:
-        """Retrieve a block by ID.
-
-        Args:
-            block_id: The block ID.
-
-        Returns:
-            Block entity object.
-
-        Raises:
-            NotFoundError: If the block does not exist.
-        """
+    @property
+    def _entity_class(self) -> type[Block]:
+        """The Block entity class."""
         from better_notion._api.entities import Block
-        data = await self._api._request("GET", f"/blocks/{block_id}")
-        return Block(self._api, data)
+        return Block
+
+    def _get_path(self, id: str) -> str:
+        """Get API path for a block."""
+        return f"/blocks/{id}"
 
     async def update(self, block_id: str, **kwargs: Any) -> Block:
         """Update a block by ID.

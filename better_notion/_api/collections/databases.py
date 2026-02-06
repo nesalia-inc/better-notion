@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from better_notion._api import NotionAPI
 
+from better_notion._api.collections.base import EntityCollection
 from better_notion._api.entities import Database
 
 
-class DatabaseCollection:
+class DatabaseCollection(EntityCollection[Database]):
     """Collection for managing databases.
 
     Provides factory methods for creating and retrieving databases as Entity objects.
@@ -22,22 +23,16 @@ class DatabaseCollection:
         Args:
             api: The NotionAPI client instance.
         """
-        self._api = api
+        super().__init__(api)
 
-    async def get(self, database_id: str) -> Database:
-        """Retrieve a database by ID.
+    @property
+    def _entity_class(self) -> type[Database]:
+        """The Database entity class."""
+        return Database
 
-        Args:
-            database_id: The database ID.
-
-        Returns:
-            Database entity with rich methods (query, reload, save, delete).
-
-        Raises:
-            NotFoundError: If the database does not exist.
-        """
-        data = await self._api._request("GET", f"/databases/{database_id}")
-        return Database(self._api, data)
+    def _get_path(self, id: str) -> str:
+        """Get API path for a database."""
+        return f"/databases/{id}"
 
     async def query(self, database_id: str, **kwargs: Any) -> list[Any]:
         """Query a database.
