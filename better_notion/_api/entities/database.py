@@ -16,6 +16,13 @@ class Database:
     This entity knows its API and can manipulate itself.
     """
 
+    # Define valid top-level properties
+    VALID_PROPERTIES = {
+        "properties",  # Database schema/properties configuration
+        "title",       # Database title
+        # "parent" is not allowed (immutable)
+    }
+
     def __init__(self, api: NotionAPI, data: dict[str, Any]) -> None:
         """Initialize a Database entity.
 
